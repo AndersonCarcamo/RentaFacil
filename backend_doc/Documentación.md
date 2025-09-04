@@ -15,6 +15,94 @@ Este sistema de base de datos ha sido diseñado específicamente para **Inmobili
 - **Sistema de auditoría empresarial** con trazabilidad completa
 - **Cumplimiento legal** Ley 29733 con gestión granular de consentimientos
 - **Analytics en tiempo real** con vistas materializadas optimizadas
+- **Autenticación Firebase** integrada con gestión híbrida de usuarios
+
+## Sistema de Autenticación
+
+### Arquitectura de Autenticación
+El sistema utiliza **Firebase Authentication** como proveedor principal de autenticación, con soporte para desarrollo local sin Firebase configurado.
+
+#### Flujo de Autenticación
+1. **Frontend** → Firebase Authentication (Google, Email/Password, redes sociales)
+2. **Firebase** → Genera ID Token JWT
+3. **Frontend** → Envía token a Backend API
+4. **Backend** → Verifica token con Firebase Admin SDK
+5. **Backend** → Busca/crea usuario en PostgreSQL por `firebase_uid`
+6. **Backend** → Genera JWT tokens internos para sesiones
+
+#### Tabla de Usuarios
+```sql
+CREATE TABLE core.users (
+    id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    firebase_uid            TEXT UNIQUE,  -- ✅ Identificador Firebase
+    email                   CITEXT UNIQUE NOT NULL,
+    phone                   TEXT,
+    first_name              TEXT,
+    last_name               TEXT,
+    profile_picture_url     TEXT,
+    national_id             TEXT,
+    national_id_type        TEXT DEFAULT 'DNI',
+    is_verified             BOOLEAN NOT NULL DEFAULT FALSE,
+    role                    core.user_role NOT NULL DEFAULT 'user',
+    is_active               BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+    last_login_at           TIMESTAMPTZ,
+    login_count             INTEGER NOT NULL DEFAULT 0
+);
+```
+
+#### Características de Seguridad
+- **Sin almacenamiento de contraseñas**: Delegado completamente a Firebase
+- **Tokens JWT duales**: Firebase para autenticación, JWT interno para autorización
+- **Verificación automática**: Firebase maneja verificación de email/teléfono
+- **Soporte multi-proveedor**: Google, Facebook, Apple, Email/Password
+- **Modo desarrollo**: Funciona sin Firebase configurado (mock tokens)
+
+### Configuración Firebase
+
+#### Variables de Entorno Requeridas
+```env
+# Firebase Authentication
+FIREBASE_SERVICE_ACCOUNT_PATH=/path/to/serviceAccount.json
+# O alternativamente:
+FIREBASE_SERVICE_ACCOUNT_JSON={"type":"service_account",...}
+FIREBASE_PROJECT_ID=your-firebase-project-id
+```
+
+#### Dependencias Python
+```requirements
+firebase-admin==6.2.0
+google-auth==2.23.4
+```
+
+### Endpoints de Autenticación
+
+#### POST /auth/register
+Registra un nuevo usuario (opcionalmente con Firebase UID)
+```json
+{
+  "email": "usuario@ejemplo.com",
+  "first_name": "Juan",
+  "last_name": "Pérez", 
+  "phone": "+51987654321",
+  "firebase_uid": "firebase_user_id_123", // Opcional
+  "role": "user"
+}
+```
+
+#### POST /auth/login
+Autenticación con Firebase token
+```json
+{
+  "firebase_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+### Proceso de Verificación
+- **Email/Teléfono**: Manejado por Firebase Authentication
+- **Documentos**: Proceso interno posterior al registro
+- **KYC**: Workflow de verificación empresarial (tablas moderation.*)
 
 ## Arquitectura del Sistema
 

@@ -1,0 +1,58 @@
+from pydantic_settings import BaseSettings
+from typing import Optional
+import os
+
+
+class Settings(BaseSettings):
+    # Database
+    database_url: str = "postgresql://postgres:password@localhost:5432/easy_rent"
+    database_url_test: str = "postgresql://postgres:password@localhost:5432/easy_rent_test"
+    
+    # JWT
+    secret_key: str = "dev-secret-key-change-in-production"
+    algorithm: str = "HS256"
+    access_token_expire_minutes: int = 30
+    refresh_token_expire_days: int = 7
+    
+    # Firebase Authentication
+    firebase_service_account_path: Optional[str] = None
+    firebase_service_account_json: Optional[str] = None
+    firebase_project_id: Optional[str] = None
+    
+    # Application
+    app_name: str = "EasyRent API"
+    app_version: str = "1.0.0"
+    debug: bool = True
+    environment: str = "development"
+    
+    # Email
+    smtp_server: str = "smtp.gmail.com"
+    smtp_port: int = 587
+    smtp_username: Optional[str] = None
+    smtp_password: Optional[str] = None
+    email_from: str = "noreply@easyrent.pe"
+    email_from_name: str = "EasyRent"
+    
+    # Frontend
+    frontend_url: str = "http://localhost:3000"
+    
+    # Security
+    bcrypt_rounds: int = 12
+    email_verification_expire_hours: int = 24
+    password_reset_expire_hours: int = 1
+    
+    # Rate Limiting
+    rate_limit_per_minute: int = 60
+    
+    # File Upload
+    max_file_size: int = 10485760  # 10MB
+    allowed_image_types: str = "image/jpeg,image/png,image/webp"
+    upload_directory: str = "uploads"
+    
+    class Config:
+        env_file = ".env"
+        case_sensitive = False
+
+
+# Global settings instance
+settings = Settings()

@@ -288,6 +288,7 @@ Convenciones rápidas
 | parking_spaces | SMALLINT | SÍ | - | Espacios de estacionamiento |
 | area_m2 | NUMERIC(10,2) | SÍ | - | Área en metros cuadrados |
 | year_built | SMALLINT | SÍ | - | Año de construcción |
+| age_years | INTEGER | SÍ | - | Antigüedad de la vivienda en años |
 | address | TEXT | SÍ | - | Dirección |
 | district | TEXT | SÍ | - | Distrito |
 | province | TEXT | SÍ | - | Provincia |

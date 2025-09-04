@@ -3,7 +3,7 @@ info:
   title: EasyRent API - Sistema Completo de Marketplace Inmobiliario
   description: |
     API completa para el marketplace inmobiliario EasyRent con todas las funcionalidades:
-    - 🔐 **Autenticación**: JWT + API Keys
+    - 🔐 **Autenticación**: JWT + API Keys (Compatible con base de datos PostgreSQL)
     - 👥 **Gestión de usuarios y agencias**
     - 🏠 **Listings y multimedia**
     - 🔍 **Búsqueda avanzada y filtros**
@@ -18,6 +18,20 @@ info:
     - **Cache**: Redis
     - **Message Broker**: Apache Kafka
     - **Autenticación**: JWT (Bearer Token)
+    
+    ## Notas de Implementación
+    - **Autenticación Firebase**: Sistema de autenticación completo con Firebase Authentication
+    - **Flujo de autenticación**: Frontend → Firebase → Backend verification → JWT tokens
+    - **Sin manejo de passwords**: Toda la gestión de credenciales delegada a Firebase
+    - **Soporte híbrido**: Funciona con o sin Firebase configurado (modo desarrollo)
+    - **Schemas actualizados**: Los modelos de datos coinciden con la implementación real en FastAPI
+    
+    ## Autenticación Firebase
+    Para autenticarse, el cliente debe:
+    1. Autenticarse con Firebase (frontend)
+    2. Obtener el Firebase ID token
+    3. Enviar el token al endpoint `/auth/login`
+    4. Usar el JWT token devuelto para posteriores requests
     
   version: 1.0.0
   contact:
@@ -90,42 +104,59 @@ paths:
           application/json:
             schema:
               type: object
-              required: [email, password, first_name, last_name, phone, role]
+              required: [email, first_name, last_name]
               properties:
                 email:
                   type: string
                   format: email
-                password:
-                  type: string
-                  minLength: 8
                 first_name:
                   type: string
+                  minLength: 1
+                  maxLength: 100
                 last_name:
                   type: string
+                  minLength: 1
+                  maxLength: 100
                 phone:
                   type: string
                   pattern: '^\+[1-9]\d{1,14}$'
+                firebase_uid:
+                  type: string
+                  description: Firebase authentication UID (opcional)
                 role:
                   type: string
-                  enum: [user, tenant, landlord, agent]
-                agency_id:
+                  enum: [user, tenant, landlord, agent, admin]
+                  default: user
+                national_id:
                   type: string
-                  format: uuid
-                marketing_consent:
-                  type: boolean
-                  default: false
+                  description: Número de documento de identidad
+                national_id_type:
+                  type: string
+                  default: DNI
+            example:
+              email: "usuario@ejemplo.com"
+              first_name: "Juan"
+              last_name: "Pérez"
+              phone: "+51987654321"
+              role: "user"
       responses:
         '201':
           description: Usuario creado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
         '400':
           description: Datos inválidos
         '409':
           description: Email ya existe
+        '500':
+          description: Error interno del servidor
 
   /auth/login:
     post:
       tags: [Authentication]
-      summary: Inicio de sesión
+      summary: Inicio de sesión con Firebase
       security: []
       requestBody:
         required: true
@@ -133,16 +164,14 @@ paths:
           application/json:
             schema:
               type: object
-              required: [email, password]
+              required: [firebase_token]
               properties:
-                email:
+                firebase_token:
                   type: string
-                  format: email
-                password:
-                  type: string
-                remember_me:
-                  type: boolean
-                  default: false
+                  description: Token de autenticación Firebase ID
+                  example: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
+            example:
+              firebase_token: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
       responses:
         '200':
           description: Login exitoso
@@ -153,12 +182,22 @@ paths:
                 properties:
                   access_token:
                     type: string
+                    description: JWT token para autorización API
                   refresh_token:
                     type: string
+                    description: Token para renovar access_token
+                  token_type:
+                    type: string
+                    default: bearer
                   expires_in:
                     type: integer
+                    description: Tiempo de expiración en segundos
                   user:
-                    $ref: '#/components/schemas/User'
+                    $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Firebase token requerido
+        '401':
+          description: Token Firebase inválido o usuario no encontrado
 
   /auth/logout:
     post:
@@ -186,74 +225,20 @@ paths:
         '200':
           description: Token renovado
 
-  /auth/forgot-password:
-    post:
+  /auth/me:
+    get:
       tags: [Authentication]
-      summary: Solicitar reset de contraseña
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [email]
-              properties:
-                email:
-                  type: string
-                  format: email
+      summary: Obtener información del usuario autenticado
+      description: Obtiene la información del usuario que está autenticado con el token JWT
       responses:
         '200':
-          description: Email de reset enviado
-
-  /auth/reset-password:
-    post:
-      tags: [Authentication]
-      summary: Resetear contraseña
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [token, password]
-              properties:
-                token:
-                  type: string
-                password:
-                  type: string
-                  minLength: 8
-      responses:
-        '200':
-          description: Contraseña actualizada
-
-  /auth/verify-email:
-    post:
-      tags: [Authentication]
-      summary: Verificar email
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [token]
-              properties:
-                token:
-                  type: string
-      responses:
-        '200':
-          description: Email verificado
-
-  /auth/resend-verification:
-    post:
-      tags: [Authentication]
-      summary: Reenviar email de verificación
-      responses:
-        '200':
-          description: Email reenviado
+          description: Información del usuario
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          description: Token inválido o expirado
 
   # ===========================================
   # USER MANAGEMENT
@@ -729,6 +714,18 @@ paths:
           in: query
           schema:
             type: number
+        - name: min_age_years
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            description: Antigüedad mínima de la vivienda en años
+        - name: max_age_years
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            description: Antigüedad máxima de la vivienda en años
         - name: features
           in: query
           schema:
@@ -749,7 +746,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [price_asc, price_desc, area_asc, area_desc, date_asc, date_desc, relevance]
+            enum: [price_asc, price_desc, area_asc, area_desc, date_asc, date_desc, age_asc, age_desc, relevance]
       responses:
         '200':
           description: Lista de propiedades
@@ -3154,12 +3151,11 @@ components:
         example: 20
 
   schemas:
-    User:
+    UserResponse:
       type: object
       properties:
         id:
           type: string
-          format: uuid
           description: ID único del usuario
           example: "123e4567-e89b-12d3-a456-426614174000"
         email:
@@ -3169,49 +3165,68 @@ components:
           example: "juan.perez@email.com"
         first_name:
           type: string
+          nullable: true
           description: Nombre del usuario
           example: "Juan"
         last_name:
           type: string
+          nullable: true
           description: Apellido del usuario
           example: "Pérez"
         phone:
           type: string
+          nullable: true
           description: Teléfono del usuario
           example: "+51987654321"
+        profile_picture_url:
+          type: string
+          format: uri
+          nullable: true
+          description: URL de la foto de perfil del usuario
+          example: "https://cdn.easyrent.pe/avatars/user123.jpg"
+        national_id:
+          type: string
+          nullable: true
+          description: Número de documento de identidad
+          example: "12345678"
+        national_id_type:
+          type: string
+          nullable: true
+          description: Tipo de documento de identidad
+          example: "DNI"
         role:
           type: string
           enum: [user, tenant, landlord, agent, admin]
           description: Rol del usuario
-          example: "landlord"
-        status:
-          type: string
-          enum: [active, inactive, suspended]
-          description: Estado del usuario
-          example: "active"
-        verified:
+          example: "user"
+        is_verified:
           type: boolean
           description: Si el usuario está verificado
+          example: false
+        is_active:
+          type: boolean
+          description: Si el usuario está activo
           example: true
-        avatar_url:
+        last_login_at:
           type: string
-          format: uri
+          format: date-time
           nullable: true
-          description: URL del avatar del usuario
-          example: "https://cdn.easyrent.pe/avatars/user123.jpg"
-        bio:
-          type: string
-          nullable: true
-          description: Biografía del usuario
-          example: "Agente inmobiliario con 10 años de experiencia"
+          description: Fecha del último login
+          example: "2025-09-04T01:00:00Z"
         created_at:
           type: string
           format: date-time
           description: Fecha de creación
-          example: "2025-08-28T10:00:00Z"
+          example: "2025-09-04T01:00:00Z"
         updated_at:
           type: string
           format: date-time
+          description: Fecha de última actualización
+          example: "2025-09-04T01:00:00Z"
+
+    # Mantenemos User como alias para compatibilidad
+    User:
+      $ref: '#/components/schemas/UserResponse'
           description: Fecha de última actualización
           example: "2025-08-28T10:00:00Z"
 
@@ -3573,6 +3588,12 @@ components:
           minimum: 0
           maximum: 10
           example: 1
+        age_years:
+          type: integer
+          minimum: 0
+          maximum: 200
+          description: "Antigüedad de la vivienda en años"
+          example: 5
         address:
           type: string
           minLength: 10
@@ -4120,7 +4141,7 @@ components:
           description: Criterio de ordenamiento
           schema:
             type: string
-            enum: [price_asc, price_desc, area_asc, area_desc, date_asc, date_desc, relevance]
+            enum: [price_asc, price_desc, area_asc, area_desc, date_asc, date_desc, age_asc, age_desc, relevance]
             default: relevance
       responses:
         '200':

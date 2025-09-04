@@ -1,0 +1,248 @@
+"""
+User management service for EasyRent API.
+"""
+
+from sqlalchemy.orm import Session
+from sqlalchemy import and_, or_, func
+from app.models.auth import User, UserRole
+from app.schemas.users import (
+    CreateUserRequest, UpdateUserRequest, UserListFilters, 
+    DeleteAccountRequest, UserPreferences, PrivacySettings
+)
+from app.core.config import settings
+from app.core.constants import STATUS_MESSAGES, ERROR_MESSAGES
+from app.core.exceptions import (
+    AuthenticationError, ValidationError, NotFoundError, ConflictError
+)
+from app.core.utils import paginate_query_params, sanitize_string, utc_now
+from typing import Optional, Tuple, Dict, Any
+import uuid
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+class UserService:
+    def __init__(self, db: Session):
+        self.db = db
+
+    def get_user_by_id(self, user_id: uuid.UUID) -> Optional[User]:
+        """Get user by ID."""
+        return self.db.query(User).filter(
+            User.id == user_id,
+            User.deleted_at.is_(None)
+        ).first()
+
+    def get_user_by_email(self, email: str) -> Optional[User]:
+        """Get user by email."""
+        return self.db.query(User).filter(
+            User.email == email.lower(),
+            User.deleted_at.is_(None)
+        ).first()
+
+    def list_users(self, filters: UserListFilters, current_user: User) -> Tuple[list, Dict[str, Any]]:
+        """List users with pagination and filters (admin only)."""
+        # Check admin permission
+        if current_user.role != UserRole.ADMIN:
+            raise ValidationError("Insufficient permissions")
+
+        # Build query
+        query = self.db.query(User).filter(User.deleted_at.is_(None))
+
+        # Apply filters
+        if filters.role:
+            query = query.filter(User.role == filters.role)
+        
+        if filters.search:
+            search_term = f"%{filters.search}%"
+            query = query.filter(
+                or_(
+                    User.first_name.ilike(search_term),
+                    User.last_name.ilike(search_term),
+                    User.email.ilike(search_term)
+                )
+            )
+
+        # Get total count
+        total = query.count()
+
+        # Apply pagination
+        pagination = paginate_query_params(filters.page, filters.limit)
+        users = query.offset(pagination["offset"]).limit(pagination["limit"]).all()
+
+        # Calculate pagination metadata
+        pages = (total + pagination["limit"] - 1) // pagination["limit"]
+        has_next = pagination["page"] < pages
+        has_prev = pagination["page"] > 1
+
+        meta = {
+            "total": total,
+            "page": pagination["page"],
+            "limit": pagination["limit"],
+            "pages": pages,
+            "has_next": has_next,
+            "has_prev": has_prev
+        }
+
+        return users, meta
+
+    def create_user_admin(self, user_data: CreateUserRequest, current_user: User) -> User:
+        """Create user (admin only)."""
+        # Check admin permission
+        if current_user.role != UserRole.ADMIN:
+            raise ValidationError("Insufficient permissions")
+
+        # Check if user already exists
+        if self.get_user_by_email(user_data.email):
+            raise ConflictError(ERROR_MESSAGES["EMAIL_EXISTS"])
+
+        # Create user
+        user = User(
+            email=user_data.email.lower(),
+            first_name=sanitize_string(user_data.first_name),
+            last_name=sanitize_string(user_data.last_name),
+            phone=user_data.phone,
+            role=user_data.role,
+            is_verified=True,  # Admin created users are auto-verified
+            is_active=True
+        )
+
+        self.db.add(user)
+        self.db.commit()
+        self.db.refresh(user)
+
+        logger.info(f"User created by admin {current_user.id}: {user.id}")
+        return user
+
+    def update_user_profile(self, user: User, update_data: UpdateUserRequest) -> User:
+        """Update user profile."""
+        # Update fields if provided
+        if update_data.first_name is not None:
+            user.first_name = sanitize_string(update_data.first_name)
+        
+        if update_data.last_name is not None:
+            user.last_name = sanitize_string(update_data.last_name)
+        
+        if update_data.phone is not None:
+            user.phone = update_data.phone
+        
+        if update_data.bio is not None:
+            user.bio = sanitize_string(update_data.bio)
+        
+        if update_data.location is not None:
+            user.location = sanitize_string(update_data.location)
+        
+        if update_data.website is not None:
+            user.website = update_data.website
+
+        user.updated_at = utc_now()
+        self.db.commit()
+        self.db.refresh(user)
+
+        logger.info(f"User profile updated: {user.id}")
+        return user
+
+    def update_user_admin(self, user_id: uuid.UUID, update_data: UpdateUserRequest, 
+                         current_user: User) -> User:
+        """Update user (admin only)."""
+        # Check admin permission
+        if current_user.role != UserRole.ADMIN:
+            raise ValidationError("Insufficient permissions")
+
+        user = self.get_user_by_id(user_id)
+        if not user:
+            raise NotFoundError(ERROR_MESSAGES["USER_NOT_FOUND"])
+
+        return self.update_user_profile(user, update_data)
+
+    def delete_account(self, user: User, delete_data: DeleteAccountRequest) -> bool:
+        """Delete user account (soft delete)."""
+        # Soft delete (simplified, no password verification needed)
+        user.deleted_at = utc_now()
+        user.is_active = False
+        user.updated_at = utc_now()
+        
+        # Store deletion reason in a log (could be separate table)
+        # For now, we'll just log it
+        logger.info(f"Account deleted: {user.id}, reason: {delete_data.reason}")
+        
+        self.db.commit()
+        return True
+
+    def delete_user_admin(self, user_id: uuid.UUID, current_user: User) -> bool:
+        """Delete user (admin only)."""
+        # Check admin permission
+        if current_user.role != UserRole.ADMIN:
+            raise ValidationError("Insufficient permissions")
+
+        user = self.get_user_by_id(user_id)
+        if not user:
+            raise NotFoundError(ERROR_MESSAGES["USER_NOT_FOUND"])
+
+        # Prevent admin from deleting themselves
+        if user.id == current_user.id:
+            raise ValidationError("Cannot delete your own account")
+
+        # Soft delete
+        user.deleted_at = utc_now()
+        user.is_active = False
+        user.updated_at = utc_now()
+        
+        self.db.commit()
+        
+        logger.info(f"User deleted by admin {current_user.id}: {user_id}")
+        return True
+
+    def upload_avatar(self, user: User, avatar_url: str) -> User:
+        """Upload user avatar."""
+        user.avatar_url = avatar_url
+        user.updated_at = utc_now()
+        self.db.commit()
+        self.db.refresh(user)
+
+        logger.info(f"Avatar uploaded for user: {user.id}")
+        return user
+
+    def delete_avatar(self, user: User) -> User:
+        """Delete user avatar."""
+        user.avatar_url = None
+        user.updated_at = utc_now()
+        self.db.commit()
+        self.db.refresh(user)
+
+        logger.info(f"Avatar deleted for user: {user.id}")
+        return user
+
+    def get_user_preferences(self, user: User) -> UserPreferences:
+        """Get user preferences."""
+        # For now, return default preferences
+        # In a real app, this would come from a separate preferences table
+        return UserPreferences()
+
+    def update_user_preferences(self, user: User, preferences: UserPreferences) -> UserPreferences:
+        """Update user preferences."""
+        # In a real app, this would update a separate preferences table
+        # For now, we'll just log and return the preferences
+        logger.info(f"Preferences updated for user: {user.id}")
+        return preferences
+
+    def get_privacy_settings(self, user: User) -> PrivacySettings:
+        """Get user privacy settings."""
+        # For now, return default privacy settings
+        # In a real app, this would come from a separate privacy_settings table
+        return PrivacySettings()
+
+    def update_privacy_settings(self, user: User, settings: PrivacySettings) -> PrivacySettings:
+        """Update user privacy settings."""
+        # In a real app, this would update a separate privacy_settings table
+        # For now, we'll just log and return the settings
+        logger.info(f"Privacy settings updated for user: {user.id}")
+        return settings
+
+    def get_public_user_info(self, user_id: uuid.UUID) -> Optional[User]:
+        """Get public user information (for displaying to other users)."""
+        return self.db.query(User).filter(
+            User.id == user_id,
+            User.deleted_at.is_(None),
+            User.is_active == True
+        ).first()
