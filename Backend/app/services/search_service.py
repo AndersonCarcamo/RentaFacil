@@ -22,7 +22,7 @@ class SearchService:
         
         # Query base
         query = self.db.query(Listing).filter(
-            Listing.status == 'active',
+            Listing.status == 'published',
             Listing.published_at.isnot(None)
         )
         
@@ -83,7 +83,7 @@ class SearchService:
     def get_available_filters(self, location: Optional[str] = None) -> AvailableFiltersResponse:
         """Obtener filtros disponibles"""
         base_query = self.db.query(Listing).filter(
-            Listing.status == 'active',
+            Listing.status == 'published',
             Listing.published_at.isnot(None)
         )
         
@@ -189,8 +189,8 @@ class SearchService:
         if filters.q:
             search_query = text(
                 "search_doc @@ plainto_tsquery('spanish_unaccent', :search_text)"
-            ).bindparam(search_text=filters.q)
-            query = query.filter(search_query)
+            )
+            query = query.filter(search_query).params(search_text=filters.q)
         
         # Filtros de ubicación
         if filters.department:
@@ -219,8 +219,8 @@ class SearchService:
                     :radius * 1000
                 )
                 """
-            ).bindparam(lat=filters.lat, lng=filters.lng, radius=filters.radius)
-            query = query.filter(distance_query)
+            )
+            query = query.filter(distance_query).params(lat=filters.lat, lng=filters.lng, radius=filters.radius)
         
         # Filtros de propiedad
         if filters.operation:
@@ -259,8 +259,8 @@ class SearchService:
         if filters.q:
             rank_query = text(
                 "ts_rank(search_doc, plainto_tsquery('spanish_unaccent', :search_text))"
-            ).bindparam(search_text=filters.q)
-            query = query.order_by(desc(rank_query), desc(Listing.published_at))
+            )
+            query = query.order_by(desc(rank_query), desc(Listing.published_at)).params(search_text=filters.q)
         else:
             query = query.order_by(desc(Listing.published_at))
         
@@ -270,7 +270,7 @@ class SearchService:
         """Generar facetas para filtros dinámicos"""
         # Query base sin filtros de ubicación específicos para generar facetas
         base_query = self.db.query(Listing).filter(
-            Listing.status == 'active',
+            Listing.status == 'published',
             Listing.published_at.isnot(None)
         )
         
@@ -278,8 +278,8 @@ class SearchService:
         if filters.q:
             search_query = text(
                 "search_doc @@ plainto_tsquery('spanish_unaccent', :search_text)"
-            ).bindparam(search_text=filters.q)
-            base_query = base_query.filter(search_query)
+            )
+            base_query = base_query.filter(search_query).params(search_text=filters.q)
         
         cities = self._get_facet_items(base_query, Listing.province)
         districts = self._get_facet_items(base_query, Listing.district)
@@ -316,7 +316,7 @@ class SearchService:
             results = self.db.query(field, func.count().label('count')).filter(
                 field.ilike(f'%{q}%'),
                 field.isnot(None),
-                Listing.status == 'active'
+                Listing.status == 'published'
             ).group_by(field).order_by(desc('count')).limit(5).all()
             
             for result in results:
@@ -334,7 +334,7 @@ class SearchService:
         results = self.db.query(Listing.property_type, func.count().label('count')).filter(
             Listing.property_type.ilike(f'%{q}%'),
             Listing.property_type.isnot(None),
-            Listing.status == 'active'
+            Listing.status == 'published'
         ).group_by(Listing.property_type).order_by(desc('count')).limit(5).all()
         
         return [
