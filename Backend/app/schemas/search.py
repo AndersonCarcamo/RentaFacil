@@ -24,25 +24,65 @@ class SearchFilters(BaseModel):
     radius: Optional[float] = Field(None, description="Radio en kilómetros")
     
     # Filtros de propiedad
-    operation: Optional[str] = Field(None, description="Tipo de operación (rent, sale)")
-    property_type: Optional[str] = Field(None, description="Tipo de propiedad")
+    operation: Optional[str] = Field(None, description="Tipo de operación (rent, sale, temp_rent, auction, exchange)")
+    property_type: Optional[str] = Field(None, description="Tipo de propiedad (apartment, house, office, commercial, land, warehouse, garage, other)")
+    advertiser_type: Optional[str] = Field(None, description="Tipo de anunciante (owner, agency, developer, broker)")
     min_price: Optional[float] = Field(None, ge=0, description="Precio mínimo")
     max_price: Optional[float] = Field(None, ge=0, description="Precio máximo")
+    currency: Optional[str] = Field(None, description="Moneda (PEN, USD, EUR)")
     
     # Características
     min_bedrooms: Optional[int] = Field(None, ge=0, description="Mínimo de dormitorios")
     max_bedrooms: Optional[int] = Field(None, ge=0, description="Máximo de dormitorios")
     min_bathrooms: Optional[int] = Field(None, ge=0, description="Mínimo de baños")
     max_bathrooms: Optional[int] = Field(None, ge=0, description="Máximo de baños")
-    min_area: Optional[float] = Field(None, ge=0, description="Área mínima")
-    max_area: Optional[float] = Field(None, ge=0, description="Área máxima")
+    min_area_built: Optional[float] = Field(None, ge=0, description="Área construida mínima")
+    max_area_built: Optional[float] = Field(None, ge=0, description="Área construida máxima")
+    min_area_total: Optional[float] = Field(None, ge=0, description="Área total mínima")
+    max_area_total: Optional[float] = Field(None, ge=0, description="Área total máxima")
+    min_parking_spots: Optional[int] = Field(None, ge=0, description="Mínimo de estacionamientos")
+    
+    # Filtros adicionales
+    rental_term: Optional[str] = Field(None, description="Término de alquiler (daily, weekly, monthly, yearly)")
+    min_age_years: Optional[int] = Field(None, ge=0, description="Antigüedad mínima en años")
+    max_age_years: Optional[int] = Field(None, ge=0, description="Antigüedad máxima en años")
+    has_media: Optional[bool] = Field(None, description="Solo propiedades con fotos/videos")
     
     # Amenidades
     amenities: Optional[List[int]] = Field(None, description="IDs de amenidades")
     
-    # Paginación
+    # Paginación y ordenamiento
     page: int = Field(default=1, ge=1)
     limit: int = Field(default=20, ge=1, le=100)
+    sort_by: Optional[str] = Field(default="published_at", description="Campo para ordenar (published_at, price, area_total)")
+    sort_order: Optional[str] = Field(default="desc", description="Orden (asc, desc)")
+    
+    @field_validator('operation')
+    @classmethod
+    def validate_operation(cls, v):
+        if v is not None:
+            valid_operations = ['sale', 'rent', 'temp_rent', 'auction', 'exchange']
+            if v not in valid_operations:
+                raise ValueError(f'operation must be one of: {valid_operations}')
+        return v
+    
+    @field_validator('property_type')
+    @classmethod
+    def validate_property_type(cls, v):
+        if v is not None:
+            valid_types = ['apartment', 'house', 'office', 'commercial', 'land', 'warehouse', 'garage', 'other']
+            if v not in valid_types:
+                raise ValueError(f'property_type must be one of: {valid_types}')
+        return v
+    
+    @field_validator('advertiser_type')
+    @classmethod
+    def validate_advertiser_type(cls, v):
+        if v is not None:
+            valid_types = ['owner', 'agency', 'developer', 'broker']
+            if v not in valid_types:
+                raise ValueError(f'advertiser_type must be one of: {valid_types}')
+        return v
 
 class FacetItem(BaseModel):
     """Item de faceta para filtros"""

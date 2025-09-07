@@ -22,19 +22,30 @@ async def search_listings(
     lat: Optional[float] = Query(None, description="Latitud"),
     lng: Optional[float] = Query(None, description="Longitud"),
     radius: Optional[float] = Query(None, description="Radio en km"),
-    operation: Optional[str] = Query(None, description="Operación (rent, sale)"),
-    property_type: Optional[str] = Query(None, description="Tipo de propiedad"),
+    operation: Optional[str] = Query(None, description="Operación (sale, rent, temp_rent, auction, exchange)"),
+    property_type: Optional[str] = Query(None, description="Tipo de propiedad (apartment, house, office, commercial, land, warehouse, garage, other)"),
+    advertiser_type: Optional[str] = Query(None, description="Tipo de anunciante (owner, agency, developer, broker)"),
     min_price: Optional[float] = Query(None, ge=0, description="Precio mínimo"),
     max_price: Optional[float] = Query(None, ge=0, description="Precio máximo"),
+    currency: Optional[str] = Query(None, description="Moneda (PEN, USD, EUR)"),
     min_bedrooms: Optional[int] = Query(None, ge=0, description="Dormitorios mínimos"),
     max_bedrooms: Optional[int] = Query(None, ge=0, description="Dormitorios máximos"),
     min_bathrooms: Optional[int] = Query(None, ge=0, description="Baños mínimos"),
     max_bathrooms: Optional[int] = Query(None, ge=0, description="Baños máximos"),
-    min_area: Optional[float] = Query(None, ge=0, description="Área mínima"),
-    max_area: Optional[float] = Query(None, ge=0, description="Área máxima"),
+    min_area_built: Optional[float] = Query(None, ge=0, description="Área construida mínima"),
+    max_area_built: Optional[float] = Query(None, ge=0, description="Área construida máxima"),
+    min_area_total: Optional[float] = Query(None, ge=0, description="Área total mínima"),
+    max_area_total: Optional[float] = Query(None, ge=0, description="Área total máxima"),
+    min_parking_spots: Optional[int] = Query(None, ge=0, description="Estacionamientos mínimos"),
+    rental_term: Optional[str] = Query(None, description="Término de alquiler (daily, weekly, monthly, yearly)"),
+    min_age_years: Optional[int] = Query(None, ge=0, description="Antigüedad mínima en años"),
+    max_age_years: Optional[int] = Query(None, ge=0, description="Antigüedad máxima en años"),
+    has_media: Optional[bool] = Query(None, description="Solo con fotos/videos"),
     amenities: Optional[List[int]] = Query(None, description="IDs de amenidades"),
     page: int = Query(1, ge=1, description="Página"),
     limit: int = Query(20, ge=1, le=100, description="Elementos por página"),
+    sort_by: Optional[str] = Query("published_at", description="Campo para ordenar"),
+    sort_order: Optional[str] = Query("desc", description="Orden (asc, desc)"),
     db: Session = Depends(get_db)
 ):
     """
@@ -45,6 +56,8 @@ async def search_listings(
     - Filtros por ubicación
     - Búsqueda por proximidad (lat/lng/radius)
     - Filtros por características de la propiedad
+    - Filtros por amenidades
+    - Ordenamiento personalizado
     - Paginación
     """
     try:
@@ -52,9 +65,11 @@ async def search_listings(
         filters = SearchFilters(
             q=q, location=location, department=department, province=province, district=district,
             lat=lat, lng=lng, radius=radius, operation=operation, property_type=property_type,
-            min_price=min_price, max_price=max_price, min_bedrooms=min_bedrooms, max_bedrooms=max_bedrooms,
-            min_bathrooms=min_bathrooms, max_bathrooms=max_bathrooms, min_area=min_area, max_area=max_area,
-            amenities=amenities, page=page, limit=limit
+            advertiser_type=advertiser_type, min_price=min_price, max_price=max_price, currency=currency,
+            min_bedrooms=min_bedrooms, max_bedrooms=max_bedrooms, min_bathrooms=min_bathrooms, max_bathrooms=max_bathrooms,
+            min_area_built=min_area_built, max_area_built=max_area_built, min_area_total=min_area_total, max_area_total=max_area_total,
+            min_parking_spots=min_parking_spots, rental_term=rental_term, min_age_years=min_age_years, max_age_years=max_age_years,
+            has_media=has_media, amenities=amenities, page=page, limit=limit, sort_by=sort_by, sort_order=sort_order
         )
         
         service = SearchService(db)

@@ -227,6 +227,10 @@ class SearchService:
             query = query.filter(Listing.operation == filters.operation)
         if filters.property_type:
             query = query.filter(Listing.property_type == filters.property_type)
+        if filters.advertiser_type:
+            query = query.filter(Listing.advertiser_type == filters.advertiser_type)
+        if filters.currency:
+            query = query.filter(Listing.currency == filters.currency)
         
         # Filtros de precio
         if filters.min_price is not None:
@@ -243,10 +247,28 @@ class SearchService:
             query = query.filter(Listing.bathrooms >= filters.min_bathrooms)
         if filters.max_bathrooms is not None:
             query = query.filter(Listing.bathrooms <= filters.max_bathrooms)
-        if filters.min_area is not None:
-            query = query.filter(Listing.area_total >= filters.min_area)
-        if filters.max_area is not None:
-            query = query.filter(Listing.area_total <= filters.max_area)
+        
+        # Filtros de área
+        if filters.min_area_built is not None:
+            query = query.filter(Listing.area_built >= filters.min_area_built)
+        if filters.max_area_built is not None:
+            query = query.filter(Listing.area_built <= filters.max_area_built)
+        if filters.min_area_total is not None:
+            query = query.filter(Listing.area_total >= filters.min_area_total)
+        if filters.max_area_total is not None:
+            query = query.filter(Listing.area_total <= filters.max_area_total)
+        
+        # Filtros adicionales
+        if filters.min_parking_spots is not None:
+            query = query.filter(Listing.parking_spots >= filters.min_parking_spots)
+        if filters.rental_term:
+            query = query.filter(Listing.rental_term == filters.rental_term)
+        if filters.min_age_years is not None:
+            query = query.filter(Listing.age_years >= filters.min_age_years)
+        if filters.max_age_years is not None:
+            query = query.filter(Listing.age_years <= filters.max_age_years)
+        if filters.has_media is not None:
+            query = query.filter(Listing.has_media == filters.has_media)
         
         # Filtro de amenidades
         if filters.amenities:
@@ -255,14 +277,19 @@ class SearchService:
             ).subquery()
             query = query.filter(Listing.id.in_(amenity_query))
         
-        # Ordenar por relevancia (si hay búsqueda por texto) o por fecha
-        if filters.q:
-            rank_query = text(
-                "ts_rank(search_doc, plainto_tsquery('spanish_unaccent', :search_text))"
-            )
-            query = query.order_by(desc(rank_query), desc(Listing.published_at)).params(search_text=filters.q)
+        # Ordenamiento
+        sort_field = getattr(Listing, filters.sort_by, Listing.published_at)
+        if filters.sort_order == 'asc':
+            query = query.order_by(asc(sort_field))
         else:
-            query = query.order_by(desc(Listing.published_at))
+            # Para búsqueda por texto, añadir ranking de relevancia
+            if filters.q:
+                rank_query = text(
+                    "ts_rank(search_doc, plainto_tsquery('spanish_unaccent', :search_text))"
+                )
+                query = query.order_by(desc(rank_query), desc(sort_field)).params(search_text=filters.q)
+            else:
+                query = query.order_by(desc(sort_field))
         
         return query
 
@@ -353,21 +380,49 @@ class SearchService:
             'description': listing.description,
             'operation': listing.operation,
             'property_type': listing.property_type,
+            'advertiser_type': listing.advertiser_type,
             'price': float(listing.price) if listing.price else None,
             'currency': listing.currency,
             'bedrooms': listing.bedrooms,
             'bathrooms': listing.bathrooms,
-            'area_total': float(listing.area_total) if listing.area_total else None,
+            'parking_spots': listing.parking_spots,
+            'floors': listing.floors,
+            'floor_number': listing.floor_number,
+            'age_years': listing.age_years,
             'area_built': float(listing.area_built) if listing.area_built else None,
+            'area_total': float(listing.area_total) if listing.area_total else None,
+            'rental_term': listing.rental_term,
+            # Ubicación
+            'country': listing.country,
             'department': listing.department,
             'province': listing.province,
             'district': listing.district,
             'address': listing.address,
             'latitude': float(listing.latitude) if listing.latitude else None,
             'longitude': float(listing.longitude) if listing.longitude else None,
-            'published_at': listing.published_at.isoformat() if listing.published_at else None,
-            'created_at': listing.created_at.isoformat() if listing.created_at else None,
+            # Información de contacto
+            'contact_name': listing.contact_name,
+            'contact_phone_e164': listing.contact_phone_e164,
+            'contact_whatsapp_phone_e164': listing.contact_whatsapp_phone_e164,
+            'contact_whatsapp_link': listing.contact_whatsapp_link,
+            # Estado y verificación
+            'status': listing.status,
+            'verification_status': listing.verification_status,
+            # SEO y multimedia
+            'slug': listing.slug,
+            'meta_title': listing.meta_title,
+            'meta_description': listing.meta_description,
+            'has_media': listing.has_media,
+            # Estadísticas
             'views_count': listing.views_count,
+            'leads_count': listing.leads_count,
             'favorites_count': listing.favorites_count,
-            'has_media': listing.has_media
+            # Fechas
+            'published_at': listing.published_at.isoformat() if listing.published_at else None,
+            'published_until': listing.published_until.isoformat() if listing.published_until else None,
+            'created_at': listing.created_at.isoformat() if listing.created_at else None,
+            'updated_at': listing.updated_at.isoformat() if listing.updated_at else None,
+            # Propietario
+            'owner_user_id': str(listing.owner_user_id),
+            'agency_id': str(listing.agency_id) if listing.agency_id else None
         }
