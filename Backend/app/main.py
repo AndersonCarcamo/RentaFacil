@@ -6,6 +6,7 @@ from app.api.endpoints.auth import router as auth_router
 from app.api.endpoints.users import router as users_router
 from app.api.endpoints.agencies import router as agencies_router
 from app.api.endpoints.listings import router as listings_router
+from app.api.endpoints.search import router as search_router
 from app.core.config import settings
 import time
 
@@ -141,6 +142,12 @@ app.include_router(
     listings_router,
     prefix="/v1/listings",
     tags=["Listings"]
+)
+
+app.include_router(
+    search_router,
+    prefix="/v1/search",
+    tags=["Search"]
 )
 
 

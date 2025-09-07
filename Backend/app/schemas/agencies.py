@@ -1,50 +1,60 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from typing import Optional, List
-from enum import Enum
 from datetime import datetime
-
-class AgencyStatus(str, Enum):
-    ACTIVE = "active"
-    INACTIVE = "inactive"
-    SUSPENDED = "suspended"
-    PENDING_VERIFICATION = "pending_verification"
-    VERIFIED = "verified"
+import uuid
 
 class AgencyBase(BaseModel):
-    name: str = Field(..., min_length=2, max_length=255)
-    phone: str = Field(..., min_length=6, max_length=20)
-    email: EmailStr
-    address: str = Field(..., min_length=2, max_length=255)
-    city: str = Field(..., min_length=2, max_length=100)
-    district: Optional[str] = None
+    name: str = Field(..., min_length=2, max_length=500)
+    email: Optional[EmailStr] = None
+    phone: Optional[str] = None
+    website: Optional[str] = None
+    address: Optional[str] = None
+    description: Optional[str] = None
+    logo_url: Optional[str] = None
 
 class CreateAgencyRequest(AgencyBase):
-    pass
+    name: str = Field(..., min_length=2, max_length=500)
 
 class UpdateAgencyRequest(BaseModel):
     name: Optional[str] = None
-    phone: Optional[str] = None
     email: Optional[EmailStr] = None
+    phone: Optional[str] = None
+    website: Optional[str] = None
     address: Optional[str] = None
-    city: Optional[str] = None
-    district: Optional[str] = None
-    status: Optional[AgencyStatus] = None
+    description: Optional[str] = None
+    logo_url: Optional[str] = None
 
 class AgencyResponse(AgencyBase):
     id: str
-    status: AgencyStatus
-    verified: bool
+    is_verified: bool
     created_at: datetime
     updated_at: datetime
+
+    @field_validator('id', mode='before')
+    @classmethod
+    def convert_uuid_to_str(cls, v):
+        if isinstance(v, uuid.UUID):
+            return str(v)
+        return v
 
     class Config:
         from_attributes = True
 
 class AgencyAgentResponse(BaseModel):
-    id: str
-    agency_id: str
     user_id: str
+    agency_id: str
+    role: str
     created_at: datetime
+
+    @field_validator('user_id', 'agency_id', mode='before')
+    @classmethod
+    def convert_uuid_to_str(cls, v):
+        if isinstance(v, uuid.UUID):
+            return str(v)
+        return v
+
+    class Config:
+        from_attributes = True
 
 class AddAgentRequest(BaseModel):
     user_id: str

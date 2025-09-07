@@ -51,9 +51,6 @@ class UpdateUserRequest(BaseModel):
     first_name: Optional[str] = Field(None, min_length=1, max_length=100)
     last_name: Optional[str] = Field(None, min_length=1, max_length=100)
     phone: Optional[str] = Field(None, max_length=20)
-    bio: Optional[str] = Field(None, max_length=500)
-    location: Optional[str] = Field(None, max_length=200)
-    website: Optional[str] = Field(None, max_length=255)
 
     @validator('first_name', 'last_name', pre=True)
     def validate_names(cls, v):
@@ -77,7 +74,6 @@ class CreateUserRequest(BaseModel):
     last_name: str = Field(..., min_length=1, max_length=100)
     phone: Optional[str] = Field(None, max_length=20)
     role: UserRole = UserRole.USER
-    bio: Optional[str] = Field(None, max_length=500)
     
     @validator('email', pre=True)
     def validate_email(cls, v):
@@ -122,7 +118,7 @@ class UserDetailResponse(BaseModel):
     first_name: str
     last_name: str
     phone: Optional[str]
-    profile_picture_url: Optional[str]
+    profile_picture_url: Optional[str] = Field(None, alias="avatar_url")
     role: UserRole
     is_verified: bool
     is_active: bool
@@ -141,6 +137,7 @@ class UserDetailResponse(BaseModel):
 
     class Config:
         from_attributes = True
+        allow_population_by_field_name = True
 
 
 class UserPublicResponse(BaseModel):
@@ -148,7 +145,7 @@ class UserPublicResponse(BaseModel):
     id: str
     first_name: str
     last_name: str
-    profile_picture_url: Optional[str]
+    profile_picture_url: Optional[str] = Field(None, alias="avatar_url")
     role: UserRole
     is_verified: bool
     created_at: datetime
@@ -162,6 +159,7 @@ class UserPublicResponse(BaseModel):
 
     class Config:
         from_attributes = True
+        allow_population_by_field_name = True
 
 
 class PaginatedUsers(BaseModel):

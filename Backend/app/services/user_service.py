@@ -30,14 +30,14 @@ class UserService:
         """Get user by ID."""
         return self.db.query(User).filter(
             User.id == user_id,
-            User.deleted_at.is_(None)
+            User.is_active == True
         ).first()
 
     def get_user_by_email(self, email: str) -> Optional[User]:
         """Get user by email."""
         return self.db.query(User).filter(
             User.email == email.lower(),
-            User.deleted_at.is_(None)
+            User.is_active == True
         ).first()
 
     def list_users(self, filters: UserListFilters, current_user: User) -> Tuple[list, Dict[str, Any]]:
@@ -47,7 +47,7 @@ class UserService:
             raise ValidationError("Insufficient permissions")
 
         # Build query
-        query = self.db.query(User).filter(User.deleted_at.is_(None))
+        query = self.db.query(User).filter(User.is_active == True)
 
         # Apply filters
         if filters.role:
@@ -125,15 +125,6 @@ class UserService:
         
         if update_data.phone is not None:
             user.phone = update_data.phone
-        
-        if update_data.bio is not None:
-            user.bio = sanitize_string(update_data.bio)
-        
-        if update_data.location is not None:
-            user.location = sanitize_string(update_data.location)
-        
-        if update_data.website is not None:
-            user.website = update_data.website
 
         user.updated_at = utc_now()
         self.db.commit()
@@ -157,8 +148,7 @@ class UserService:
 
     def delete_account(self, user: User, delete_data: DeleteAccountRequest) -> bool:
         """Delete user account (soft delete)."""
-        # Soft delete (simplified, no password verification needed)
-        user.deleted_at = utc_now()
+        # Soft delete using is_active
         user.is_active = False
         user.updated_at = utc_now()
         
@@ -183,8 +173,7 @@ class UserService:
         if user.id == current_user.id:
             raise ValidationError("Cannot delete your own account")
 
-        # Soft delete
-        user.deleted_at = utc_now()
+        # Soft delete using is_active
         user.is_active = False
         user.updated_at = utc_now()
         
@@ -195,7 +184,7 @@ class UserService:
 
     def upload_avatar(self, user: User, avatar_url: str) -> User:
         """Upload user avatar."""
-        user.avatar_url = avatar_url
+        user.profile_picture_url = avatar_url
         user.updated_at = utc_now()
         self.db.commit()
         self.db.refresh(user)
@@ -205,7 +194,7 @@ class UserService:
 
     def delete_avatar(self, user: User) -> User:
         """Delete user avatar."""
-        user.avatar_url = None
+        user.profile_picture_url = None
         user.updated_at = utc_now()
         self.db.commit()
         self.db.refresh(user)
@@ -243,6 +232,5 @@ class UserService:
         """Get public user information (for displaying to other users)."""
         return self.db.query(User).filter(
             User.id == user_id,
-            User.deleted_at.is_(None),
             User.is_active == True
         ).first()

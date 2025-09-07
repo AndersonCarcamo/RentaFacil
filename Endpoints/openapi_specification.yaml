@@ -247,23 +247,36 @@ paths:
     get:
       tags: [Users]
       summary: Listar usuarios (admin)
+      description: Obtiene una lista paginada de usuarios con filtros (solo administradores)
+      operationId: list_users
       parameters:
-        - $ref: '#/components/parameters/PageParam'
-        - $ref: '#/components/parameters/LimitParam'
         - name: role
           in: query
+          description: Filtrar por rol
           schema:
             type: string
             enum: [user, tenant, landlord, agent, admin]
-        - name: status
-          in: query
-          schema:
-            type: string
-            enum: [active, inactive, suspended]
         - name: search
           in: query
+          description: Buscar por nombre o email
           schema:
             type: string
+            maxLength: 100
+        - name: page
+          in: query
+          description: Número de página
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Elementos por página
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
       responses:
         '200':
           description: Lista de usuarios
@@ -271,10 +284,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PaginatedUsers'
+        '401':
+          description: No autorizado
+        '403':
+          description: Permisos insuficientes (solo administradores)
+        '500':
+          description: Error interno del servidor
 
     post:
       tags: [Users]
       summary: Crear usuario (admin)
+      description: Crea un nuevo usuario (solo administradores)
+      operationId: create_user
       requestBody:
         required: true
         content:
@@ -283,23 +304,43 @@ paths:
               $ref: '#/components/schemas/CreateUserRequest'
       responses:
         '201':
-          description: Usuario creado
+          description: Usuario creado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDetailResponse'
+        '400':
+          description: Datos inválidos
+        '401':
+          description: No autorizado
+        '403':
+          description: Permisos insuficientes
+        '409':
+          description: Email ya existe
+        '500':
+          description: Error interno del servidor
 
   /users/me:
     get:
       tags: [Users]
       summary: Obtener perfil propio
+      description: Obtiene la información completa del usuario autenticado
+      operationId: get_current_user_profile
       responses:
         '200':
           description: Perfil del usuario
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/User'
+                $ref: '#/components/schemas/UserDetailResponse'
+        '401':
+          description: No autorizado
 
     put:
       tags: [Users]
       summary: Actualizar perfil propio
+      description: Actualiza la información del usuario autenticado
+      operationId: update_current_user_profile
       requestBody:
         required: true
         content:
@@ -309,28 +350,48 @@ paths:
       responses:
         '200':
           description: Perfil actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDetailResponse'
+        '400':
+          description: Datos inválidos
+        '401':
+          description: No autorizado
+        '500':
+          description: Error interno del servidor
 
     delete:
       tags: [Users]
       summary: Eliminar cuenta propia
+      description: Elimina permanentemente la cuenta del usuario
+      operationId: delete_current_user_account
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required: [password]
-              properties:
-                password:
-                  type: string
+              $ref: '#/components/schemas/DeleteAccountRequest'
       responses:
         '200':
           description: Cuenta eliminada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          description: Datos inválidos
+        '401':
+          description: No autorizado
+        '500':
+          description: Error interno del servidor
 
   /users/{user_id}:
     get:
       tags: [Users]
       summary: Obtener usuario por ID
+      description: Obtiene la información pública de un usuario (o completa si es admin)
+      operationId: get_user_by_id
       parameters:
         - name: user_id
           in: path
@@ -344,11 +405,20 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/User'
+                oneOf:
+                  - $ref: '#/components/schemas/UserDetailResponse'
+                  - $ref: '#/components/schemas/UserPublicResponse'
+                description: UserDetailResponse si es admin, UserPublicResponse si es usuario normal
+        '404':
+          description: Usuario no encontrado
+        '500':
+          description: Error interno del servidor
 
     put:
       tags: [Users]
       summary: Actualizar usuario (admin)
+      description: Actualiza un usuario específico (solo administradores)
+      operationId: update_user
       parameters:
         - name: user_id
           in: path
@@ -365,10 +435,26 @@ paths:
       responses:
         '200':
           description: Usuario actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDetailResponse'
+        '400':
+          description: Datos inválidos
+        '401':
+          description: No autorizado
+        '403':
+          description: Permisos insuficientes
+        '404':
+          description: Usuario no encontrado
+        '500':
+          description: Error interno del servidor
 
     delete:
       tags: [Users]
       summary: Eliminar usuario (admin)
+      description: Elimina un usuario específico (solo administradores)
+      operationId: delete_user
       parameters:
         - name: user_id
           in: path
@@ -379,64 +465,93 @@ paths:
       responses:
         '200':
           description: Usuario eliminado
-
-  /users/me/password:
-    put:
-      tags: [Users]
-      summary: Cambiar contraseña
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [current_password, new_password]
-              properties:
-                current_password:
-                  type: string
-                new_password:
-                  type: string
-                  minLength: 8
-      responses:
-        '200':
-          description: Contraseña actualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          description: No se puede eliminar a sí mismo
+        '401':
+          description: No autorizado
+        '403':
+          description: Permisos insuficientes
+        '404':
+          description: Usuario no encontrado
+        '500':
+          description: Error interno del servidor
 
   /users/me/avatar:
     post:
       tags: [Users]
       summary: Subir avatar
+      description: Sube una imagen de avatar para el usuario
+      operationId: upload_avatar
       requestBody:
         required: true
         content:
           multipart/form-data:
             schema:
               type: object
+              required: [avatar]
               properties:
                 avatar:
                   type: string
                   format: binary
+                  description: Archivo de imagen (jpg, jpeg, png, gif, webp, máximo 10MB)
       responses:
         '200':
-          description: Avatar actualizado
+          description: Avatar subido exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AvatarUploadResponse'
+        '400':
+          description: Tipo de archivo inválido o archivo muy grande
+        '401':
+          description: No autorizado
+        '500':
+          description: Error interno del servidor
 
     delete:
       tags: [Users]
       summary: Eliminar avatar
+      description: Elimina el avatar del usuario
+      operationId: delete_avatar
       responses:
         '200':
           description: Avatar eliminado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          description: No autorizado
+        '500':
+          description: Error interno del servidor
 
   /users/me/preferences:
     get:
       tags: [Users]
       summary: Obtener preferencias
+      description: Obtiene las preferencias del usuario
+      operationId: get_user_preferences
       responses:
         '200':
           description: Preferencias del usuario
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPreferences'
+        '401':
+          description: No autorizado
+        '500':
+          description: Error interno del servidor
 
     put:
       tags: [Users]
       summary: Actualizar preferencias
+      description: Actualiza las preferencias del usuario
+      operationId: update_user_preferences
       requestBody:
         required: true
         content:
@@ -446,18 +561,40 @@ paths:
       responses:
         '200':
           description: Preferencias actualizadas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPreferences'
+        '400':
+          description: Datos inválidos
+        '401':
+          description: No autorizado
+        '500':
+          description: Error interno del servidor
 
   /users/me/privacy:
     get:
       tags: [Users]
       summary: Obtener configuración de privacidad
+      description: Obtiene la configuración de privacidad del usuario
+      operationId: get_privacy_settings
       responses:
         '200':
           description: Configuración de privacidad
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrivacySettings'
+        '401':
+          description: No autorizado
+        '500':
+          description: Error interno del servidor
 
     put:
       tags: [Users]
       summary: Actualizar configuración de privacidad
+      description: Actualiza la configuración de privacidad del usuario
+      operationId: update_privacy_settings
       requestBody:
         required: true
         content:
@@ -467,6 +604,16 @@ paths:
       responses:
         '200':
           description: Configuración actualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrivacySettings'
+        '400':
+          description: Datos inválidos
+        '401':
+          description: No autorizado
+        '500':
+          description: Error interno del servidor
 
   # ===========================================
   # AGENCY MANAGEMENT
@@ -475,32 +622,39 @@ paths:
     get:
       tags: [Agencies]
       summary: Listar agencias
+      description: Obtiene una lista de agencias inmobiliarias con filtros opcionales
+      operationId: list_agencies
+      security: []
       parameters:
-        - $ref: '#/components/parameters/PageParam'
-        - $ref: '#/components/parameters/LimitParam'
-        - name: search
-          in: query
-          schema:
-            type: string
         - name: city
           in: query
+          description: Filtrar por ciudad
           schema:
             type: string
+            example: "Lima"
         - name: verified
           in: query
+          description: Solo agencias verificadas
           schema:
             type: boolean
+            example: true
       responses:
         '200':
           description: Lista de agencias
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PaginatedAgencies'
+                type: array
+                items:
+                  $ref: '#/components/schemas/AgencyResponse'
+        '500':
+          description: Error interno del servidor
 
     post:
       tags: [Agencies]
       summary: Crear agencia
+      description: Crea una nueva agencia inmobiliaria
+      operationId: create_agency
       requestBody:
         required: true
         content:
@@ -509,37 +663,57 @@ paths:
               $ref: '#/components/schemas/CreateAgencyRequest'
       responses:
         '201':
-          description: Agencia creada
+          description: Agencia creada exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgencyResponse'
+        '400':
+          description: Datos inválidos
+        '401':
+          description: No autorizado
+        '500':
+          description: Error interno del servidor
 
   /agencies/{agency_id}:
     get:
       tags: [Agencies]
       summary: Obtener agencia por ID
+      description: Obtiene los detalles de una agencia específica
+      operationId: get_agency
+      security: []
       parameters:
         - name: agency_id
           in: path
           required: true
+          description: ID único de la agencia
           schema:
             type: string
-            format: uuid
+            example: "123e4567-e89b-12d3-a456-426614174000"
       responses:
         '200':
           description: Datos de la agencia
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Agency'
+                $ref: '#/components/schemas/AgencyResponse'
+        '404':
+          description: Agencia no encontrada
+        '500':
+          description: Error interno del servidor
 
     put:
       tags: [Agencies]
       summary: Actualizar agencia
+      description: Actualiza los datos de una agencia existente
+      operationId: update_agency
       parameters:
         - name: agency_id
           in: path
           required: true
           schema:
             type: string
-            format: uuid
+            example: "123e4567-e89b-12d3-a456-426614174000"
       requestBody:
         required: true
         content:
@@ -549,75 +723,178 @@ paths:
       responses:
         '200':
           description: Agencia actualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgencyResponse'
+        '400':
+          description: Datos inválidos
+        '401':
+          description: No autorizado
+        '404':
+          description: Agencia no encontrada
+        '500':
+          description: Error interno del servidor
 
     delete:
       tags: [Agencies]
       summary: Eliminar agencia
+      description: Elimina una agencia del sistema
+      operationId: delete_agency
       parameters:
         - name: agency_id
           in: path
           required: true
           schema:
             type: string
-            format: uuid
+            example: "123e4567-e89b-12d3-a456-426614174000"
       responses:
         '200':
           description: Agencia eliminada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          description: No autorizado
+        '404':
+          description: Agencia no encontrada
+        '500':
+          description: Error interno del servidor
 
   /agencies/{agency_id}/agents:
     get:
       tags: [Agencies]
       summary: Listar agentes de la agencia
+      description: Obtiene la lista de agentes que pertenecen a una agencia
+      operationId: list_agents
+      security: []
       parameters:
         - name: agency_id
           in: path
           required: true
           schema:
             type: string
-            format: uuid
+            example: "123e4567-e89b-12d3-a456-426614174000"
       responses:
         '200':
           description: Lista de agentes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AgencyAgentResponse'
+        '404':
+          description: Agencia no encontrada
+        '500':
+          description: Error interno del servidor
 
     post:
       tags: [Agencies]
       summary: Agregar agente a la agencia
+      description: Agrega un usuario como agente a la agencia
+      operationId: add_agent
       parameters:
         - name: agency_id
           in: path
           required: true
           schema:
             type: string
-            format: uuid
+            example: "123e4567-e89b-12d3-a456-426614174000"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required: [user_id]
-              properties:
-                user_id:
-                  type: string
-                  format: uuid
-                role:
-                  type: string
-                  enum: [agent, supervisor, manager]
+              $ref: '#/components/schemas/AddAgentRequest'
       responses:
         '201':
-          description: Agente agregado
+          description: Agente agregado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgencyAgentResponse'
+        '400':
+          description: Datos inválidos
+        '401':
+          description: No autorizado
+        '404':
+          description: Agencia o usuario no encontrado
+        '409':
+          description: El usuario ya es agente de esta agencia
+        '500':
+          description: Error interno del servidor
 
   /agencies/{agency_id}/agents/{user_id}:
     delete:
       tags: [Agencies]
       summary: Remover agente de la agencia
+      description: Remueve un agente de la agencia
+      operationId: remove_agent
       parameters:
         - name: agency_id
           in: path
           required: true
           schema:
             type: string
-            format: uuid
+            example: "123e4567-e89b-12d3-a456-426614174000"
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "789e0123-e89b-12d3-a456-426614174002"
+      responses:
+        '200':
+          description: Agente removido exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          description: No autorizado
+        '404':
+          description: Agencia, usuario o relación no encontrada
+        '500':
+          description: Error interno del servidor
+
+  /agencies/{agency_id}/verification:
+    post:
+      tags: [Agencies]
+      summary: Solicitar verificación de agencia
+      description: Solicita la verificación oficial de la agencia con documentos
+      operationId: request_verification
+      parameters:
+        - name: agency_id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "123e4567-e89b-12d3-a456-426614174000"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerificationRequest'
+      responses:
+        '200':
+          description: Solicitud de verificación enviada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          description: Documentos inválidos o faltantes
+        '401':
+          description: No autorizado
+        '404':
+          description: Agencia no encontrada
+        '409':
+          description: La agencia ya está verificada o tiene una solicitud pendiente
+        '500':
+          description: Error interno del servidor
         - name: user_id
           in: path
           required: true
@@ -3225,11 +3502,6 @@ components:
           example: "2025-09-04T01:00:00Z"
 
     # Mantenemos User como alias para compatibilidad
-    User:
-      $ref: '#/components/schemas/UserResponse'
-          description: Fecha de última actualización
-          example: "2025-08-28T10:00:00Z"
-
     Agency:
       type: object
       properties:
@@ -3702,16 +3974,6 @@ components:
           default: true
 
     # Pagination Schemas
-    PaginatedUsers:
-      type: object
-      properties:
-        data:
-          type: array
-          items:
-            $ref: '#/components/schemas/User'
-        meta:
-          $ref: '#/components/schemas/PaginationMeta'
-
     PaginatedAgencies:
       type: object
       properties:
@@ -4004,70 +4266,6 @@ components:
                   message:
                     type: string
                     example: "Email de recuperación enviado"
-
-  # ===========================================
-  # USER MANAGEMENT
-  # ===========================================
-  /users/me:
-    get:
-      tags: [Users]
-      summary: 👤 Obtener perfil propio
-      description: Obtiene la información del usuario autenticado
-      operationId: get_current_user
-      responses:
-        '200':
-          description: ✅ Perfil del usuario
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/User'
-
-    put:
-      tags: [Users]
-      summary: ✏️ Actualizar perfil propio
-      description: Actualiza la información del usuario autenticado
-      operationId: update_current_user
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdateUserRequest'
-      responses:
-        '200':
-          description: ✅ Perfil actualizado
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/User'
-
-    delete:
-      tags: [Users]
-      summary: 🗑️ Eliminar cuenta propia
-      description: Elimina permanentemente la cuenta del usuario
-      operationId: delete_current_user
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [password]
-              properties:
-                password:
-                  type: string
-                  description: Contraseña actual para confirmar
-      responses:
-        '200':
-          description: ✅ Cuenta eliminada
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: "Cuenta eliminada exitosamente"
 
   # ===========================================
   # LISTINGS MANAGEMENT
@@ -4494,7 +4692,7 @@ components:
       type: object
       properties:
         user:
-          $ref: '#/components/schemas/User'
+          $ref: '#/components/schemas/UserDetailResponse'
         message:
           type: string
           example: "Usuario creado exitosamente. Revisa tu email para verificar tu cuenta."
@@ -4538,7 +4736,7 @@ components:
           description: Tiempo de expiración en segundos
           example: 3600
         user:
-          $ref: '#/components/schemas/User'
+          $ref: '#/components/schemas/UserDetailResponse'
 
     TokenResponse:
       type: object
@@ -4622,13 +4820,13 @@ components:
       properties:
         first_name:
           type: string
-          minLength: 2
-          maxLength: 50
+          minLength: 1
+          maxLength: 100
           example: "Juan Carlos"
         last_name:
           type: string
-          minLength: 2
-          maxLength: 50
+          minLength: 1
+          maxLength: 100
           example: "Pérez García"
         phone:
           type: string
@@ -4638,6 +4836,513 @@ components:
           type: string
           maxLength: 500
           example: "Agente inmobiliario especializado en Lima Moderna"
+        location:
+          type: string
+          maxLength: 200
+          example: "Lima, Peru"
+        website:
+          type: string
+          maxLength: 255
+          format: uri
+          example: "https://www.miagencia.com"
+
+    CreateUserRequest:
+      type: object
+      required: [email, first_name, last_name]
+      properties:
+        email:
+          type: string
+          format: email
+          description: Email único del usuario
+          example: "nuevo.usuario@email.com"
+        first_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Nombre del usuario
+          example: "Carlos"
+        last_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Apellido del usuario
+          example: "Rodríguez"
+        phone:
+          type: string
+          pattern: '^\+[1-9]\d{1,14}$'
+          description: Teléfono en formato internacional
+          example: "+51987654321"
+        role:
+          type: string
+          enum: [user, tenant, landlord, agent, admin]
+          default: user
+          description: Rol del usuario
+          example: "user"
+        bio:
+          type: string
+          maxLength: 500
+          description: Biografía del usuario
+          example: "Nuevo usuario interesado en propiedades"
+
+    UserDetailResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          description: ID único del usuario (UUID como string)
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        email:
+          type: string
+          format: email
+          description: Email del usuario
+          example: "juan.perez@email.com"
+        first_name:
+          type: string
+          description: Nombre del usuario
+          example: "Juan"
+        last_name:
+          type: string
+          description: Apellido del usuario
+          example: "Pérez"
+        phone:
+          type: string
+          nullable: true
+          description: Teléfono del usuario
+          example: "+51987654321"
+        profile_picture_url:
+          type: string
+          format: uri
+          nullable: true
+          description: URL del avatar del usuario
+          example: "https://api.easyrent.pe/uploads/avatars/123e4567.jpg"
+        role:
+          type: string
+          enum: [user, tenant, landlord, agent, admin]
+          description: Rol del usuario
+          example: "user"
+        is_verified:
+          type: boolean
+          description: Si el usuario está verificado
+          example: true
+        is_active:
+          type: boolean
+          description: Si el usuario está activo
+          example: true
+        national_id:
+          type: string
+          nullable: true
+          description: Número de documento de identidad
+          example: "12345678"
+        national_id_type:
+          type: string
+          nullable: true
+          description: Tipo de documento de identidad
+          example: "DNI"
+        last_login_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Fecha del último login
+          example: "2025-09-06T10:30:00Z"
+        created_at:
+          type: string
+          format: date-time
+          description: Fecha de creación de la cuenta
+          example: "2025-08-28T10:00:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          description: Fecha de última actualización
+          example: "2025-09-06T10:30:00Z"
+
+    UserPublicResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          description: ID único del usuario
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        first_name:
+          type: string
+          description: Nombre del usuario
+          example: "Juan"
+        last_name:
+          type: string
+          description: Apellido del usuario
+          example: "Pérez"
+        profile_picture_url:
+          type: string
+          format: uri
+          nullable: true
+          description: URL del avatar del usuario
+          example: "https://api.easyrent.pe/uploads/avatars/123e4567.jpg"
+        role:
+          type: string
+          enum: [user, tenant, landlord, agent, admin]
+          description: Rol del usuario
+          example: "agent"
+        is_verified:
+          type: boolean
+          description: Si el usuario está verificado
+          example: true
+        created_at:
+          type: string
+          format: date-time
+          description: Fecha de creación de la cuenta
+          example: "2025-08-28T10:00:00Z"
+
+    PaginatedUsers:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserDetailResponse'
+          description: Lista de usuarios
+        total:
+          type: integer
+          description: Número total de usuarios
+          example: 150
+        page:
+          type: integer
+          description: Página actual
+          example: 1
+        limit:
+          type: integer
+          description: Número de elementos por página
+          example: 20
+        pages:
+          type: integer
+          description: Número total de páginas
+          example: 8
+        has_next:
+          type: boolean
+          description: Si hay página siguiente
+          example: true
+        has_prev:
+          type: boolean
+          description: Si hay página anterior
+          example: false
+
+    UserPreferences:
+      type: object
+      properties:
+        language:
+          type: string
+          enum: [es, en, pt]
+          default: es
+          description: Idioma preferido
+          example: "es"
+        currency:
+          type: string
+          enum: [PEN, USD, EUR]
+          default: PEN
+          description: Moneda preferida
+          example: "PEN"
+        notifications_email:
+          type: boolean
+          default: true
+          description: Recibir notificaciones por email
+          example: true
+        notifications_sms:
+          type: boolean
+          default: false
+          description: Recibir notificaciones por SMS
+          example: false
+        notifications_push:
+          type: boolean
+          default: true
+          description: Recibir notificaciones push
+          example: true
+        newsletter_subscription:
+          type: boolean
+          default: false
+          description: Suscripción al newsletter
+          example: false
+        search_alerts:
+          type: boolean
+          default: true
+          description: Recibir alertas de búsqueda
+          example: true
+
+    PrivacySettings:
+      type: object
+      properties:
+        profile_visible:
+          type: boolean
+          default: true
+          description: Perfil visible para otros usuarios
+          example: true
+        show_phone:
+          type: boolean
+          default: true
+          description: Mostrar teléfono en el perfil
+          example: true
+        show_email:
+          type: boolean
+          default: false
+          description: Mostrar email en el perfil
+          example: false
+        allow_contact:
+          type: boolean
+          default: true
+          description: Permitir contacto de otros usuarios
+          example: true
+        show_last_active:
+          type: boolean
+          default: true
+          description: Mostrar última actividad
+          example: true
+        analytics_tracking:
+          type: boolean
+          default: true
+          description: Permitir seguimiento de analytics
+          example: true
+
+    DeleteAccountRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          maxLength: 500
+          nullable: true
+          description: Motivo de eliminación de la cuenta
+          example: "Ya no necesito el servicio"
+
+    AvatarUploadResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Mensaje de confirmación
+          example: "Avatar uploaded successfully"
+        avatar_url:
+          type: string
+          format: uri
+          description: URL del nuevo avatar
+          example: "https://api.easyrent.pe/uploads/avatars/123e4567/avatar.jpg"
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Mensaje de respuesta
+          example: "Operación completada exitosamente"
+
+    # ===========================================
+    # AGENCY SCHEMAS
+    # ===========================================
+    CreateAgencyRequest:
+      type: object
+      required: [name, phone, email, address, city]
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 255
+          description: Nombre de la agencia inmobiliaria
+          example: "Inmobiliaria Lima Norte"
+        phone:
+          type: string
+          minLength: 6
+          maxLength: 20
+          description: Teléfono de contacto
+          example: "+51987654321"
+        email:
+          type: string
+          format: email
+          description: Email de contacto
+          example: "contacto@inmobiliarialima.com"
+        address:
+          type: string
+          minLength: 2
+          maxLength: 255
+          description: Dirección física de la agencia
+          example: "Av. La Marina 123, San Miguel"
+        city:
+          type: string
+          minLength: 2
+          maxLength: 100
+          description: Ciudad donde opera
+          example: "Lima"
+        district:
+          type: string
+          maxLength: 100
+          nullable: true
+          description: Distrito específico
+          example: "San Miguel"
+
+    UpdateAgencyRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 255
+          example: "Inmobiliaria Lima Norte SAC"
+        phone:
+          type: string
+          minLength: 6
+          maxLength: 20
+          example: "+51987654321"
+        email:
+          type: string
+          format: email
+          example: "info@inmobiliarialima.com"
+        address:
+          type: string
+          minLength: 2
+          maxLength: 255
+          example: "Av. La Marina 456, San Miguel"
+        city:
+          type: string
+          minLength: 2
+          maxLength: 100
+          example: "Lima"
+        district:
+          type: string
+          maxLength: 100
+          nullable: true
+          example: "San Miguel"
+        status:
+          type: string
+          enum: [active, inactive, suspended, pending_verification, verified]
+          description: Estado de la agencia
+          example: "active"
+
+    AgencyResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          description: ID único de la agencia (UUID como string)
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        name:
+          type: string
+          description: Nombre de la agencia
+          example: "Inmobiliaria Lima Norte"
+        phone:
+          type: string
+          description: Teléfono de contacto
+          example: "+51987654321"
+        email:
+          type: string
+          format: email
+          description: Email de contacto
+          example: "contacto@inmobiliarialima.com"
+        address:
+          type: string
+          description: Dirección física
+          example: "Av. La Marina 123, San Miguel"
+        city:
+          type: string
+          description: Ciudad
+          example: "Lima"
+        district:
+          type: string
+          nullable: true
+          description: Distrito
+          example: "San Miguel"
+        status:
+          type: string
+          enum: [active, inactive, suspended, pending_verification, verified]
+          description: Estado de la agencia
+          example: "active"
+        verified:
+          type: boolean
+          description: Si la agencia está verificada
+          example: true
+        created_at:
+          type: string
+          format: date-time
+          description: Fecha de creación
+          example: "2025-08-28T10:00:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          description: Fecha de última actualización
+          example: "2025-09-06T10:30:00Z"
+
+    PaginatedAgencies:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgencyResponse'
+          description: Lista de agencias
+        total:
+          type: integer
+          description: Número total de agencias
+          example: 45
+        page:
+          type: integer
+          description: Página actual
+          example: 1
+        limit:
+          type: integer
+          description: Número de elementos por página
+          example: 20
+        pages:
+          type: integer
+          description: Número total de páginas
+          example: 3
+        has_next:
+          type: boolean
+          description: Si hay página siguiente
+          example: true
+        has_prev:
+          type: boolean
+          description: Si hay página anterior
+          example: false
+
+    AgencyAgentResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          description: ID de la relación agencia-agente
+          example: "456e7890-e89b-12d3-a456-426614174001"
+        agency_id:
+          type: string
+          description: ID de la agencia
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        user_id:
+          type: string
+          description: ID del usuario que es agente
+          example: "789e0123-e89b-12d3-a456-426614174002"
+        created_at:
+          type: string
+          format: date-time
+          description: Fecha cuando se agregó el agente
+          example: "2025-08-28T10:00:00Z"
+
+    AddAgentRequest:
+      type: object
+      required: [user_id]
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          description: ID del usuario a agregar como agente
+          example: "789e0123-e89b-12d3-a456-426614174002"
+
+    VerificationRequest:
+      type: object
+      required: [documents]
+      properties:
+        documents:
+          type: array
+          items:
+            type: string
+            format: uri
+          minItems: 1
+          description: Lista de URLs de documentos para verificación
+          example: [
+            "https://storage.easyrent.pe/docs/ruc-certificate.pdf",
+            "https://storage.easyrent.pe/docs/license.pdf"
+          ]
 
     # ===========================================
     # LISTING SCHEMAS
@@ -4770,7 +5475,7 @@ components:
         - type: object
           properties:
             owner:
-              $ref: '#/components/schemas/User'
+              $ref: '#/components/schemas/UserPublicResponse'
             agency:
               $ref: '#/components/schemas/Agency'
               nullable: true

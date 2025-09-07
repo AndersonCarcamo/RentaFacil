@@ -16,7 +16,8 @@ from app.models.auth import User, UserRole
 from app.core.constants import STATUS_MESSAGES, ERROR_MESSAGES
 from app.core.exceptions import (
     http_400_bad_request, http_401_unauthorized, http_403_forbidden,
-    http_404_not_found, http_409_conflict, http_500_internal_error
+    http_404_not_found, http_409_conflict, http_500_internal_error,
+    ValidationError, NotFoundError, ConflictError
 )
 from app.core.utils import get_file_extension, is_valid_image_type, format_file_size
 from typing import Optional
@@ -58,6 +59,12 @@ async def list_users(
         
     except HTTPException:
         raise
+    except ValidationError as e:
+        logger.error(f"Validation error listing users: {e}")
+        raise http_403_forbidden("Insufficient permissions")
+    except Exception as e:
+        logger.error(f"Error listing users: {e}")
+        raise http_500_internal_error("Failed to list users")
     except Exception as e:
         logger.error(f"Error listing users: {e}")
         raise http_500_internal_error("Failed to list users")
@@ -81,6 +88,12 @@ async def create_user(
         
     except HTTPException:
         raise
+    except ValidationError as e:
+        logger.error(f"Validation error creating user: {e}")
+        raise http_403_forbidden("Insufficient permissions")
+    except ConflictError as e:
+        logger.error(f"Conflict error creating user: {e}")
+        raise http_409_conflict("Email already exists")
     except Exception as e:
         logger.error(f"Error creating user: {e}")
         raise http_500_internal_error("Failed to create user")
@@ -170,6 +183,9 @@ async def get_user_by_id(
         
     except HTTPException:
         raise
+    except NotFoundError as e:
+        logger.error(f"User not found: {e}")
+        raise http_404_not_found("User not found")
     except Exception as e:
         logger.error(f"Error getting user by ID: {e}")
         raise http_500_internal_error("Failed to get user")
@@ -193,6 +209,12 @@ async def update_user(
         
     except HTTPException:
         raise
+    except ValidationError as e:
+        logger.error(f"Validation error updating user: {e}")
+        raise http_403_forbidden("Insufficient permissions")
+    except NotFoundError as e:
+        logger.error(f"User not found: {e}")
+        raise http_404_not_found("User not found")
     except Exception as e:
         logger.error(f"Error updating user: {e}")
         raise http_500_internal_error("Failed to update user")
@@ -215,6 +237,12 @@ async def delete_user(
         
     except HTTPException:
         raise
+    except ValidationError as e:
+        logger.error(f"Validation error deleting user: {e}")
+        raise http_403_forbidden("Insufficient permissions or cannot delete own account")
+    except NotFoundError as e:
+        logger.error(f"User not found: {e}")
+        raise http_404_not_found("User not found")
     except Exception as e:
         logger.error(f"Error deleting user: {e}")
         raise http_500_internal_error("Failed to delete user")
