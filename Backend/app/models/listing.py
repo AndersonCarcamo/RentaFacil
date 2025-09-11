@@ -88,6 +88,7 @@ class Listing(Base):
     floor_number = Column(Integer, nullable=True)
     age_years = Column(Integer, nullable=True)
     rental_term = Column(Text, nullable=True)  # core.rental_term enum
+    pet_friendly = Column(Boolean, nullable=True)  # Nueva columna: si acepta mascotas
     
     # Verificación y estado
     verification_status = Column(Text, nullable=False, default='pending')  # core.verification_status enum

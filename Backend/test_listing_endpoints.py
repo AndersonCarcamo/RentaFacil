@@ -133,7 +133,8 @@ def test_create_listing(token):
         "district": "Miraflores",
         "bedrooms": 3,
         "bathrooms": 2,
-        "age_years": 5
+        "age_years": 5,
+        "pet_friendly": True  # Test with pet-friendly property
     }
     
     try:
@@ -163,7 +164,8 @@ def test_create_listing_minimal(token):
         "price": 150000.0,
         "area_built": 80.0,  # Cambié de area a area_built
         "address": "Calle Test 456",
-        "department": "Lima"  # Cambié de city a department
+        "department": "Lima",  # Cambié de city a department
+        "pet_friendly": True  # Test with non-pet-friendly property
     }
     
     try:

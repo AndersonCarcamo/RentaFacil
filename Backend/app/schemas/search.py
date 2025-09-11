@@ -47,6 +47,7 @@ class SearchFilters(BaseModel):
     min_age_years: Optional[int] = Field(None, ge=0, description="Antigüedad mínima en años")
     max_age_years: Optional[int] = Field(None, ge=0, description="Antigüedad máxima en años")
     has_media: Optional[bool] = Field(None, description="Solo propiedades con fotos/videos")
+    pet_friendly: Optional[bool] = Field(None, description="Solo propiedades que aceptan mascotas (true) o no (false)")
     
     # Amenidades
     amenities: Optional[List[int]] = Field(None, description="IDs de amenidades")

@@ -92,6 +92,7 @@ def test_search_endpoints(token, user_id):
         'min_price': 500,
         'max_price': 2000,
         'min_bedrooms': 2,
+        'pet_friendly': 'true',  # Test pet-friendly filter
         'page': 1,
         'limit': 10
     }
@@ -119,7 +120,28 @@ def test_search_endpoints(token, user_id):
     
     print()
     
-    # 5. Test sugerencias
+    # 5. Test búsqueda por pet_friendly
+    print("=== Search by pet_friendly ===")
+    # Test pet-friendly properties only
+    response = requests.get(f"{BASE_URL}/search/?pet_friendly=true")
+    results['pet_friendly_search'] = response.status_code == 200
+    print(f"Status: {response.status_code}")
+    if response.status_code != 200:
+        print(f"Response: {response.text[:300]}...")
+    else:
+        data = response.json()
+        print(f"Pet-friendly results: {data.get('meta', {}).get('total_results', 0)}")
+    
+    # Test non-pet-friendly properties
+    response = requests.get(f"{BASE_URL}/search/?pet_friendly=false")
+    print(f"Non-pet-friendly Status: {response.status_code}")
+    if response.status_code == 200:
+        data = response.json()
+        print(f"Non-pet-friendly results: {data.get('meta', {}).get('total_results', 0)}")
+    
+    print()
+    
+    # 6. Test sugerencias
     print("🔎 Testing GET /search/suggestions - Search Suggestions")
     print("=== Location suggestions ===")
     response = requests.get(f"{BASE_URL}/search/suggestions?q=lim&type=location")
@@ -135,7 +157,7 @@ def test_search_endpoints(token, user_id):
     
     print()
     
-    # 6. Test filtros disponibles
+    # 7. Test filtros disponibles
     print("🗂️ Testing GET /search/filters - Available Filters")
     response = requests.get(f"{BASE_URL}/search/filters")
     results['available_filters'] = response.status_code == 200
@@ -151,7 +173,7 @@ def test_search_endpoints(token, user_id):
     
     print()
     
-    # 7. Test búsquedas guardadas (requiere autenticación)
+    # 8. Test búsquedas guardadas (requiere autenticación)
     print("💾 Testing Saved Searches (Authenticated)")
     print("=== Get saved searches ===")
     response = requests.get(f"{BASE_URL}/search/saved", headers=headers)
@@ -165,7 +187,7 @@ def test_search_endpoints(token, user_id):
     
     print()
     
-    # 8. Test guardar nueva búsqueda
+    # 9. Test guardar nueva búsqueda
     print("=== Save new search ===")
     save_data = {
         "name": "Departamento en Lima",
@@ -175,7 +197,8 @@ def test_search_endpoints(token, user_id):
             "operation": "rent",
             "min_price": 800,
             "max_price": 1500,
-            "min_bedrooms": 2
+            "min_bedrooms": 2,
+            "pet_friendly": True  # Test pet-friendly in saved search
         },
         "notifications": True
     }
@@ -195,7 +218,7 @@ def test_search_endpoints(token, user_id):
     
     print()
     
-    # 9. Test obtener búsqueda guardada específica
+    # 10. Test obtener búsqueda guardada específica
     if saved_search_id:
         print("=== Get specific saved search ===")
         response = requests.get(f"{BASE_URL}/search/saved/{saved_search_id}", headers=headers)
@@ -210,7 +233,7 @@ def test_search_endpoints(token, user_id):
         
         print()
         
-        # 10. Test actualizar búsqueda guardada
+        # 11. Test actualizar búsqueda guardada
         print("=== Update saved search ===")
         update_data = {
             "name": "Departamento en Lima - Actualizado",
@@ -228,7 +251,7 @@ def test_search_endpoints(token, user_id):
         
         print()
         
-        # 11. Test eliminar búsqueda guardada
+        # 12. Test eliminar búsqueda guardada
         print("=== Delete saved search ===")
         response = requests.delete(f"{BASE_URL}/search/saved/{saved_search_id}", headers=headers)
         results['delete_saved_search'] = response.status_code == 200
@@ -246,7 +269,7 @@ def test_search_endpoints(token, user_id):
     
     print()
     
-    # 12. Test error handling - búsqueda sin autenticación en endpoint protegido
+    # 13. Test error handling - búsqueda sin autenticación en endpoint protegido
     print("🚫 Testing Error Handling")
     print("=== Accessing protected endpoint without auth ===")
     response = requests.post(f"{BASE_URL}/search/saved", json=save_data)
@@ -259,7 +282,7 @@ def test_search_endpoints(token, user_id):
     
     print()
     
-    # 13. Test sugerencias con parámetros inválidos
+    # 14. Test sugerencias con parámetros inválidos
     print("=== Invalid suggestions query ===")
     response = requests.get(f"{BASE_URL}/search/suggestions")  # Sin parámetro q requerido
     results['invalid_suggestions'] = response.status_code == 422

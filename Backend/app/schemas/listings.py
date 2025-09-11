@@ -23,6 +23,7 @@ class CreateListingRequest(BaseModel):
     floors: Optional[int] = None
     floor_number: Optional[int] = None
     age_years: Optional[int] = None
+    pet_friendly: Optional[bool] = Field(None, description="Whether the property allows pets")
     
     # Location
     address: Optional[str] = None
@@ -49,6 +50,7 @@ class UpdateListingRequest(BaseModel):
     floors: Optional[int] = None
     floor_number: Optional[int] = None
     age_years: Optional[int] = None
+    pet_friendly: Optional[bool] = None
     address: Optional[str] = None
     department: Optional[str] = None
     province: Optional[str] = None
@@ -71,6 +73,7 @@ class ListingResponse(BaseModel):
     bedrooms: Optional[int]
     bathrooms: Optional[int]
     parking_spots: Optional[int]
+    pet_friendly: Optional[bool]
     address: Optional[str]
     department: Optional[str]
     province: Optional[str]

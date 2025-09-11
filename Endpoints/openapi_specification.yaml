@@ -895,48 +895,6 @@ paths:
           description: La agencia ya está verificada o tiene una solicitud pendiente
         '500':
           description: Error interno del servidor
-        - name: user_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      responses:
-        '200':
-          description: Agente removido
-
-  /agencies/{agency_id}/verification:
-    post:
-      tags: [Agencies]
-      summary: Solicitar verificación de agencia
-      parameters:
-        - name: agency_id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      requestBody:
-        required: true
-        content:
-          multipart/form-data:
-            schema:
-              type: object
-              properties:
-                business_license:
-                  type: string
-                  format: binary
-                tax_document:
-                  type: string
-                  format: binary
-                additional_documents:
-                  type: array
-                  items:
-                    type: string
-                    format: binary
-      responses:
-        '200':
-          description: Solicitud de verificación enviada
 
   # ===========================================
   # LISTINGS MANAGEMENT
@@ -958,7 +916,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [house, apartment, office, commercial, land, warehouse]
+            enum: [house, apartment, studio, room, office, commercial, land, warehouse, garage, other]
         - name: city
           in: query
           schema:
@@ -1019,6 +977,22 @@ paths:
           in: query
           schema:
             type: boolean
+        - name: pet_friendly
+          in: query
+          schema:
+            type: boolean
+            description: Filtrar por propiedades que permiten mascotas
+        - name: furnished
+          in: query
+          schema:
+            type: boolean
+            description: Filtrar por propiedades amuebladas/amobladas
+        - name: rental_mode
+          in: query
+          schema:
+            type: string
+            enum: [full_property, private_room, shared_room]
+            description: Modalidad de alquiler
         - name: sort
           in: query
           schema:
@@ -3579,9 +3553,18 @@ components:
           example: "sale"
         property_type:
           type: string
-          enum: [house, apartment, office, commercial, land, warehouse]
+          enum: [house, apartment, studio, room, office, commercial, land, warehouse, garage, other]
           description: Tipo de propiedad
           example: "apartment"
+        furnished:
+          type: boolean
+          description: Si la propiedad está amueblada/amoblada
+          example: true
+        rental_mode:
+          type: string
+          enum: [full_property, private_room, shared_room]
+          description: Modalidad de alquiler (solo aplicable para property_type room o studio)
+          example: "private_room"
         price:
           type: number
           description: Precio de la propiedad
@@ -3830,8 +3813,17 @@ components:
           example: "sale"
         property_type:
           type: string
-          enum: [house, apartment, office, commercial, land, warehouse]
+          enum: [house, apartment, studio, room, office, commercial, land, warehouse, garage, other]
           example: "apartment"
+        furnished:
+          type: boolean
+          description: Si la propiedad está amueblada/amoblada
+          example: false
+        rental_mode:
+          type: string
+          enum: [full_property, private_room, shared_room]
+          description: Modalidad de alquiler (solo aplicable para rooms o studios en renta)
+          example: "full_property"
         price:
           type: number
           minimum: 0
@@ -4291,7 +4283,7 @@ components:
           description: Tipo de propiedad
           schema:
             type: string
-            enum: [house, apartment, office, commercial, land, warehouse]
+            enum: [house, apartment, studio, room, office, commercial, land, warehouse, garage, other]
         - name: city
           in: query
           description: Ciudad
@@ -4334,6 +4326,18 @@ components:
           schema:
             type: boolean
             example: true
+        - name: furnished
+          in: query
+          description: Filtrar por propiedades amuebladas/amobladas
+          schema:
+            type: boolean
+            example: false
+        - name: rental_mode
+          in: query
+          description: Modalidad de alquiler
+          schema:
+            type: string
+            enum: [full_property, private_room, shared_room]
         - name: sort
           in: query
           description: Criterio de ordenamiento
@@ -5370,9 +5374,18 @@ components:
           example: "sale"
         property_type:
           type: string
-          enum: [house, apartment, office, commercial, land, warehouse]
+          enum: [house, apartment, studio, room, office, commercial, land, warehouse, garage, other]
           description: Tipo de propiedad
           example: "apartment"
+        furnished:
+          type: boolean
+          description: Si la propiedad está amueblada/amoblada
+          example: true
+        rental_mode:
+          type: string
+          enum: [full_property, private_room, shared_room]
+          description: Modalidad de alquiler (solo aplicable para property_type room o studio)
+          example: "private_room"
         price:
           type: number
           description: Precio de la propiedad
@@ -5515,9 +5528,18 @@ components:
           example: "sale"
         property_type:
           type: string
-          enum: [house, apartment, office, commercial, land, warehouse]
+          enum: [house, apartment, studio, room, office, commercial, land, warehouse, garage, other]
           description: Tipo de propiedad
           example: "apartment"
+        furnished:
+          type: boolean
+          description: Si la propiedad está amueblada/amoblada
+          example: false
+        rental_mode:
+          type: string
+          enum: [full_property, private_room, shared_room]
+          description: Modalidad de alquiler (solo aplicable para rooms o studios en renta)
+          example: "full_property"
         price:
           type: number
           minimum: 0

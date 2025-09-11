@@ -26,16 +26,43 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'operation_type') THEN
         CREATE TYPE core.operation_type AS ENUM ('sale','rent','temp_rent','auction','exchange');
     END IF;
+    
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'property_type') THEN
         CREATE TYPE core.property_type AS ENUM (
-            'apartment','house','office','commercial','land','warehouse','garage','other'
+            'studio','apartment','house','office','commercial','land','warehouse','garage','room','other'
         );
     END IF;
+    
+    -- Add studio to existing property_type if not exists
+    BEGIN
+       SELECT 1 FROM pg_enum e JOIN pg_type t ON e.enumtypid = t.oid 
+       WHERE t.typname='property_type' AND e.enumlabel='studio';
+      IF NOT FOUND THEN 
+          EXECUTE 'ALTER TYPE core.property_type ADD VALUE ''studio'' BEFORE ''apartment'''; 
+      END IF;
+    EXCEPTION WHEN OTHERS THEN NULL;
+    END;
+    
+    -- Add room to existing property_type if not exists
+    BEGIN
+       SELECT 1 FROM pg_enum e JOIN pg_type t ON e.enumtypid = t.oid 
+       WHERE t.typname='property_type' AND e.enumlabel='room';
+      IF NOT FOUND THEN 
+          EXECUTE 'ALTER TYPE core.property_type ADD VALUE ''room'' BEFORE ''other'''; 
+      END IF;
+    EXCEPTION WHEN OTHERS THEN NULL;
+    END;
+    
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'advertiser_type') THEN
         CREATE TYPE core.advertiser_type AS ENUM ('owner','agency','developer','broker');
     END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'rental_term') THEN
         CREATE TYPE core.rental_term AS ENUM ('daily','weekly','monthly','yearly');
+    END IF;
+    
+    -- New enum for rental modality (how the space is shared)
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'rental_mode') THEN
+        CREATE TYPE core.rental_mode AS ENUM ('full_property','private_room','shared_room');
     END IF;
 END $types1$;
 

@@ -133,35 +133,49 @@ BEGIN
         id, created_at, owner_user_id, agency_id, status, operation, property_type,
         title, description, price, currency, bedrooms, bathrooms, parking_spots,
         area_built, age_years, address, district, province, country,
-        latitude, longitude, verification_status, published_at, published_until
+        latitude, longitude, verification_status, published_at, published_until, rental_term, furnished
     ) VALUES 
         (gen_random_uuid(), current_timestamp, user_juan, agency_inmobiliaria, 'published', 'sale', 'apartment',
          'Moderno Departamento en San Isidro', 
          'Hermoso departamento de 3 dormitorios en el corazón de San Isidro. Cuenta con acabados de primera, balcón con vista panorámica y todas las comodidades modernas.',
          450000.00, 'PEN', 3, 2, 2, 120.5, 7,
          'Av. Javier Prado Este 1234, San Isidro', 'San Isidro', 'Lima', 'Perú',
-         -12.0951, -77.0364, 'verified', current_timestamp, current_timestamp + interval '90 days'),
+         -12.0951, -77.0364, 'verified', current_timestamp, current_timestamp + interval '90 days', NULL, false),
          
         (gen_random_uuid(), current_timestamp, user_maria, agency_inmobiliaria, 'published', 'rent', 'house',
-         'Casa Familiar en La Molina',
-         'Amplia casa de 4 dormitorios en condominio privado. Ideal para familias. Incluye jardín, garaje para 2 autos y área de parrilla.',
+         'Casa Familiar en La Molina - Amoblada',
+         'Amplia casa de 4 dormitorios en condominio privado. Ideal para familias. Incluye jardín, garaje para 2 autos y área de parrilla. Completamente amoblada.',
          2800.00, 'PEN', 4, 3, 2, 180.0, 10,
          'Calle Los Rosales 567, La Molina', 'La Molina', 'Lima', 'Perú',
-         -12.0746, -76.9574, 'verified', current_timestamp, current_timestamp + interval '60 days'),
+         -12.0746, -76.9574, 'verified', current_timestamp, current_timestamp + interval '60 days', 'monthly', true),
          
-        (gen_random_uuid(), current_timestamp, user_carlos, agency_propiedades, 'published', 'sale', 'apartment',
-         'Loft Moderno en Barranco',
-         'Exclusivo loft de 2 dormitorios en el bohemio distrito de Barranco. Diseño contemporáneo con terraza privada y vista al mar.',
-         380000.00, 'PEN', 2, 2, 1, 95.0, 5,
+        (gen_random_uuid(), current_timestamp, user_carlos, agency_propiedades, 'published', 'rent', 'studio',
+         'Monoambiente Moderno en Barranco - Totalmente Amoblado',
+         'Exclusivo monoambiente totalmente amoblado en el bohemio distrito de Barranco. Perfecto para profesionales jóvenes. Incluye todos los muebles y electrodomésticos.',
+         1200.00, 'PEN', 0, 1, 0, 35.0, 3,
          'Malecón Grau 890, Barranco', 'Barranco', 'Lima', 'Perú',
-         -12.1467, -77.0208, 'verified', current_timestamp, current_timestamp + interval '90 days'),
+         -12.1467, -77.0208, 'verified', current_timestamp, current_timestamp + interval '90 days', 'monthly', true),
          
-        (gen_random_uuid(), current_timestamp, user_juan, NULL, 'draft', 'rent', 'apartment',
-         'Departamento en Miraflores - En Proceso',
-         'Departamento en remodelación ubicado en zona privilegiada de Miraflores. Estará disponible el próximo mes.',
-         3200.00, 'PEN', 2, 2, 1, 85.0, 9,
+        (gen_random_uuid(), current_timestamp, user_juan, NULL, 'published', 'sale', 'apartment',
+         'Loft Moderno en Miraflores',
+         'Departamento de 2 dormitorios ubicado en zona privilegiada de Miraflores. Ideal para inversión o residencia. Se vende sin muebles.',
+         380000.00, 'PEN', 2, 2, 1, 85.0, 9,
          'Av. Larco 1567, Miraflores', 'Miraflores', 'Lima', 'Perú',
-         -12.1267, -77.0297, 'pending', NULL, NULL);
+         -12.1267, -77.0297, 'verified', current_timestamp, current_timestamp + interval '90 days', NULL, false),
+         
+        (gen_random_uuid(), current_timestamp, user_maria, agency_inmobiliaria, 'published', 'roommate', 'apartment',
+         'Cuarto en Departamento Compartido - San Isidro',
+         'Habitación individual en departamento compartido con 2 profesionales. Incluye baño privado, cocina y sala común. Ambiente tranquilo y seguro.',
+         800.00, 'PEN', 1, 1, 0, 20.0, 5,
+         'Av. República de Panamá 3456, San Isidro', 'San Isidro', 'Lima', 'Perú',
+         -12.0951, -77.0364, 'verified', current_timestamp, current_timestamp + interval '90 days', 'monthly', true),
+         
+        (gen_random_uuid(), current_timestamp, user_carlos, NULL, 'published', 'roommate', 'house',
+         'Cuarto en Casa Compartida - Surco',
+         'Habitación amplia en casa de 3 pisos. Comparte con 2 roommates más. Incluye servicios, internet y limpieza común. Zona residencial muy tranquila.',
+         650.00, 'PEN', 1, 1, 0, 18.0, 8,
+         'Calle Las Begonias 789, Surco', 'Surco', 'Lima', 'Perú',
+         -12.1358, -76.9947, 'verified', current_timestamp, current_timestamp + interval '60 days', 'monthly', false);
 
     -- Obtener IDs de listings recién insertados
     SELECT id INTO listing_1 FROM core.listings WHERE title = 'Moderno Departamento en San Isidro' AND created_at >= current_timestamp - interval '1 minute' LIMIT 1;

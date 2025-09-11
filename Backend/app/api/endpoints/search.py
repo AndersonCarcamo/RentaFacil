@@ -41,6 +41,7 @@ async def search_listings(
     min_age_years: Optional[int] = Query(None, ge=0, description="Antigüedad mínima en años"),
     max_age_years: Optional[int] = Query(None, ge=0, description="Antigüedad máxima en años"),
     has_media: Optional[bool] = Query(None, description="Solo con fotos/videos"),
+    pet_friendly: Optional[bool] = Query(None, description="Solo propiedades que aceptan mascotas (true) o no (false)"),
     amenities: Optional[List[int]] = Query(None, description="IDs de amenidades"),
     page: int = Query(1, ge=1, description="Página"),
     limit: int = Query(20, ge=1, le=100, description="Elementos por página"),
@@ -69,7 +70,7 @@ async def search_listings(
             min_bedrooms=min_bedrooms, max_bedrooms=max_bedrooms, min_bathrooms=min_bathrooms, max_bathrooms=max_bathrooms,
             min_area_built=min_area_built, max_area_built=max_area_built, min_area_total=min_area_total, max_area_total=max_area_total,
             min_parking_spots=min_parking_spots, rental_term=rental_term, min_age_years=min_age_years, max_age_years=max_age_years,
-            has_media=has_media, amenities=amenities, page=page, limit=limit, sort_by=sort_by, sort_order=sort_order
+            has_media=has_media, pet_friendly=pet_friendly, amenities=amenities, page=page, limit=limit, sort_by=sort_by, sort_order=sort_order
         )
         
         service = SearchService(db)

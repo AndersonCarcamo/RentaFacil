@@ -269,6 +269,8 @@ class SearchService:
             query = query.filter(Listing.age_years <= filters.max_age_years)
         if filters.has_media is not None:
             query = query.filter(Listing.has_media == filters.has_media)
+        if filters.pet_friendly is not None:
+            query = query.filter(Listing.pet_friendly == filters.pet_friendly)
         
         # Filtro de amenidades
         if filters.amenities:
@@ -392,6 +394,7 @@ class SearchService:
             'area_built': float(listing.area_built) if listing.area_built else None,
             'area_total': float(listing.area_total) if listing.area_total else None,
             'rental_term': listing.rental_term,
+            'pet_friendly': listing.pet_friendly,
             # Ubicación
             'country': listing.country,
             'department': listing.department,

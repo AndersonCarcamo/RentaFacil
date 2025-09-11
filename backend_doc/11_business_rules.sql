@@ -128,6 +128,8 @@ DECLARE
     qbaths INT := NULLIF(p->>'bathrooms','')::INT;
     qhas_media BOOLEAN := CASE WHEN p ? 'has_media' THEN (p->>'has_media')::BOOLEAN ELSE NULL END;
     qterm core.rental_term := NULLIF(p->>'rental_term','')::core.rental_term;
+    qpet_friendly BOOLEAN := CASE WHEN p ? 'pet_friendly' THEN (p->>'pet_friendly')::BOOLEAN ELSE NULL END;
+    qfurnished BOOLEAN := CASE WHEN p ? 'furnished' THEN (p->>'furnished')::BOOLEAN ELSE NULL END;
 BEGIN
     RETURN QUERY
     WITH base AS (
@@ -148,6 +150,8 @@ BEGIN
             AND (qbaths IS NULL OR l.bathrooms >= qbaths)
             AND (qhas_media IS NULL OR l.has_media = qhas_media)
             AND (qterm IS NULL OR l.rental_term = qterm)
+            AND (qpet_friendly IS NULL OR l.pet_friendly = qpet_friendly)
+            AND (qfurnished IS NULL OR l.furnished = qfurnished)
     )
     SELECT base.id, base.created_at, base.r
     FROM base

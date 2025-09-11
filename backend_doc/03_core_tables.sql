@@ -85,6 +85,8 @@ CREATE TABLE IF NOT EXISTS core.listings (
     floor_number                    INTEGER,
     age_years                       INTEGER,
     rental_term                     core.rental_term,
+    rental_mode                     core.rental_mode DEFAULT 'full_property',
+    furnished                       BOOLEAN DEFAULT FALSE, -- Indicates if property comes furnished
     
     -- Verification and status
     verification_status             core.verification_status NOT NULL DEFAULT 'pending',
