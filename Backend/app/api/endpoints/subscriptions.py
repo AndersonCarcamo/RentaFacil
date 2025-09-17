@@ -1,0 +1,546 @@
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.orm import Session
+from typing import List, Optional
+import uuid
+
+from app.core.database import get_db
+from app.api.deps import get_current_user
+from app.services.subscription_service import SubscriptionService
+from app.schemas.subscriptions import (
+    PlanResponse, CreatePlanRequest, UpdatePlanRequest,
+    SubscriptionResponse, SubscriptionDetailResponse, CreateSubscriptionRequest,
+    UpdateSubscriptionRequest, CancelSubscriptionRequest, PauseSubscriptionRequest,
+    UsageResponse, PaymentResponse, PaginatedPlans, PaginatedSubscriptions, PaginatedPayments
+)
+from app.core.exceptions import BusinessLogicError
+
+router = APIRouter()
+
+# =================== PLANS ===================
+
+@router.get("/plans", response_model=List[PlanResponse], summary="Obtener planes disponibles")
+async def get_plans(
+    active_only: bool = Query(True, description="Solo planes activos"),
+    db: Session = Depends(get_db)
+):
+    """Obtener todos los planes disponibles"""
+    try:
+        service = SubscriptionService(db)
+        plans = service.get_plans(active_only=active_only)
+        
+        return [
+            PlanResponse(
+                id=plan.id,
+                name=plan.name,
+                description=plan.description,
+                price_monthly=plan.price_monthly,
+                price_yearly=plan.price_yearly,
+                features=plan.features or [],
+                limits=plan.limits or {},
+                active=plan.active,
+                sort_order=plan.sort_order,
+                created_at=plan.created_at,
+                updated_at=plan.updated_at
+            )
+            for plan in plans
+        ]
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting plans: {str(e)}")
+
+
+@router.get("/plans/{plan_id}", response_model=PlanResponse, summary="Obtener plan por ID")
+async def get_plan(
+    plan_id: str,
+    db: Session = Depends(get_db)
+):
+    """Obtener detalles de un plan específico"""
+    try:
+        service = SubscriptionService(db)
+        plan = service.get_plan_by_id(plan_id)
+        
+        if not plan:
+            raise HTTPException(status_code=404, detail="Plan not found")
+        
+        return PlanResponse(
+            id=plan.id,
+            name=plan.name,
+            description=plan.description,
+            price_monthly=plan.price_monthly,
+            price_yearly=plan.price_yearly,
+            features=plan.features or [],
+            limits=plan.limits or {},
+            active=plan.active,
+            sort_order=plan.sort_order,
+            created_at=plan.created_at,
+            updated_at=plan.updated_at
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting plan: {str(e)}")
+
+
+# =================== SUBSCRIPTIONS ===================
+
+@router.get("/subscriptions", response_model=PaginatedSubscriptions, summary="Obtener suscripciones del usuario")
+async def get_subscriptions(
+    page: int = Query(1, ge=1, description="Número de página"),
+    limit: int = Query(20, ge=1, le=100, description="Elementos por página"),
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Obtener suscripciones del usuario"""
+    try:
+        service = SubscriptionService(db)
+        user_id = str(current_user.get("user_id", current_user.get("id")))
+        subscriptions, total = service.get_user_subscriptions(user_id, page, limit)
+        
+        pages = (total + limit - 1) // limit
+        
+        subscriptions_response = []
+        for sub in subscriptions:
+            plan_response = None
+            if sub.plan:
+                plan_response = PlanResponse(
+                    id=sub.plan.id,
+                    name=sub.plan.name,
+                    description=sub.plan.description,
+                    price_monthly=sub.plan.price_monthly,
+                    price_yearly=sub.plan.price_yearly,
+                    features=sub.plan.features or [],
+                    limits=sub.plan.limits or {},
+                    active=sub.plan.active,
+                    sort_order=sub.plan.sort_order,
+                    created_at=sub.plan.created_at,
+                    updated_at=sub.plan.updated_at
+                )
+            
+            subscriptions_response.append(
+                SubscriptionResponse(
+                    id=sub.id,
+                    user_id=sub.user_id,
+                    plan_id=sub.plan_id,
+                    status=sub.status,
+                    billing_cycle=sub.billing_cycle,
+                    start_date=sub.start_date,
+                    current_period_start=sub.current_period_start,
+                    current_period_end=sub.current_period_end,
+                    cancelled_at=sub.cancelled_at,
+                    pause_until=sub.pause_until,
+                    auto_renewal=sub.auto_renewal,
+                    cancel_at_period_end=sub.cancel_at_period_end,
+                    cancellation_reason=sub.cancellation_reason,
+                    plan=plan_response,
+                    created_at=sub.created_at,
+                    updated_at=sub.updated_at
+                )
+            )
+        
+        return PaginatedSubscriptions(
+            data=subscriptions_response,
+            total=total,
+            page=page,
+            limit=limit,
+            pages=pages,
+            has_next=page < pages,
+            has_prev=page > 1
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting subscriptions: {str(e)}")
+
+
+@router.post("/subscriptions", 
+            response_model=SubscriptionResponse, 
+            status_code=status.HTTP_201_CREATED,
+            summary="Crear suscripción")
+async def create_subscription(
+    subscription_data: CreateSubscriptionRequest,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Crear nueva suscripción"""
+    try:
+        service = SubscriptionService(db)
+        user_id = str(current_user.get("user_id", current_user.get("id")))
+        subscription = service.create_subscription(user_id, subscription_data)
+        
+        # Cargar el plan
+        plan_response = None
+        if subscription.plan:
+            plan_response = PlanResponse(
+                id=subscription.plan.id,
+                name=subscription.plan.name,
+                description=subscription.plan.description,
+                price_monthly=subscription.plan.price_monthly,
+                price_yearly=subscription.plan.price_yearly,
+                features=subscription.plan.features or [],
+                limits=subscription.plan.limits or {},
+                active=subscription.plan.active,
+                sort_order=subscription.plan.sort_order,
+                created_at=subscription.plan.created_at,
+                updated_at=subscription.plan.updated_at
+            )
+        
+        return SubscriptionResponse(
+            id=subscription.id,
+            user_id=subscription.user_id,
+            plan_id=subscription.plan_id,
+            status=subscription.status,
+            billing_cycle=subscription.billing_cycle,
+            start_date=subscription.start_date,
+            current_period_start=subscription.current_period_start,
+            current_period_end=subscription.current_period_end,
+            cancelled_at=subscription.cancelled_at,
+            pause_until=subscription.pause_until,
+            auto_renewal=subscription.auto_renewal,
+            cancel_at_period_end=subscription.cancel_at_period_end,
+            cancellation_reason=subscription.cancellation_reason,
+            plan=plan_response,
+            created_at=subscription.created_at,
+            updated_at=subscription.updated_at
+        )
+        
+    except BusinessLogicError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error creating subscription: {str(e)}")
+
+
+@router.get("/subscriptions/{subscription_id}", 
+           response_model=SubscriptionDetailResponse, 
+           summary="Obtener suscripción por ID")
+async def get_subscription(
+    subscription_id: str,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Obtener detalles de una suscripción específica"""
+    try:
+        service = SubscriptionService(db)
+        user_id = str(current_user.get("user_id", current_user.get("id")))
+        subscription = service.get_subscription_by_id(subscription_id, user_id)
+        
+        if not subscription:
+            raise HTTPException(status_code=404, detail="Subscription not found")
+        
+        # Obtener uso actual
+        usage = service.get_subscription_usage(subscription_id)
+        current_usage = None
+        remaining_limits = None
+        
+        if usage and subscription.plan and subscription.plan.limits:
+            limits = subscription.plan.limits
+            current_usage = {
+                "listings": usage.listings_used,
+                "images": usage.images_uploaded,
+                "videos": usage.videos_uploaded,
+                "api_calls": usage.api_calls
+            }
+            
+            remaining_limits = {}
+            for key, limit in limits.items():
+                if key.startswith("max_"):
+                    usage_key = key.replace("max_", "").replace("s", "")
+                    if usage_key in current_usage:
+                        remaining = limit - current_usage[usage_key] if limit != -1 else -1
+                        remaining_limits[usage_key] = remaining
+        
+        # Preparar respuesta del plan
+        plan_response = None
+        if subscription.plan:
+            plan_response = PlanResponse(
+                id=subscription.plan.id,
+                name=subscription.plan.name,
+                description=subscription.plan.description,
+                price_monthly=subscription.plan.price_monthly,
+                price_yearly=subscription.plan.price_yearly,
+                features=subscription.plan.features or [],
+                limits=subscription.plan.limits or {},
+                active=subscription.plan.active,
+                sort_order=subscription.plan.sort_order,
+                created_at=subscription.plan.created_at,
+                updated_at=subscription.plan.updated_at
+            )
+        
+        return SubscriptionDetailResponse(
+            id=subscription.id,
+            user_id=subscription.user_id,
+            plan_id=subscription.plan_id,
+            status=subscription.status,
+            billing_cycle=subscription.billing_cycle,
+            start_date=subscription.start_date,
+            current_period_start=subscription.current_period_start,
+            current_period_end=subscription.current_period_end,
+            cancelled_at=subscription.cancelled_at,
+            pause_until=subscription.pause_until,
+            auto_renewal=subscription.auto_renewal,
+            cancel_at_period_end=subscription.cancel_at_period_end,
+            cancellation_reason=subscription.cancellation_reason,
+            payment_method_id=subscription.payment_method_id,
+            last_payment_date=subscription.last_payment_date,
+            next_payment_date=subscription.next_payment_date,
+            current_usage=current_usage,
+            remaining_limits=remaining_limits,
+            plan=plan_response,
+            created_at=subscription.created_at,
+            updated_at=subscription.updated_at
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting subscription: {str(e)}")
+
+
+@router.put("/subscriptions/{subscription_id}", 
+           response_model=SubscriptionResponse, 
+           summary="Actualizar suscripción")
+async def update_subscription(
+    subscription_id: str,
+    update_data: UpdateSubscriptionRequest,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Actualizar suscripción"""
+    try:
+        service = SubscriptionService(db)
+        user_id = str(current_user.get("user_id", current_user.get("id")))
+        subscription = service.update_subscription(subscription_id, user_id, update_data)
+        
+        if not subscription:
+            raise HTTPException(status_code=404, detail="Subscription not found")
+        
+        # Cargar el plan
+        plan_response = None
+        if subscription.plan:
+            plan_response = PlanResponse(
+                id=subscription.plan.id,
+                name=subscription.plan.name,
+                description=subscription.plan.description,
+                price_monthly=subscription.plan.price_monthly,
+                price_yearly=subscription.plan.price_yearly,
+                features=subscription.plan.features or [],
+                limits=subscription.plan.limits or {},
+                active=subscription.plan.active,
+                sort_order=subscription.plan.sort_order,
+                created_at=subscription.plan.created_at,
+                updated_at=subscription.plan.updated_at
+            )
+        
+        return SubscriptionResponse(
+            id=subscription.id,
+            user_id=subscription.user_id,
+            plan_id=subscription.plan_id,
+            status=subscription.status,
+            billing_cycle=subscription.billing_cycle,
+            start_date=subscription.start_date,
+            current_period_start=subscription.current_period_start,
+            current_period_end=subscription.current_period_end,
+            cancelled_at=subscription.cancelled_at,
+            pause_until=subscription.pause_until,
+            auto_renewal=subscription.auto_renewal,
+            cancel_at_period_end=subscription.cancel_at_period_end,
+            cancellation_reason=subscription.cancellation_reason,
+            plan=plan_response,
+            created_at=subscription.created_at,
+            updated_at=subscription.updated_at
+        )
+        
+    except HTTPException:
+        raise
+    except BusinessLogicError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error updating subscription: {str(e)}")
+
+
+@router.delete("/subscriptions/{subscription_id}", summary="Cancelar suscripción")
+async def cancel_subscription(
+    subscription_id: str,
+    cancel_data: CancelSubscriptionRequest,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Cancelar suscripción"""
+    try:
+        service = SubscriptionService(db)
+        user_id = str(current_user.get("user_id", current_user.get("id")))
+        subscription = service.cancel_subscription(subscription_id, user_id, cancel_data)
+        
+        if not subscription:
+            raise HTTPException(status_code=404, detail="Subscription not found")
+        
+        return {
+            "message": "Subscription cancelled successfully",
+            "cancelled_at": subscription.cancelled_at,
+            "cancel_at_period_end": subscription.cancel_at_period_end
+        }
+        
+    except HTTPException:
+        raise
+    except BusinessLogicError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error cancelling subscription: {str(e)}")
+
+
+@router.post("/subscriptions/{subscription_id}/pause", summary="Pausar suscripción")
+async def pause_subscription(
+    subscription_id: str,
+    pause_data: PauseSubscriptionRequest,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Pausar suscripción"""
+    try:
+        service = SubscriptionService(db)
+        user_id = str(current_user.get("user_id", current_user.get("id")))
+        subscription = service.pause_subscription(subscription_id, user_id, pause_data)
+        
+        if not subscription:
+            raise HTTPException(status_code=404, detail="Subscription not found")
+        
+        return {
+            "message": "Subscription paused successfully",
+            "status": subscription.status,
+            "pause_until": subscription.pause_until
+        }
+        
+    except HTTPException:
+        raise
+    except BusinessLogicError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error pausing subscription: {str(e)}")
+
+
+@router.post("/subscriptions/{subscription_id}/resume", summary="Reanudar suscripción")
+async def resume_subscription(
+    subscription_id: str,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Reanudar suscripción pausada"""
+    try:
+        service = SubscriptionService(db)
+        user_id = str(current_user.get("user_id", current_user.get("id")))
+        subscription = service.resume_subscription(subscription_id, user_id)
+        
+        if not subscription:
+            raise HTTPException(status_code=404, detail="Subscription not found")
+        
+        return {
+            "message": "Subscription resumed successfully",
+            "status": subscription.status
+        }
+        
+    except HTTPException:
+        raise
+    except BusinessLogicError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error resuming subscription: {str(e)}")
+
+
+# =================== USAGE TRACKING ===================
+
+@router.get("/subscriptions/{subscription_id}/usage", 
+           response_model=UsageResponse, 
+           summary="Obtener uso de suscripción")
+async def get_subscription_usage(
+    subscription_id: str,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Obtener uso actual de la suscripción"""
+    try:
+        service = SubscriptionService(db)
+        user_id = str(current_user.get("user_id", current_user.get("id")))
+        
+        # Verificar que la suscripción pertenece al usuario
+        subscription = service.get_subscription_by_id(subscription_id, user_id)
+        if not subscription:
+            raise HTTPException(status_code=404, detail="Subscription not found")
+        
+        usage = service.get_subscription_usage(subscription_id)
+        if not usage:
+            raise HTTPException(status_code=404, detail="Usage data not found")
+        
+        return UsageResponse(
+            subscription_id=usage.subscription_id,
+            period_start=usage.period_start,
+            period_end=usage.period_end,
+            listings_used=usage.listings_used,
+            images_uploaded=usage.images_uploaded,
+            videos_uploaded=usage.videos_uploaded,
+            api_calls=usage.api_calls,
+            limits_snapshot=usage.limits_snapshot or {}
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting usage: {str(e)}")
+
+
+# =================== PAYMENT HISTORY ===================
+
+@router.get("/subscriptions/{subscription_id}/payments", 
+           response_model=PaginatedPayments, 
+           summary="Obtener historial de pagos")
+async def get_payment_history(
+    subscription_id: str,
+    page: int = Query(1, ge=1, description="Número de página"),
+    limit: int = Query(20, ge=1, le=100, description="Elementos por página"),
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Obtener historial de pagos de la suscripción"""
+    try:
+        service = SubscriptionService(db)
+        user_id = str(current_user.get("user_id", current_user.get("id")))
+        
+        # Verificar que la suscripción pertenece al usuario
+        subscription = service.get_subscription_by_id(subscription_id, user_id)
+        if not subscription:
+            raise HTTPException(status_code=404, detail="Subscription not found")
+        
+        payments, total = service.get_payment_history(subscription_id, page, limit)
+        pages = (total + limit - 1) // limit
+        
+        payments_response = []
+        for payment in payments:
+            payments_response.append(
+                PaymentResponse(
+                    id=payment.id,
+                    subscription_id=payment.subscription_id,
+                    amount=payment.amount,
+                    currency=payment.currency,
+                    payment_method=payment.payment_method,
+                    status=payment.status,
+                    payment_date=payment.payment_date,
+                    period_start=payment.period_start,
+                    period_end=payment.period_end,
+                    description=payment.description,
+                    invoice_url=payment.invoice_url,
+                    created_at=payment.created_at
+                )
+            )
+        
+        return PaginatedPayments(
+            data=payments_response,
+            total=total,
+            page=page,
+            limit=limit,
+            pages=pages,
+            has_next=page < pages,
+            has_prev=page > 1
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting payment history: {str(e)}")

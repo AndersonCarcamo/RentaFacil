@@ -133,6 +133,215 @@ def test_logout(refresh_token):
         print()
         return False
 
+def test_create_listing(access_token):
+    """Crear un listing de prueba para tests de Airbnb"""
+    print("=== Creating Test Listing for Airbnb Tests ===")
+    listing_data = {
+        "title": "Hermoso Apartamento Moderno",
+        "description": "Apartamento completamente amueblado en zona céntrica, perfecto para Airbnb",
+        "operation": "rent",
+        "property_type": "apartment",
+        "price": 800.00,
+        "currency": "PEN",
+        "area_built": 85.5,
+        "bedrooms": 2,
+        "bathrooms": 2,
+        "furnished": True,
+        "rental_mode": "full_property",
+        "pet_friendly": True,
+        "airbnb_opted_out": False,  # Explicitly test this field
+        "address": "Av. Ejemplo 123, Miraflores",
+        "department": "Lima",
+        "province": "Lima",
+        "district": "Miraflores"
+    }
+    
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json"
+    }
+    
+    try:
+        response = requests.post(
+            f"{BASE_URL}/v1/listings/",
+            json=listing_data,
+            headers=headers
+        )
+        print(f"Status: {response.status_code}")
+        if response.status_code == 201:
+            listing = response.json()
+            print(f"✅ Created listing ID: {listing['id']}")
+            print(f"📊 Airbnb eligible: {listing.get('airbnb_eligible', 'N/A')}")
+            print(f"❌ Airbnb opted out: {listing.get('airbnb_opted_out', 'N/A')}")
+            print(f"🏠 Is Airbnb available: {listing.get('is_airbnb_available', 'N/A')}")
+            print(f"🏆 Airbnb score: {listing.get('airbnb_score', 'N/A')}")
+            print()
+            return listing['id']
+        else:
+            print(f"❌ Error response: {response.text}")
+            print()
+            return None
+    except Exception as e:
+        print(f"Error: {e}")
+        print()
+        return None
+
+def test_validate_airbnb(listing_id, access_token):
+    """Test Airbnb validation endpoint"""
+    print("=== Testing Airbnb Validation ===")
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json"
+    }
+    
+    try:
+        response = requests.post(
+            f"{BASE_URL}/v1/listings/{listing_id}/validate-airbnb",
+            headers=headers
+        )
+        print(f"Status: {response.status_code}")
+        if response.status_code == 200:
+            validation = response.json()
+            print(f"🏆 Can be Airbnb: {validation.get('can_be_airbnb', 'N/A')}")
+            print(f"📊 Airbnb score: {validation.get('airbnb_score', 'N/A')}")
+            print(f"🏠 Current style: {validation.get('current_style', 'N/A')}")
+            print(f"💡 Suggestions: {validation.get('suggestions', [])}")
+            if validation.get('missing_requirements'):
+                print(f"❌ Missing requirements: {validation.get('missing_requirements', [])}")
+            print()
+            return validation
+        else:
+            print(f"❌ Error response: {response.text}")
+            print()
+            return None
+    except Exception as e:
+        print(f"Error: {e}")
+        print()
+        return None
+
+def test_opt_out_airbnb(listing_id, access_token):
+    """Test Airbnb opt-out endpoint"""
+    print("=== Testing Airbnb Opt-Out ===")
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json"
+    }
+    
+    try:
+        response = requests.post(
+            f"{BASE_URL}/v1/listings/{listing_id}/opt-out-airbnb",
+            headers=headers
+        )
+        print(f"Status: {response.status_code}")
+        if response.status_code == 200:
+            listing = response.json()
+            print(f"✅ Successfully opted out of Airbnb")
+            print(f"Airbnb opted out: {listing.get('airbnb_opted_out', 'N/A')}")
+            print(f"Is Airbnb available: {listing.get('is_airbnb_available', 'N/A')}")
+            print()
+            return listing
+        else:
+            print(f"❌ Error response: {response.text}")
+            print()
+            return None
+    except Exception as e:
+        print(f"Error: {e}")
+        print()
+        return None
+
+def test_opt_in_airbnb(listing_id, access_token):
+    """Test Airbnb opt-in endpoint"""
+    print("=== Testing Airbnb Opt-In ===")
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json"
+    }
+    
+    try:
+        response = requests.post(
+            f"{BASE_URL}/v1/listings/{listing_id}/opt-in-airbnb",
+            headers=headers
+        )
+        print(f"Status: {response.status_code}")
+        if response.status_code == 200:
+            listing = response.json()
+            print(f"✅ Successfully opted back into Airbnb")
+            print(f"Airbnb opted out: {listing.get('airbnb_opted_out', 'N/A')}")
+            print(f"Airbnb eligible: {listing.get('airbnb_eligible', 'N/A')}")
+            print(f"Is Airbnb available: {listing.get('is_airbnb_available', 'N/A')}")
+            print()
+            return listing
+        else:
+            print(f"❌ Error response: {response.text}")
+            print()
+            return None
+    except Exception as e:
+        print(f"Error: {e}")
+        print()
+        return None
+
+def test_search_airbnb_filters():
+    """Test search with Airbnb filters"""
+    print("=== Testing Search with Airbnb Filters ===")
+    
+    # Test 1: Search for Airbnb eligible properties
+    print("🔍 Searching for Airbnb eligible properties...")
+    try:
+        response = requests.get(f"{BASE_URL}/v1/search/?airbnb_eligible=true&limit=5")
+        print(f"Status: {response.status_code}")
+        if response.status_code == 200:
+            results = response.json()
+            print(f"Found {len(results.get('items', []))} Airbnb eligible properties")
+            for item in results.get('items', [])[:2]:  # Show first 2
+                print(f"  - {item.get('title', 'N/A')} | Available: {item.get('is_airbnb_available', 'N/A')}")
+        print()
+    except Exception as e:
+        print(f"Error: {e}")
+        print()
+    
+    # Test 2: Search for properties with min Airbnb score
+    print("🔍 Searching for high-score Airbnb properties...")
+    try:
+        response = requests.get(f"{BASE_URL}/v1/search/?min_airbnb_score=70&limit=5")
+        print(f"Status: {response.status_code}")
+        if response.status_code == 200:
+            results = response.json()
+            print(f"Found {len(results.get('items', []))} high-score Airbnb properties")
+            for item in results.get('items', [])[:2]:  # Show first 2
+                print(f"  - {item.get('title', 'N/A')} | Score: {item.get('airbnb_score', 'N/A')}")
+        print()
+    except Exception as e:
+        print(f"Error: {e}")
+        print()
+
+def test_airbnb_flow(access_token):
+    """Test complete Airbnb opt-out/opt-in flow"""
+    print("🏠 === AIRBNB OPT-OUT/OPT-IN FLOW TESTING ===")
+    print("-" * 50)
+    
+    # 1. Create a test listing
+    listing_id = test_create_listing(access_token)
+    if not listing_id:
+        print("❌ Failed to create test listing. Aborting Airbnb tests.")
+        return
+    
+    # 2. Validate Airbnb eligibility
+    validation = test_validate_airbnb(listing_id, access_token)
+    
+    # 3. Test opt-out functionality
+    opted_out = test_opt_out_airbnb(listing_id, access_token)
+    
+    # 4. Test opt-in functionality
+    opted_in = test_opt_in_airbnb(listing_id, access_token)
+    
+    # 5. Test search filters
+    test_search_airbnb_filters()
+    
+    print("🎯 Airbnb Flow Testing Complete!")
+    print("-" * 50)
+    
+    return listing_id
+
 def test_invalid_token():
     """Probar con token inválido"""
     print("=== Testing Invalid Token ===")
@@ -180,9 +389,14 @@ def main():
         
         # 7. Test invalid token
         test_invalid_token()
+        
+        # 8. Test Airbnb functionality
+        print("\n🏠 AIRBNB FUNCTIONALITY TESTING")
+        print("-" * 40)
+        test_listing_id = test_airbnb_flow(access_token)
     
     print("=" * 60)
-    print("🎯 Authentication Testing Complete!")
+    print("🎯 All Testing Complete!")
     print("=" * 60)
 
 if __name__ == "__main__":

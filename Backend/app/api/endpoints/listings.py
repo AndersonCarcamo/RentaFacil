@@ -6,7 +6,8 @@ from app.schemas.listings import (
 )
 from app.services.listing_service import ListingService
 from app.api.deps import get_current_user
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
+from uuid import UUID
 
 router = APIRouter()
 
@@ -25,6 +26,8 @@ async def list_listings(
     min_age_years: Optional[int] = None,
     max_age_years: Optional[int] = None,
     verified: Optional[bool] = None,
+    furnished: Optional[bool] = None,
+    rental_mode: Optional[str] = None,
     sort: Optional[str] = None,
     page: int = 1,
     limit: int = 20,
@@ -118,7 +121,7 @@ async def publish_listing(listing_id: str, db: Session = Depends(get_db), curren
             raise HTTPException(status_code=404, detail="Listing not found")
         return ListingResponse.from_orm(listing)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=f"Invalid input: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error publishing listing: {str(e)}")
 
@@ -148,3 +151,161 @@ async def duplicate_listing(listing_id: str, db: Session = Depends(get_db), curr
         raise HTTPException(status_code=400, detail=f"Invalid input: {str(e)}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error duplicating listing: {str(e)}")
+
+@router.post("/{listing_id}/validate-airbnb", summary="Validar elegibilidad Airbnb")
+async def validate_airbnb_eligibility(
+    listing_id: str, 
+    db: Session = Depends(get_db), 
+    current_user=Depends(get_current_user)
+):
+    """
+    Valida si una propiedad puede ser utilizada como Airbnb.
+    Retorna score de elegibilidad, requerimientos faltantes y sugerencias.
+    """
+    try:
+        service = ListingService(db)
+        validation_result = service.validate_airbnb_listing(listing_id)
+        
+        if validation_result is None:
+            raise HTTPException(status_code=404, detail="Listing not found")
+            
+        return {
+            "success": True,
+            "listing_id": listing_id,
+            "validation": validation_result,
+            "message": "Validación de Airbnb completada"
+        }
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid input: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error validating Airbnb eligibility: {str(e)}")
+
+@router.put("/{listing_id}/optimize-for-airbnb", response_model=ListingResponse, summary="Optimizar para Airbnb")
+async def optimize_for_airbnb(
+    listing_id: str, 
+    db: Session = Depends(get_db), 
+    current_user=Depends(get_current_user)
+):
+    """
+    Optimiza una propiedad existente para Airbnb después de validar elegibilidad.
+    No cambia el tipo de operación, sino que mejora el score para estilo Airbnb.
+    """
+    try:
+        service = ListingService(db)
+        listing = service.get_listing(listing_id)
+        
+        if not listing:
+            raise HTTPException(status_code=404, detail="Listing not found")
+            
+        # Validate current operation is rent or temp_rent
+        if listing.operation not in ['rent', 'temp_rent']:
+            raise HTTPException(
+                status_code=400, 
+                detail="Only rent and temp_rent properties can be optimized for Airbnb"
+            )
+            
+        # Re-validate Airbnb eligibility
+        validation_result = service.validate_airbnb_listing(listing_id)
+        
+        if not validation_result or not validation_result.get("can_be_airbnb", False):
+            raise HTTPException(
+                status_code=400, 
+                detail={
+                    "message": "Property is not eligible for Airbnb style",
+                    "suggestions": validation_result.get("suggestions", []) if validation_result else [],
+                    "missing_requirements": validation_result.get("missing_requirements", []) if validation_result else []
+                }
+            )
+        
+        # The listing is already optimized through the validation process
+        # Return the updated listing
+        service.db.refresh(listing)
+        return ListingResponse.from_orm(listing)
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid input: {str(e)}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error optimizing for Airbnb: {str(e)}")
+
+
+@router.post("/{listing_id}/opt-out-airbnb", response_model=ListingResponse, summary="Desactivar Airbnb")
+async def opt_out_airbnb(
+    listing_id: UUID,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Permite al propietario desactivar explícitamente la funcionalidad Airbnb para su propiedad.
+    
+    - **listing_id**: ID de la propiedad
+    - **Autorización**: Solo el propietario puede desactivar Airbnb
+    - **Resultado**: Marca airbnb_opted_out = True
+    """
+    try:
+        service = ListingService(db)
+        listing = service.get_listing(str(listing_id))
+        
+        if not listing:
+            raise HTTPException(status_code=404, detail="Listing not found")
+            
+        # Verificar que el usuario es el propietario
+        if str(listing.owner_user_id) != str(current_user.id):
+            raise HTTPException(status_code=403, detail="Not authorized to modify this listing")
+        
+        # Usar el servicio para opt-out
+        updated_listing = service.opt_out_airbnb(str(listing_id))
+        
+        if not updated_listing:
+            raise HTTPException(status_code=400, detail="Failed to opt out of Airbnb")
+        
+        return ListingResponse.from_orm(updated_listing)
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid input: {str(e)}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error opting out of Airbnb: {str(e)}")
+
+
+@router.post("/{listing_id}/opt-in-airbnb", response_model=ListingResponse, summary="Reactivar Airbnb")
+async def opt_in_airbnb(
+    listing_id: UUID,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Permite al propietario reactivar la funcionalidad Airbnb para su propiedad.
+    
+    - **listing_id**: ID de la propiedad
+    - **Autorización**: Solo el propietario puede reactivar Airbnb
+    - **Resultado**: Marca airbnb_opted_out = False y re-valida elegibilidad
+    """
+    try:
+        service = ListingService(db)
+        listing = service.get_listing(str(listing_id))
+        
+        if not listing:
+            raise HTTPException(status_code=404, detail="Listing not found")
+            
+        # Verificar que el usuario es el propietario
+        if str(listing.owner_user_id) != str(current_user.id):
+            raise HTTPException(status_code=403, detail="Not authorized to modify this listing")
+        
+        # Usar el servicio para opt-in
+        updated_listing = service.opt_in_airbnb(str(listing_id))
+        
+        if not updated_listing:
+            raise HTTPException(status_code=400, detail="Failed to opt in to Airbnb")
+        
+        return ListingResponse.from_orm(updated_listing)
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid input: {str(e)}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error opting in to Airbnb: {str(e)}")

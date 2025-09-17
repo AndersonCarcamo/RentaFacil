@@ -993,6 +993,18 @@ paths:
             type: string
             enum: [full_property, private_room, shared_room]
             description: Modalidad de alquiler
+        - name: airbnb_eligible
+          in: query
+          schema:
+            type: boolean
+            description: Solo propiedades elegibles para Airbnb
+        - name: min_airbnb_score
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 100
+            description: Score mínimo de elegibilidad Airbnb (0-100)
         - name: sort
           in: query
           schema:
@@ -1207,6 +1219,174 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PaginatedListings'
+
+  /listings/{listing_id}/validate-airbnb:
+    post:
+      tags: [Listings]
+      summary: 🔍 Validar elegibilidad Airbnb
+      description: Valida si una propiedad puede ser utilizada como Airbnb
+      operationId: validate_airbnb_eligibility
+      parameters:
+        - name: listing_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            example: "456e7890-e89b-12d3-a456-426614174001"
+      responses:
+        '200':
+          description: ✅ Validación completada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  listing_id:
+                    type: string
+                    example: "456e7890-e89b-12d3-a456-426614174001"
+                  validation:
+                    type: object
+                    properties:
+                      can_be_airbnb:
+                        type: boolean
+                        example: true
+                      airbnb_score:
+                        type: integer
+                        minimum: 0
+                        maximum: 100
+                        example: 85
+                      current_style:
+                        type: string
+                        example: "airbnb"
+                      missing_requirements:
+                        type: array
+                        items:
+                          type: string
+                        example: []
+                      suggestions:
+                        type: array
+                        items:
+                          type: string
+                        example: ["Agregar más amenidades", "Mejorar descripción"]
+                  message:
+                    type: string
+                    example: "Validación de Airbnb completada"
+        '404':
+          description: Propiedad no encontrada
+        '400':
+          description: Entrada inválida
+        '500':
+          description: Error interno del servidor
+
+  /listings/{listing_id}/optimize-for-airbnb:
+    put:
+      tags: [Listings]
+      summary: 🚀 Optimizar para Airbnb
+      description: Optimiza una propiedad para estilo Airbnb después de validar elegibilidad
+      operationId: optimize_for_airbnb
+      parameters:
+        - name: listing_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            example: "456e7890-e89b-12d3-a456-426614174001"
+      responses:
+        '200':
+          description: ✅ Propiedad optimizada para Airbnb
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Listing'
+        '400':
+          description: Propiedad no elegible para Airbnb
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Property is not eligible for Airbnb style"
+                  suggestions:
+                    type: array
+                    items:
+                      type: string
+                    example: ["Marcar como amueblado", "Agregar amenidades de confort"]
+                  missing_requirements:
+                    type: array
+                    items:
+                      type: string
+                    example: ["furnished", "suitable_property_type"]
+        '404':
+          description: Propiedad no encontrada
+        '500':
+          description: Error interno del servidor
+
+  /listings/{listing_id}/opt-out-airbnb:
+    post:
+      tags: [Listings]
+      summary: ❌ Desactivar Airbnb
+      description: Permite al propietario desactivar explícitamente la funcionalidad Airbnb para su propiedad
+      operationId: opt_out_airbnb
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: listing_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            example: "456e7890-e89b-12d3-a456-426614174001"
+      responses:
+        '200':
+          description: ✅ Funcionalidad Airbnb desactivada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Listing'
+        '404':
+          description: Propiedad no encontrada
+        '401':
+          description: No autorizado
+        '500':
+          description: Error interno del servidor
+
+  /listings/{listing_id}/opt-in-airbnb:
+    post:
+      tags: [Listings]
+      summary: ✅ Reactivar Airbnb
+      description: Permite al propietario reactivar la funcionalidad Airbnb y re-validar la elegibilidad
+      operationId: opt_in_airbnb
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: listing_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            example: "456e7890-e89b-12d3-a456-426614174001"
+      responses:
+        '200':
+          description: ✅ Funcionalidad Airbnb reactivada y validada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Listing'
+        '404':
+          description: Propiedad no encontrada
+        '401':
+          description: No autorizado
+        '500':
+          description: Error interno del servidor
 
   # ===========================================
   # SEARCH & FILTERS
@@ -3565,6 +3745,16 @@ components:
           enum: [full_property, private_room, shared_room]
           description: Modalidad de alquiler (solo aplicable para property_type room o studio)
           example: "private_room"
+        airbnb_score:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Score de elegibilidad para Airbnb (0-100)
+          example: 85
+        airbnb_eligible:
+          type: boolean
+          description: Si la propiedad es elegible para estilo Airbnb
+          example: true
         price:
           type: number
           description: Precio de la propiedad
@@ -4338,6 +4528,20 @@ components:
           schema:
             type: string
             enum: [full_property, private_room, shared_room]
+        - name: airbnb_eligible
+          in: query
+          description: Solo propiedades elegibles para Airbnb
+          schema:
+            type: boolean
+            example: true
+        - name: min_airbnb_score
+          in: query
+          description: Score mínimo de elegibilidad Airbnb
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 100
+            example: 70
         - name: sort
           in: query
           description: Criterio de ordenamiento
@@ -5386,6 +5590,16 @@ components:
           enum: [full_property, private_room, shared_room]
           description: Modalidad de alquiler (solo aplicable para property_type room o studio)
           example: "private_room"
+        airbnb_score:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Score de elegibilidad para Airbnb (0-100)
+          example: 85
+        airbnb_eligible:
+          type: boolean
+          description: Si la propiedad es elegible para estilo Airbnb
+          example: true
         price:
           type: number
           description: Precio de la propiedad

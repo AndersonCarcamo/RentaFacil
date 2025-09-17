@@ -48,6 +48,10 @@ class SearchFilters(BaseModel):
     max_age_years: Optional[int] = Field(None, ge=0, description="Antigüedad máxima en años")
     has_media: Optional[bool] = Field(None, description="Solo propiedades con fotos/videos")
     pet_friendly: Optional[bool] = Field(None, description="Solo propiedades que aceptan mascotas (true) o no (false)")
+    furnished: Optional[bool] = Field(None, description="Solo propiedades amuebladas (true) o no amuebladas (false)")
+    rental_mode: Optional[str] = Field(None, description="Modalidad de alquiler (full_property, private_room, shared_room)")
+    airbnb_eligible: Optional[bool] = Field(None, description="Solo propiedades elegibles para Airbnb")
+    min_airbnb_score: Optional[int] = Field(None, ge=0, le=100, description="Score mínimo de elegibilidad Airbnb")
     
     # Amenidades
     amenities: Optional[List[int]] = Field(None, description="IDs de amenidades")
@@ -71,7 +75,7 @@ class SearchFilters(BaseModel):
     @classmethod
     def validate_property_type(cls, v):
         if v is not None:
-            valid_types = ['apartment', 'house', 'office', 'commercial', 'land', 'warehouse', 'garage', 'other']
+            valid_types = ['apartment', 'house', 'studio', 'room', 'office', 'commercial', 'land', 'warehouse', 'garage', 'other']
             if v not in valid_types:
                 raise ValueError(f'property_type must be one of: {valid_types}')
         return v
@@ -83,6 +87,15 @@ class SearchFilters(BaseModel):
             valid_types = ['owner', 'agency', 'developer', 'broker']
             if v not in valid_types:
                 raise ValueError(f'advertiser_type must be one of: {valid_types}')
+        return v
+    
+    @field_validator('rental_mode')
+    @classmethod
+    def validate_rental_mode(cls, v):
+        if v is not None:
+            valid_modes = ['full_property', 'private_room', 'shared_room']
+            if v not in valid_modes:
+                raise ValueError(f'rental_mode must be one of: {valid_modes}')
         return v
 
 class FacetItem(BaseModel):

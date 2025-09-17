@@ -8,7 +8,7 @@ DO $enum_creation$
 BEGIN
     -- Create rental_model enum if not exists
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'rental_model') THEN
-        CREATE TYPE core.rental_model AS ENUM ('traditional','airbnb','corporate','student');
+        CREATE TYPE core.rental_model AS ENUM ('traditional','airbnb','student');
         RAISE NOTICE 'Created rental_model enum type';
     ELSE
         RAISE NOTICE 'rental_model enum type already exists';

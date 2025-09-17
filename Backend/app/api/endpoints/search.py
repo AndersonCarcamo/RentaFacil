@@ -23,7 +23,7 @@ async def search_listings(
     lng: Optional[float] = Query(None, description="Longitud"),
     radius: Optional[float] = Query(None, description="Radio en km"),
     operation: Optional[str] = Query(None, description="Operación (sale, rent, temp_rent, auction, exchange)"),
-    property_type: Optional[str] = Query(None, description="Tipo de propiedad (apartment, house, office, commercial, land, warehouse, garage, other)"),
+    property_type: Optional[str] = Query(None, description="Tipo de propiedad (apartment, house, studio, room, office, commercial, land, warehouse, garage, other)"),
     advertiser_type: Optional[str] = Query(None, description="Tipo de anunciante (owner, agency, developer, broker)"),
     min_price: Optional[float] = Query(None, ge=0, description="Precio mínimo"),
     max_price: Optional[float] = Query(None, ge=0, description="Precio máximo"),
@@ -42,6 +42,10 @@ async def search_listings(
     max_age_years: Optional[int] = Query(None, ge=0, description="Antigüedad máxima en años"),
     has_media: Optional[bool] = Query(None, description="Solo con fotos/videos"),
     pet_friendly: Optional[bool] = Query(None, description="Solo propiedades que aceptan mascotas (true) o no (false)"),
+    furnished: Optional[bool] = Query(None, description="Solo propiedades amuebladas (true) o no amuebladas (false)"),
+    rental_mode: Optional[str] = Query(None, description="Modalidad de alquiler (full_property, private_room, shared_room)"),
+    airbnb_eligible: Optional[bool] = Query(None, description="Solo propiedades elegibles para Airbnb"),
+    min_airbnb_score: Optional[int] = Query(None, ge=0, le=100, description="Score mínimo de elegibilidad Airbnb"),
     amenities: Optional[List[int]] = Query(None, description="IDs de amenidades"),
     page: int = Query(1, ge=1, description="Página"),
     limit: int = Query(20, ge=1, le=100, description="Elementos por página"),
@@ -70,7 +74,9 @@ async def search_listings(
             min_bedrooms=min_bedrooms, max_bedrooms=max_bedrooms, min_bathrooms=min_bathrooms, max_bathrooms=max_bathrooms,
             min_area_built=min_area_built, max_area_built=max_area_built, min_area_total=min_area_total, max_area_total=max_area_total,
             min_parking_spots=min_parking_spots, rental_term=rental_term, min_age_years=min_age_years, max_age_years=max_age_years,
-            has_media=has_media, pet_friendly=pet_friendly, amenities=amenities, page=page, limit=limit, sort_by=sort_by, sort_order=sort_order
+            has_media=has_media, pet_friendly=pet_friendly, furnished=furnished, rental_mode=rental_mode, 
+            airbnb_eligible=airbnb_eligible, min_airbnb_score=min_airbnb_score,
+            amenities=amenities, page=page, limit=limit, sort_by=sort_by, sort_order=sort_order
         )
         
         service = SearchService(db)

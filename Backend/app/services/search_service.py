@@ -271,6 +271,35 @@ class SearchService:
             query = query.filter(Listing.has_media == filters.has_media)
         if filters.pet_friendly is not None:
             query = query.filter(Listing.pet_friendly == filters.pet_friendly)
+        if filters.furnished is not None:
+            query = query.filter(Listing.furnished == filters.furnished)
+        if filters.rental_mode:
+            query = query.filter(Listing.rental_mode == filters.rental_mode)
+        
+        # Filtros optimizados de Airbnb
+        if filters.airbnb_eligible is True:
+            # Solo propiedades disponibles para Airbnb (elegible Y no opted-out Y operación correcta)
+            query = query.filter(
+                Listing.airbnb_eligible == True,
+                Listing.airbnb_opted_out == False,
+                Listing.operation.in_(['rent', 'temp_rent'])
+            )
+        elif filters.airbnb_eligible is False:
+            # Excluir propiedades Airbnb (no elegible O opted-out O operación incorrecta)
+            query = query.filter(
+                or_(
+                    Listing.airbnb_eligible == False,
+                    Listing.airbnb_opted_out == True,
+                    ~Listing.operation.in_(['rent', 'temp_rent'])
+                )
+            )
+        
+        if filters.min_airbnb_score is not None:
+            # Solo aplicar si no está opted-out
+            query = query.filter(
+                Listing.airbnb_score >= filters.min_airbnb_score,
+                Listing.airbnb_opted_out == False
+            )
         
         # Filtro de amenidades
         if filters.amenities:

@@ -153,7 +153,10 @@ BEGIN
 END $style_func$;
 
 -- 4. Create optimized view with caching consideration
-CREATE OR REPLACE VIEW core.v_listings_airbnb_analysis AS
+-- First drop existing view if it has conflicts
+DROP VIEW IF EXISTS core.v_listings_airbnb_analysis;
+
+CREATE VIEW core.v_listings_airbnb_analysis AS
 SELECT l.*,
        core.get_rental_style_optimized(l.id, l.created_at) as rental_style,
        CASE 
@@ -261,22 +264,3 @@ BEGIN
 END $search_airbnb$;
 
 COMMIT;
-
-\echo '=========================================='
-\echo 'Airbnb Detection System Installed!'
-\echo '=========================================='
-\echo ''
-\echo 'Available functions:'
-\echo '• core.validate_airbnb_listing(uuid) - Endpoint-ready validation'
-\echo '• core.check_airbnb_eligibility(...) - Detailed analysis'  
-\echo '• core.search_airbnb_properties(...) - Search with Airbnb filters'
-\echo ''
-\echo 'Example usage:'
-\echo '-- Validate a specific listing:'
-\echo 'SELECT core.validate_airbnb_listing(''your-listing-id'');'
-\echo ''
-\echo '-- Find all Airbnb-eligible properties:'
-\echo 'SELECT * FROM core.search_airbnb_properties(NULL, true);'
-\echo ''
-\echo '-- Find high-scoring Airbnb properties in Miraflores:'
-\echo 'SELECT * FROM core.search_airbnb_properties(NULL, NULL, 70, ''Miraflores'');'

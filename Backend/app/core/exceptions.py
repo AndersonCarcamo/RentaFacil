@@ -45,6 +45,11 @@ class BusinessLogicError(EasyRentException):
     pass
 
 
+class IntegrationError(EasyRentException):
+    """External integration errors."""
+    pass
+
+
 # HTTP Exception shortcuts
 def http_400_bad_request(detail: str) -> HTTPException:
     """Return a 400 Bad Request HTTP exception."""

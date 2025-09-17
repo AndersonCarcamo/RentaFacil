@@ -49,6 +49,22 @@ class Settings(BaseSettings):
     allowed_image_types: str = "image/jpeg,image/png,image/webp"
     upload_directory: str = "uploads"
     
+    # Media Storage
+    use_s3: bool = False
+    s3_bucket_name: str = "easyrent-media"
+    aws_region: str = "us-east-1"
+    aws_access_key_id: Optional[str] = None
+    aws_secret_access_key: Optional[str] = None
+    cdn_base_url: Optional[str] = None
+    upload_path: str = "./uploads"
+    api_base_url: str = "http://localhost:8000"
+    
+    # Media Limits (defaults - will be overridden by user plan)
+    default_max_images_per_listing: int = 25
+    default_max_videos_per_listing: int = 5
+    max_image_size: int = 10485760  # 10MB
+    max_video_size: int = 104857600  # 100MB
+    
     class Config:
         env_file = ".env"
         case_sensitive = False

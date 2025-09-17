@@ -9,6 +9,8 @@ from sqlalchemy import text
 from typing import Dict, Any, Optional
 import uuid
 from pydantic import BaseModel
+from app.core.database import get_db
+from app.api.deps import get_current_user
 
 router = APIRouter(prefix="/listings", tags=["listings"])
 
@@ -32,7 +34,7 @@ class AirbnbSearchFilters(BaseModel):
 @router.get("/validate-airbnb/{listing_id}", response_model=AirbnbValidationResponse)
 async def validate_airbnb_listing(
     listing_id: str,
-    db: Session = Depends(get_database_session)  # Your DB dependency
+    db: Session = Depends(get_db)
 ):
     """
     Validate if a listing can be used as Airbnb-style rental.
@@ -67,7 +69,7 @@ async def validate_airbnb_listing(
 @router.post("/search-airbnb")
 async def search_airbnb_properties(
     filters: AirbnbSearchFilters,
-    db: Session = Depends(get_database_session)
+    db: Session = Depends(get_db)
 ):
     """
     Search properties with Airbnb-specific filters.
@@ -123,7 +125,7 @@ async def search_airbnb_properties(
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
 
 @router.get("/airbnb-stats")
-async def get_airbnb_statistics(db: Session = Depends(get_database_session)):
+async def get_airbnb_statistics(db: Session = Depends(get_db)):
     """
     Get general statistics about Airbnb-eligible properties.
     """

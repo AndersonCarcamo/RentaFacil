@@ -24,6 +24,8 @@ class OperationType(str, enum.Enum):
 class PropertyType(str, enum.Enum):
     APARTMENT = "apartment"
     HOUSE = "house"
+    STUDIO = "studio"
+    ROOM = "room"
     OFFICE = "office"
     COMMERCIAL = "commercial"
     LAND = "land"
@@ -42,6 +44,11 @@ class RentalTerm(str, enum.Enum):
     WEEKLY = "weekly"
     MONTHLY = "monthly"
     YEARLY = "yearly"
+
+class RentalMode(str, enum.Enum):
+    FULL_PROPERTY = "full_property"
+    PRIVATE_ROOM = "private_room"
+    SHARED_ROOM = "shared_room"
 
 class VerificationStatus(str, enum.Enum):
     PENDING = "pending"
@@ -89,6 +96,11 @@ class Listing(Base):
     age_years = Column(Integer, nullable=True)
     rental_term = Column(Text, nullable=True)  # core.rental_term enum
     pet_friendly = Column(Boolean, nullable=True)  # Nueva columna: si acepta mascotas
+    furnished = Column(Boolean, nullable=True)  # Nueva columna: si está amueblada
+    rental_mode = Column(Text, nullable=True)  # core.rental_mode enum - modalidad de alquiler
+    airbnb_score = Column(Integer, nullable=True)  # Score de elegibilidad Airbnb (0-100)
+    airbnb_eligible = Column(Boolean, nullable=True)  # Si es elegible para Airbnb
+    airbnb_opted_out = Column(Boolean, nullable=False, default=False)  # Si el usuario optó por NO ser Airbnb
     
     # Verificación y estado
     verification_status = Column(Text, nullable=False, default='pending')  # core.verification_status enum
@@ -116,6 +128,15 @@ class Listing(Base):
     
     # Timestamps
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    @property
+    def is_airbnb_available(self) -> bool:
+        """Determina si la propiedad está disponible para funcionar como Airbnb"""
+        return (
+            bool(self.airbnb_eligible) and 
+            not bool(self.airbnb_opted_out) and 
+            self.operation in ['rent', 'temp_rent']
+        )
 
     def __repr__(self):
         return f"<Listing(id={self.id}, title={self.title}, status={self.status})>"

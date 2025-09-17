@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, computed_field
 from typing import Optional, List
 from decimal import Decimal
 from datetime import datetime
@@ -24,6 +24,11 @@ class CreateListingRequest(BaseModel):
     floor_number: Optional[int] = None
     age_years: Optional[int] = None
     pet_friendly: Optional[bool] = Field(None, description="Whether the property allows pets")
+    furnished: Optional[bool] = Field(None, description="Whether the property is furnished")
+    rental_mode: Optional[str] = Field(None, description="Rental mode: full_property, private_room, shared_room")
+    airbnb_score: Optional[int] = Field(None, ge=0, le=100, description="Airbnb eligibility score (0-100)")
+    airbnb_eligible: Optional[bool] = Field(None, description="Whether the property is eligible for Airbnb")
+    airbnb_opted_out: Optional[bool] = Field(False, description="Whether the owner opted out of Airbnb functionality")
     
     # Location
     address: Optional[str] = None
@@ -51,6 +56,11 @@ class UpdateListingRequest(BaseModel):
     floor_number: Optional[int] = None
     age_years: Optional[int] = None
     pet_friendly: Optional[bool] = None
+    furnished: Optional[bool] = None
+    rental_mode: Optional[str] = None
+    airbnb_score: Optional[int] = None
+    airbnb_eligible: Optional[bool] = None
+    airbnb_opted_out: Optional[bool] = None
     address: Optional[str] = None
     department: Optional[str] = None
     province: Optional[str] = None
@@ -74,6 +84,23 @@ class ListingResponse(BaseModel):
     bathrooms: Optional[int]
     parking_spots: Optional[int]
     pet_friendly: Optional[bool]
+    furnished: Optional[bool]
+    rental_mode: Optional[str]
+    airbnb_score: Optional[int]
+    airbnb_eligible: Optional[bool]
+    airbnb_opted_out: Optional[bool]
+    
+    @computed_field
+    @property
+    def is_airbnb_available(self) -> Optional[bool]:
+        """Computed field: whether property is available for Airbnb"""
+        if self.airbnb_eligible is None:
+            return None
+        return (
+            bool(self.airbnb_eligible) and 
+            not bool(self.airbnb_opted_out) and 
+            self.operation in ['rent', 'temp_rent']
+        )
     address: Optional[str]
     department: Optional[str]
     province: Optional[str]

@@ -41,5 +41,11 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
+    # Relationships (defined here to avoid circular imports)
+    webhook_events = None  # Will be set after WebhookEvent is defined
+    webhooks = None  # Will be set after Webhook is defined
+    api_keys = None  # Will be set after ApiKey is defined
+    developer_applications = None  # Will be set after DeveloperApplication is defined
+    
     def __repr__(self):
         return f"<User(id={self.id}, email={self.email}, role={self.role})>"
