@@ -33,5 +33,13 @@ jinja2==3.1.2
 # Date/time handling
 python-dateutil==2.8.2
 
+# Media processing
+Pillow==10.0.1
+redis==5.0.1
+ffmpeg-python==0.2.0
+
+# Image processing utilities (optional for advanced features)
+imagehash==4.3.1
+
 # Logging
 loguru==0.7.2

@@ -1,0 +1,223 @@
+version: '3.8'
+
+services:
+  # =====================================
+  # APLICACIÓN PRINCIPAL - FASTAPI
+  # =====================================
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: easyrent_api
+    restart: unless-stopped
+    environment:
+      # Base de datos
+      - DATABASE_URL=postgresql://easyrent_user:easyrent_pass@db:5432/easyrent_db
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=easyrent_db
+      - DB_USER=easyrent_user
+      - DB_PASSWORD=easyrent_pass
+      
+      # Redis para cache
+      - REDIS_URL=redis://redis:6379/1
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=1
+      
+      # Configuración de aplicación
+      - API_V1_STR=/api/v1
+      - PROJECT_NAME=EasyRent API
+      - PROJECT_VERSION=1.0.0
+      - ENVIRONMENT=development
+      - DEBUG=true
+      
+      # JWT y seguridad
+      - SECRET_KEY=your-super-secret-key-change-in-production-min-256-bits
+      - JWT_ACCESS_TOKEN_EXPIRE_MINUTES=30
+      - JWT_REFRESH_TOKEN_EXPIRE_DAYS=7
+      - ALGORITHM=HS256
+      
+      # Configuración de media
+      - USE_S3=false
+      - UPLOAD_PATH=/app/uploads
+      - MEDIA_BASE_URL=http://localhost/media
+      - MAX_IMAGE_SIZE_MB=10
+      - MAX_VIDEO_SIZE_MB=100
+      
+      # CORS
+      - BACKEND_CORS_ORIGINS=["http://localhost:3000","http://localhost:8000","http://127.0.0.1:3000"]
+      
+      # Cache TTL
+      - CACHE_METADATA_TTL=86400
+      - CACHE_THUMBNAIL_TTL=604800
+      - CACHE_LISTING_TTL=3600
+      
+      # Rate limiting
+      - RATE_LIMIT_REQUESTS_PER_MINUTE=100
+      
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./uploads:/app/uploads  # Archivos multimedia
+      - ./logs:/app/logs        # Logs de aplicación
+      - .:/app                  # Para desarrollo (hot reload)
+    depends_on:
+      - db
+      - redis
+    networks:
+      - easyrent_network
+    command: >
+      sh -c "
+        echo 'Waiting for database...' &&
+        while ! nc -z db 5432; do sleep 1; done &&
+        echo 'Database is ready!' &&
+        echo 'Waiting for Redis...' &&
+        while ! nc -z redis 6379; do sleep 1; done &&
+        echo 'Redis is ready!' &&
+        echo 'Running migrations...' &&
+        alembic upgrade head &&
+        echo 'Starting FastAPI server...' &&
+        uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+      "
+
+  # =====================================
+  # BASE DE DATOS POSTGRESQL
+  # =====================================
+  db:
+    image: postgres:17-alpine
+    container_name: easyrent_db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=easyrent_db
+      - POSTGRES_USER=easyrent_user
+      - POSTGRES_PASSWORD=easyrent_pass
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --locale=C
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend_doc/00_master_install.sql:/docker-entrypoint-initdb.d/00_master_install.sql
+      - ./backend_doc/01_extensions_and_schemas.sql:/docker-entrypoint-initdb.d/01_extensions_and_schemas.sql
+      - ./backend_doc/02_enums_and_types.sql:/docker-entrypoint-initdb.d/02_enums_and_types.sql
+      - ./backend_doc/03_core_tables.sql:/docker-entrypoint-initdb.d/03_core_tables.sql
+    networks:
+      - easyrent_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U easyrent_user -d easyrent_db"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # =====================================
+  # REDIS PARA CACHE
+  # =====================================
+  redis:
+    image: redis:7-alpine
+    container_name: easyrent_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf
+    networks:
+      - easyrent_network
+    command: redis-server /usr/local/etc/redis/redis.conf
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # =====================================
+  # NGINX PARA ARCHIVOS ESTÁTICOS
+  # =====================================
+  nginx:
+    image: nginx:alpine
+    container_name: easyrent_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"  # Para HTTPS en el futuro
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./uploads:/var/www/easyrent/media:ro  # Archivos multimedia (solo lectura)
+      - ./nginx/html:/var/www/html:ro          # Páginas de error
+      - nginx_cache:/var/cache/nginx           # Cache de Nginx
+      - nginx_logs:/var/log/nginx              # Logs de Nginx
+    depends_on:
+      - app
+    networks:
+      - easyrent_network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # =====================================
+  # ADMINER PARA GESTIÓN DE BD (OPCIONAL)
+  # =====================================
+  adminer:
+    image: adminer:latest
+    container_name: easyrent_adminer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - ADMINER_DEFAULT_SERVER=db
+    depends_on:
+      - db
+    networks:
+      - easyrent_network
+    profiles:
+      - admin  # Solo se ejecuta con: docker-compose --profile admin up
+
+  # =====================================
+  # REDIS COMMANDER PARA GESTIÓN REDIS (OPCIONAL)
+  # =====================================
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: easyrent_redis_commander
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      - REDIS_HOSTS=local:redis:6379:1
+      - HTTP_USER=admin
+      - HTTP_PASSWORD=admin123
+    depends_on:
+      - redis
+    networks:
+      - easyrent_network
+    profiles:
+      - admin  # Solo se ejecuta con: docker-compose --profile admin up
+
+# =====================================
+# VOLÚMENES PERSISTENTES
+# =====================================
+volumes:
+  postgres_data:
+    driver: local
+    name: easyrent_postgres_data
+  
+  redis_data:
+    driver: local
+    name: easyrent_redis_data
+    
+  nginx_cache:
+    driver: local
+    name: easyrent_nginx_cache
+    
+  nginx_logs:
+    driver: local
+    name: easyrent_nginx_logs
+
+# =====================================
+# RED PERSONALIZADA
+# =====================================
+networks:
+  easyrent_network:
+    driver: bridge
+    name: easyrent_network

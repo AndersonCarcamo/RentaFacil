@@ -13,9 +13,11 @@ from app.schemas.media import (
 from app.models.listing import Listing
 from app.core.exceptions import BusinessLogicError
 import uuid
+import logging
 from datetime import datetime
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 # =====================================
 # IMAGE ENDPOINTS
@@ -53,7 +55,7 @@ async def upload_images(
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user)
 ):
-    """Sube una o más imágenes para una propiedad"""
+    """Sube una o más imágenes para una propiedad usando LocalMediaService"""
     try:
         # Verificar que el listing existe y pertenece al usuario
         listing = db.query(Listing).filter(Listing.id == listing_id).first()
@@ -75,41 +77,29 @@ async def upload_images(
                     errors.append(f"File {image_file.filename}: Invalid file type")
                     continue
                 
-                # Validar tamaño (máximo 10MB)
-                max_size = 10 * 1024 * 1024  # 10MB
-                content = await image_file.read()
-                if len(content) > max_size:
-                    errors.append(f"File {image_file.filename}: File too large (max 10MB)")
-                    continue
+                # Leer datos del archivo
+                file_data = await image_file.read()
                 
-                # Preparar datos de la imagen
+                # Obtener descripción correspondiente
                 description = descriptions[i] if descriptions and i < len(descriptions) else None
                 
-                image_data = {
-                    'filename': image_file.filename,
-                    'original_url': f"/temp/{image_file.filename}",  # Temporal, se actualizará después de procesamiento
-                    'alt_text': description,
-                    'display_order': i,
-                    'is_main': i == 0 and created_count == 0,  # Primera imagen como principal si no hay otras
-                    'file_size': len(content),
-                    'width': None,  # Se determinará durante el procesamiento
-                    'height': None
-                }
+                # Crear imagen usando el nuevo sistema LocalMediaService
+                image = media_service.create_image(
+                    listing_id=listing_id,
+                    listing_created_at=listing.created_at,
+                    file_data=file_data,
+                    filename=image_file.filename,
+                    alt_text=description
+                )
                 
-                # Crear imagen en base de datos
-                image = media_service.create_image(listing_id, listing.created_at, image_data)
                 created_count += 1
-                
-                # TODO: Aquí iría el procesamiento real de la imagen:
-                # - Subir a S3 o almacenamiento local
-                # - Generar thumbnails
-                # - Extraer dimensiones
-                # - Actualizar URLs reales
+                logger.info(f"Image uploaded successfully: {image.id}")
                 
             except BusinessLogicError as e:
                 errors.append(f"File {image_file.filename}: {str(e)}")
             except Exception as e:
                 errors.append(f"File {image_file.filename}: Unexpected error - {str(e)}")
+                logger.error(f"Unexpected error uploading {image_file.filename}: {e}")
         
         return BulkMediaResponse(
             success=created_count > 0,
@@ -120,6 +110,7 @@ async def upload_images(
     except HTTPException:
         raise
     except Exception as e:
+        logger.error(f"Error uploading images for listing {listing_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Error uploading images: {str(e)}")
 
 
@@ -376,27 +367,138 @@ async def get_upload_url(
 
 
 # =====================================
-# DIRECT UPLOAD ENDPOINT (para almacenamiento local)
+# UTILIDADES Y ESTADÍSTICAS
 # =====================================
 
-@router.post("/media/upload/{upload_id}",
-            summary="Subida directa de archivo")
-async def direct_upload(
-    upload_id: str,
-    file: UploadFile = File(...),
+@router.get("/media/stats",
+           summary="Obtener estadísticas del sistema de media")
+async def get_media_stats(
+    db: Session = Depends(get_db),
     current_user = Depends(get_current_user)
 ):
-    """Endpoint para subida directa cuando se usa almacenamiento local"""
+    """Obtiene estadísticas del sistema de media y cache"""
     try:
-        # TODO: Implementar subida directa a almacenamiento local
-        # Por ahora retornamos un placeholder
+        media_service = MediaService(db)
+        stats = media_service.get_media_statistics()
         
         return {
-            "message": "File uploaded successfully",
-            "upload_id": upload_id,
-            "filename": file.filename,
-            "size": file.size
+            "timestamp": datetime.utcnow().isoformat(),
+            "system_stats": stats
         }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error uploading file: {str(e)}")
+        logger.error(f"Error getting media stats: {e}")
+        raise HTTPException(status_code=500, detail=f"Error getting stats: {str(e)}")
+
+
+@router.post("/media/cache/invalidate/{listing_id}",
+            summary="Invalidar cache de listing")
+async def invalidate_listing_cache(
+    listing_id: str,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    """Invalida el cache de media de un listing específico"""
+    try:
+        # Verificar que el listing existe y pertenece al usuario
+        listing = db.query(Listing).filter(Listing.id == listing_id).first()
+        if not listing:
+            raise HTTPException(status_code=404, detail="Listing not found")
+        
+        if str(listing.owner_user_id) != str(current_user.get("user_id", current_user.get("id"))):
+            raise HTTPException(status_code=403, detail="Not authorized")
+        
+        media_service = MediaService(db)
+        cache_invalidated = media_service.cache_service.invalidate_listing_cache(listing_id)
+        
+        return {
+            "success": cache_invalidated,
+            "message": f"Cache invalidated for listing {listing_id}" if cache_invalidated else "Cache not available"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error invalidating cache for listing {listing_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error invalidating cache: {str(e)}")
+
+
+@router.get("/media/resize{file_path:path}",
+           summary="Redimensionar imagen on-demand")
+async def resize_image(
+    file_path: str,
+    width: Optional[int] = None,
+    height: Optional[int] = None,
+    quality: Optional[int] = 85
+):
+    """
+    Redimensiona una imagen on-demand para el proxy de Nginx.
+    Este endpoint es llamado internamente por Nginx cuando no encuentra un thumbnail.
+    """
+    try:
+        # TODO: Implementar redimensionado dinámico
+        # Por ahora retornamos un placeholder
+        
+        logger.info(f"Resize request for: {file_path}, size: {width}x{height}, quality: {quality}")
+        
+        # En implementación real:
+        # 1. Verificar que el archivo original existe
+        # 2. Generar thumbnail del tamaño solicitado
+        # 3. Guardarlo en el sistema de archivos
+        # 4. Retornar el archivo redimensionado
+        
+        return {
+            "message": "Image resize endpoint - Not implemented yet",
+            "file_path": file_path,
+            "requested_size": f"{width}x{height}" if width and height else "original",
+            "quality": quality
+        }
+        
+    except Exception as e:
+        logger.error(f"Error resizing image {file_path}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error resizing image: {str(e)}")
+
+
+# =====================================
+# HEALTH CHECK PARA MEDIA
+# =====================================
+
+@router.get("/media/health",
+           summary="Health check del sistema de media")
+async def media_health_check(db: Session = Depends(get_db)):
+    """Verifica el estado del sistema de media"""
+    try:
+        media_service = MediaService(db)
+        
+        health_status = {
+            "status": "healthy",
+            "timestamp": datetime.utcnow().isoformat(),
+            "services": {
+                "database": "up",
+                "cache": "up" if media_service.cache_service.is_available() else "down",
+                "storage": "local"
+            }
+        }
+        
+        # Verificar base de datos
+        try:
+            db.execute("SELECT 1")
+            health_status["services"]["database"] = "up"
+        except:
+            health_status["services"]["database"] = "down"
+            health_status["status"] = "degraded"
+        
+        # Verificar cache Redis
+        if not media_service.cache_service.is_available():
+            health_status["status"] = "degraded"
+            health_status["services"]["cache"] = "down"
+        
+        return health_status
+        
+    except Exception as e:
+        logger.error(f"Error in media health check: {e}")
+        return {
+            "status": "unhealthy",
+            "timestamp": datetime.utcnow().isoformat(),
+            "error": str(e)
+        }

@@ -1,0 +1,292 @@
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+/* Fuentes personalizadas */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+/* Variables CSS personalizadas */
+:root {
+  /* Colores principales */
+  --color-primary: theme('colors.primary.500');
+  --color-secondary: theme('colors.secondary.500');
+  --color-accent: theme('colors.accent.500');
+  
+  /* Espaciado */
+  --spacing-xs: theme('spacing.1');
+  --spacing-sm: theme('spacing.2');
+  --spacing-md: theme('spacing.4');
+  --spacing-lg: theme('spacing.8');
+  --spacing-xl: theme('spacing.16');
+  
+  /* Sombras */
+  --shadow-soft: theme('boxShadow.soft');
+  --shadow-medium: theme('boxShadow.medium');
+  --shadow-hard: theme('boxShadow.hard');
+  
+  /* Borders radius */
+  --radius-sm: theme('borderRadius.md');
+  --radius-md: theme('borderRadius.lg');
+  --radius-lg: theme('borderRadius.xl');
+}
+
+/* Estilos base */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-gray-50 text-gray-900 font-sans antialiased;
+  font-feature-settings: 'rlig' 1, 'calt' 1;
+}
+
+/* Modo oscuro */
+.dark body {
+  @apply bg-gray-900 text-gray-100;
+}
+
+/* Estilos para scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-gray-100 dark:bg-gray-800;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-300 dark:bg-gray-600 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-400 dark:bg-gray-500;
+}
+
+/* Estilos para selección de texto */
+::selection {
+  @apply bg-primary-200 dark:bg-primary-800;
+}
+
+/* Estilos para focus */
+.focus-ring {
+  @apply focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800;
+}
+
+/* Componentes personalizados */
+@layer components {
+  /* Botones */
+  .btn {
+    @apply inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg focus-ring transition-all duration-200 ease-in-out;
+  }
+  
+  .btn-primary {
+    @apply btn bg-primary-600 text-white shadow-sm hover:bg-primary-700 focus:bg-primary-700 active:bg-primary-800;
+  }
+  
+  .btn-secondary {
+    @apply btn bg-white text-gray-900 shadow-sm border-gray-300 hover:bg-gray-50 focus:bg-gray-50 active:bg-gray-100;
+  }
+  
+  .btn-ghost {
+    @apply btn bg-transparent text-gray-700 hover:bg-gray-100 focus:bg-gray-100 active:bg-gray-200 dark:text-gray-300 dark:hover:bg-gray-800 dark:focus:bg-gray-800 dark:active:bg-gray-700;
+  }
+  
+  .btn-sm {
+    @apply px-3 py-1.5 text-xs;
+  }
+  
+  .btn-lg {
+    @apply px-6 py-3 text-base;
+  }
+  
+  .btn-xl {
+    @apply px-8 py-4 text-lg;
+  }
+  
+  /* Inputs */
+  .input {
+    @apply block w-full px-3 py-2 border border-gray-300 rounded-lg text-sm placeholder-gray-400 focus-ring focus:border-primary-500 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-100 dark:placeholder-gray-500;
+  }
+  
+  .input-error {
+    @apply border-red-300 focus:border-red-500 focus:ring-red-500;
+  }
+  
+  /* Cards */
+  .card {
+    @apply bg-white dark:bg-gray-800 rounded-xl shadow-soft border border-gray-200 dark:border-gray-700;
+  }
+  
+  .card-hover {
+    @apply card transition-all duration-200 hover:shadow-medium hover:-translate-y-1;
+  }
+  
+  /* Containers */
+  .container-custom {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+  
+  .section-padding {
+    @apply py-12 md:py-20 lg:py-24;
+  }
+  
+  /* Texto */
+  .text-gradient {
+    @apply bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent;
+  }
+  
+  .text-balance {
+    text-wrap: balance;
+  }
+  
+  /* Loading states */
+  .loading {
+    @apply animate-pulse;
+  }
+  
+  .skeleton {
+    @apply bg-gray-200 dark:bg-gray-700 rounded;
+  }
+  
+  /* Animations */
+  .fade-in {
+    @apply animate-fade-in;
+  }
+  
+  .slide-up {
+    @apply animate-slide-up;
+  }
+  
+  .slide-down {
+    @apply animate-slide-down;
+  }
+  
+  /* Responsive utilities */
+  .mobile-only {
+    @apply block md:hidden;
+  }
+  
+  .desktop-only {
+    @apply hidden md:block;
+  }
+  
+  /* Print styles */
+  @media print {
+    .no-print {
+      display: none !important;
+    }
+    
+    .print-only {
+      display: block !important;
+    }
+  }
+}
+
+/* Utilidades personalizadas */
+@layer utilities {
+  /* Aspect ratios */
+  .aspect-golden {
+    aspect-ratio: 1.618 / 1;
+  }
+  
+  /* Text utilities */
+  .text-pretty {
+    text-wrap: pretty;
+  }
+  
+  /* Layout utilities */
+  .center {
+    @apply flex items-center justify-center;
+  }
+  
+  .center-x {
+    @apply flex justify-center;
+  }
+  
+  .center-y {
+    @apply flex items-center;
+  }
+  
+  /* Spacing utilities */
+  .space-between {
+    @apply flex justify-between items-center;
+  }
+  
+  /* Border utilities */
+  .border-gradient {
+    border-image: linear-gradient(45deg, theme('colors.primary.500'), theme('colors.secondary.500')) 1;
+  }
+  
+  /* Transform utilities */
+  .transform-gpu {
+    transform: translate3d(0, 0, 0);
+  }
+  
+  /* Safe area utilities */
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  /* Accessibility utilities */
+  .sr-only-focusable {
+    @apply sr-only focus:not-sr-only focus:absolute focus:top-0 focus:left-0 focus:z-50 focus:p-4 focus:bg-white focus:text-black;
+  }
+}
+
+/* Estilos para componentes de terceros */
+
+/* React Hot Toast */
+.Toastify__toast {
+  @apply rounded-lg shadow-medium;
+}
+
+.Toastify__toast--success {
+  @apply bg-green-50 text-green-800 border border-green-200;
+}
+
+.Toastify__toast--error {
+  @apply bg-red-50 text-red-800 border border-red-200;
+}
+
+.Toastify__toast--warning {
+  @apply bg-yellow-50 text-yellow-800 border border-yellow-200;
+}
+
+/* Swiper */
+.swiper {
+  @apply w-full h-full;
+}
+
+.swiper-button-next,
+.swiper-button-prev {
+  @apply text-primary-600;
+}
+
+.swiper-pagination-bullet-active {
+  @apply bg-primary-600;
+}
+
+/* Framer Motion */
+.motion-safe\:animate-fade-in {
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .motion-safe\:animate-fade-in {
+    animation: none;
+  }
+}
+
+/* Estados de carga específicos para imágenes */
+.image-loading {
+  @apply bg-gray-200 dark:bg-gray-700 animate-pulse;
+}
+
+.image-error {
+  @apply bg-gray-100 dark:bg-gray-800 center text-gray-400;
+}

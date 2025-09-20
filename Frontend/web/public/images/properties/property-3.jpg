@@ -1,0 +1,13 @@
+<svg width="400" height="300" viewBox="0 0 400 300" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="400" height="300" fill="#F0F9FF"/>
+  <rect x="60" y="60" width="280" height="180" rx="8" fill="#DBEAFE"/>
+  <rect x="80" y="80" width="60" height="80" rx="4" fill="#3B82F6"/>
+  <rect x="160" y="80" width="60" height="80" rx="4" fill="#60A5FA"/>
+  <rect x="240" y="80" width="60" height="80" rx="4" fill="#93C5FD"/>
+  <rect x="80" y="180" width="220" height="40" rx="4" fill="#1E40AF"/>
+  <circle cx="120" cy="200" r="8" fill="#DBEAFE"/>
+  <circle cx="200" cy="200" r="8" fill="#DBEAFE"/>
+  <circle cx="280" cy="200" r="8" fill="#DBEAFE"/>
+  <text x="200" y="250" text-anchor="middle" fill="#1E40AF" font-family="system-ui" font-size="14">Loft Contemporáneo</text>
+  <text x="200" y="270" text-anchor="middle" fill="#3B82F6" font-family="system-ui" font-size="12">Barranco, Lima</text>
+</svg>

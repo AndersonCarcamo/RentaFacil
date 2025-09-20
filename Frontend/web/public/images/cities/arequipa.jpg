@@ -1,0 +1,16 @@
+<svg width="400" height="300" viewBox="0 0 400 300" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="arequipa-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#EF4444"/>
+      <stop offset="100%" stop-color="#7F1D1D"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="300" fill="url(#arequipa-gradient)"/>
+  <path d="M0 200 Q100 180 200 190 T400 210 L400 300 L0 300 Z" fill="#FEE2E2" opacity="0.3"/>
+  <path d="M50 220 Q150 200 250 210 T400 230 L400 300 L50 300 Z" fill="#FECACA" opacity="0.4"/>
+  <polygon points="200,60 180,120 220,120" fill="#FFFFFF" opacity="0.8"/>
+  <polygon points="200,60 190,100 210,100" fill="#DC2626"/>
+  <circle cx="200" cy="140" r="25" fill="#FFFFFF" opacity="0.6"/>
+  <text x="200" y="50" text-anchor="middle" fill="white" font-family="system-ui" font-size="32" font-weight="bold">Arequipa</text>
+  <text x="200" y="80" text-anchor="middle" fill="white" font-family="system-ui" font-size="16" opacity="0.9">Ciudad Blanca</text>
+</svg>

@@ -1,0 +1,15 @@
+<svg width="400" height="300" viewBox="0 0 400 300" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="cusco-gradient" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#FCD34D"/>
+      <stop offset="100%" stop-color="#B45309"/>
+    </radialGradient>
+  </defs>
+  <rect width="400" height="300" fill="url(#cusco-gradient)"/>
+  <path d="M50 250 Q100 200 150 220 T250 210 T350 240 L350 300 L50 300 Z" fill="#92400E" opacity="0.7"/>
+  <path d="M80 180 Q120 160 160 170 T240 165 T320 180 L320 250 L80 250 Z" fill="#A16207" opacity="0.8"/>
+  <circle cx="150" cy="100" r="40" fill="#FEF3C7" opacity="0.6"/>
+  <polygon points="150,80 160,120 140,120" fill="#D97706"/>
+  <text x="200" y="50" text-anchor="middle" fill="white" font-family="system-ui" font-size="32" font-weight="bold">Cusco</text>
+  <text x="200" y="80" text-anchor="middle" fill="white" font-family="system-ui" font-size="16" opacity="0.9">Ciudad Imperial</text>
+</svg>
