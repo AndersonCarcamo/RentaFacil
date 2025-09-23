@@ -21,6 +21,9 @@ import SearchForm from '@/components/SearchForm'
 import PropertyCard from '@/components/PropertyCard'
 import { Button } from '@/components/ui/Button'
 
+// API and Hooks
+import { fetchProperties, PropertyResponse } from '@/lib/api/properties'
+
 // Types
 import { Property } from '@/types'
 
@@ -29,67 +32,38 @@ const formatNumber = (num: number): string => {
   return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')
 }
 
-// Mock data para desarrollo
-const featuredProperties: Property[] = [
-  {
-    id: '1',
-    title: 'Moderno Departamento en San Isidro',
-    description: 'Hermoso departamento con vista al parque, completamente amoblado',
-    price: 2500,
-    currency: 'PEN',
-    location: 'San Isidro, Lima',
-    bedrooms: 3,
-    bathrooms: 2,
-    area: 120,
-    images: ['/images/properties/property-1.jpg'],
-    amenities: ['Piscina', 'Gimnasio', 'Seguridad 24h'],
-    rating: 4.8,
-    reviews: 24,
-    isVerified: true,
+// Función para convertir PropertyResponse a Property (para compatibilidad)
+const convertToProperty = (apiProperty: PropertyResponse): Property => {
+  return {
+    id: apiProperty.id,
+    title: apiProperty.title,
+    description: apiProperty.description || 'Propiedad disponible',
+    price: Number(apiProperty.price),
+    currency: apiProperty.currency,
+    location: `${apiProperty.district || ''}, ${apiProperty.department || ''}`.replace(/^,\s*/, ''),
+    bedrooms: apiProperty.bedrooms || 0,
+    bathrooms: apiProperty.bathrooms || 0,
+    area: Number(apiProperty.area_built || apiProperty.area_total || 0),
+    images: ['/images/properties/property-placeholder.svg'], // Placeholder hasta que tengamos media API
+    amenities: [
+      ...(apiProperty.furnished ? ['Amoblado'] : ['Sin amoblar']),
+      ...(apiProperty.parking_spots ? [`${apiProperty.parking_spots} estacionamiento(s)`] : []),
+      ...(apiProperty.pet_friendly ? ['Pet Friendly'] : []),
+      ...(apiProperty.is_airbnb_available ? ['Apto Airbnb'] : [])
+    ].slice(0, 3), // Máximo 3 amenities
+    rating: parseFloat((4.5 + (Math.random() * 0.5)).toFixed(2)), // Rating simulado entre 4.5-5.0 con 2 decimales
+    reviews: Math.floor(Math.random() * 50) + 10, // Reviews simuladas 10-60
+    isVerified: apiProperty.verification_status === 'verified',
     isFavorite: false,
-    views: 156
-  },
-  {
-    id: '2',
-    title: 'Casa Familiar en Miraflores',
-    description: 'Casa de 3 pisos con jardín, ideal para familias',
-    price: 3800,
-    currency: 'PEN',
-    location: 'Miraflores, Lima',
-    bedrooms: 4,
-    bathrooms: 3,
-    area: 200,
-    images: ['/images/properties/property-2.jpg'],
-    amenities: ['Jardín', 'Garaje', 'Terraza'],
-    rating: 4.9,
-    reviews: 18,
-    isVerified: true,
-    isFavorite: false,
-    views: 203
-  },
-  {
-    id: '3',
-    title: 'Loft Contemporáneo en Barranco',
-    description: 'Loft moderno en zona bohemia, cerca de galerías y restaurantes',
-    price: 2200,
-    currency: 'PEN',
-    location: 'Barranco, Lima',
-    bedrooms: 2,
-    bathrooms: 1,
-    area: 85,
-    images: ['/images/properties/property-3.jpg'],
-    amenities: ['Terraza', 'Zona artística', 'Restaurantes cerca'],
-    rating: 4.7,
-    reviews: 31,
-    isVerified: true,
-    isFavorite: false,
-    views: 127
+    views: apiProperty.views_count
   }
-]
+}
 
 const HomePage: NextPage = () => {
   const [searchQuery, setSearchQuery] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [featuredProperties, setFeaturedProperties] = useState<Property[]>([])
+  const [propertiesLoading, setPropertiesLoading] = useState(true)
   
   // Estadísticas para mostrar
   const [stats, setStats] = useState({
@@ -97,6 +71,52 @@ const HomePage: NextPage = () => {
     happyClients: 0,
     yearsExperience: 0
   })
+
+  // Cargar propiedades destacadas desde el backend
+  useEffect(() => {
+    const loadFeaturedProperties = async () => {
+      try {
+        console.log('🏠 Iniciando carga de propiedades destacadas...')
+        setPropertiesLoading(true)
+        
+        // Obtener propiedades publicadas sin filtros complejos
+        const apiProperties = await fetchProperties({
+          page: 1,
+          limit: 6 // Mostrar 6 propiedades destacadas
+        })
+        
+        console.log('🏠 API Properties recibidas:', apiProperties.length)
+        console.log('🏠 Muestra de propiedades:', apiProperties.slice(0, 2))
+        
+        // Convertir a formato compatible con el componente existente
+        const properties = apiProperties.map(convertToProperty)
+        console.log('🏠 Properties convertidas:', properties.length)
+        
+        // Ordenar por puntuación de mayor a menor
+        const sortedProperties = properties.sort((a, b) => b.rating - a.rating)
+        console.log('⭐ Properties ordenadas por rating:', sortedProperties.map(p => ({ id: p.id, rating: p.rating })))
+        
+        setFeaturedProperties(sortedProperties)
+        console.log('✅ Propiedades cargadas exitosamente!')
+        
+      } catch (error) {
+        console.error('❌ Error cargando propiedades destacadas:', error)
+        console.error('❌ Error detalles:', {
+          message: error instanceof Error ? error.message : 'Unknown error',
+          name: error instanceof Error ? error.name : 'Unknown',
+          stack: error instanceof Error ? error.stack : undefined
+        })
+        // En caso de error, mostrar array vacío
+        setFeaturedProperties([])
+      } finally {
+        setPropertiesLoading(false)
+        console.log('🏠 Finalizando carga de propiedades...')
+      }
+    }
+
+    console.log('🏠 useEffect: Montando componente, iniciando carga...')
+    loadFeaturedProperties()
+  }, [])
 
   // Animación de números estadísticas
   useEffect(() => {
@@ -213,16 +233,28 @@ const HomePage: NextPage = () => {
             }}
           />
           
-          <div className="relative container-custom section-padding">
+          <div className="relative container-custom section-padding py-20 md:py-28">
             <div className="max-w-4xl mx-auto text-center">
-              <h1 className="text-4xl md:text-6xl font-bold mb-6 text-balance">
+              <h1 className="text-4xl md:text-6xl font-bold mb-10 text-balance">
+                
+                <div className="text-6xl md:text-7xl font-bold" style={{ 
+                  textShadow: '0px 1px 0px rgba(0,0,0,0.3), 0px 2px 0px rgba(0,0,0,0.2), 0px 3px 0px rgba(0,0,0,0.1), 0px 4px 8px rgba(0,0,0,0.15)',
+                  filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))',
+                  transform: 'scale(1.1)',
+                  transformOrigin: 'center'
+                }}>
+                  <span className="text-secondary-500">RENTA</span><span className="text-primary-500"> FACIL</span>
+                </div>
+              </h1>
+
+              <h1 className="text-4xl md:text-6xl font-bold mb-8 text-balance">
                 Encuentra tu hogar ideal en{' '}
                 <span className="text-gradient bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent">
                   Perú
                 </span>
               </h1>
               
-              <p className="text-xl md:text-2xl mb-12 text-blue-100 max-w-3xl mx-auto text-balance">
+              <p className="text-xl md:text-2xl mb-16 text-blue-100 max-w-3xl mx-auto text-balance">
                 Miles de propiedades verificadas, búsqueda inteligente y atención personalizada. 
                 Tu próximo alquiler te está esperando.
               </p>
@@ -237,27 +269,6 @@ const HomePage: NextPage = () => {
                 />
               </div>
               
-              {/* Quick Stats */}
-              <div className="grid grid-cols-3 gap-8 mt-12">
-                <div className="text-center">
-                  <div className="text-3xl md:text-4xl font-bold text-yellow-400">
-                    {formatNumber(stats.totalProperties)}+
-                  </div>
-                  <div className="text-blue-100">Propiedades</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl md:text-4xl font-bold text-green-400">
-                    {formatNumber(stats.happyClients)}+
-                  </div>
-                  <div className="text-blue-100">Clientes felices</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl md:text-4xl font-bold text-orange-400">
-                    {stats.yearsExperience}+
-                  </div>
-                  <div className="text-blue-100">Años de experiencia</div>
-                </div>
-              </div>
             </div>
           </div>
         </section>
@@ -306,7 +317,7 @@ const HomePage: NextPage = () => {
                       )
                     } else {
                       // Fallback si no hay geolocalización
-                      window.location.href = '/search?location=Lima'
+                      window.location.href = '/search?location=Lima&mode=alquiler'
                     }
                   }}
                   variant="primary"
@@ -353,27 +364,60 @@ const HomePage: NextPage = () => {
               </p>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {featuredProperties.map((property) => (
-                <PropertyCard
-                  key={property.id}
-                  property={property}
-                  className="card-hover"
-                />
-              ))}
-            </div>
-            
-            <div className="text-center mt-12">
-              <Button
-                as={Link}
-                href="/propiedades"
-                size="lg"
-                className="btn-primary inline-flex items-center gap-2"
-              >
-                Ver todas las propiedades
-                <ArrowRightIcon className="w-5 h-5" />
-              </Button>
-            </div>
+            {propertiesLoading ? (
+              // Loading state
+              <div className="flex justify-center items-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+                <span className="ml-4 text-gray-600">Cargando propiedades destacadas...</span>
+              </div>
+            ) : featuredProperties.length > 0 ? (
+              // Properties loaded
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                  {featuredProperties.map((property) => (
+                    <PropertyCard
+                      key={property.id}
+                      property={property}
+                      className="card-hover"
+                    />
+                  ))}
+                </div>
+                
+                <div className="text-center mt-12">
+                  <Button
+                    as={Link}
+                    href="/propiedades"
+                    size="lg"
+                    className="btn-primary inline-flex items-center gap-2"
+                  >
+                    Ver todas las propiedades
+                    <ArrowRightIcon className="w-5 h-5" />
+                  </Button>
+                </div>
+              </>
+            ) : (
+              // No properties found
+              <div className="text-center py-12">
+                <div className="text-gray-400 mb-4">
+                  <HomeIcon className="w-16 h-16 mx-auto mb-4" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  No hay propiedades destacadas disponibles
+                </h3>
+                <p className="text-gray-500 mb-6">
+                  Estamos trabajando para traerte las mejores opciones
+                </p>
+                <Button
+                  as={Link}
+                  href="/propiedades"
+                  size="lg"
+                  className="btn-primary inline-flex items-center gap-2"
+                >
+                  Explorar todas las propiedades
+                  <ArrowRightIcon className="w-5 h-5" />
+                </Button>
+              </div>
+            )}
           </div>
         </section>
         {/* Why Choose Us */}
@@ -417,7 +461,7 @@ const HomePage: NextPage = () => {
                 </div>
                 <h3 className="text-xl font-semibold mb-4">Búsqueda Inteligente</h3>
                 <p className="text-gray-600">
-                  Utiliza nuestros filtros avanzados y búsqueda por IA para encontrar 
+                  Utiliza nuestros filtros avanzados, busqueda textual y busqueda por geolocalización para encontrar 
                   exactamente lo que buscas.
                 </p>
               </div>

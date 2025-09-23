@@ -53,7 +53,7 @@ export function Header() {
 	return (
 		<header className="sticky top-0 z-50 border-b border-gray-200 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/70">
 			{/* Grid de 3 columnas para centrar logo */}
-			<div className="mx-auto grid max-w-7xl grid-cols-3 items-center h-10 px-3 sm:px-4 lg:px-6" aria-label="Global">
+			<div className="mx-auto grid max-w-7xl grid-cols-3 items-center h-20 px-3 sm:px-4 lg:px-6" aria-label="Global" style={{ transform: 'scale(1.1)', transformOrigin: 'center' }}>
 				{/* Navegación izquierda */}
 				<Popover.Group className="hidden md:flex items-center gap-5 text-xs sm:text-sm">
 					{/* Tipos de Propiedad Dropdown */}
@@ -120,12 +120,11 @@ export function Header() {
 					<Link href="/" className="flex items-center">
 						<span className="sr-only">RentaFacil</span>
 						<Image
-							src="/images/logo_sin_fondo.png"
+							src="/images/renta_facil_logo2.png"
 							alt="RentaFacil Logo"
-							width={180}
-							height={48}
-							className="h-12 w-auto select-none"
-							priority
+							width={300}
+							height={80}
+							className='h-20 w-auto select-none'
 						/>
 					</Link>
 				</div>
@@ -133,27 +132,27 @@ export function Header() {
 				{/* Acciones derecha */}
 				<div className="flex items-center justify-end gap-2 md:gap-3 col-span-2 md:col-span-1">
 					{/* Search button */}
-					<button className="hidden sm:inline-flex text-gray-400 hover:text-brand-navy transition-colors p-1.5 rounded-md hover:bg-gray-100">
+					<button className="hidden sm:inline-flex text-gray-400 hover:text-brand-navy transition-colors p-2 rounded-md hover:bg-gray-100">
 						<span className="sr-only">Buscar</span>
 						<MagnifyingGlassIcon className="h-5 w-5" />
 					</button>
 
 					{/* Notifications */}
-					<button className="hidden sm:inline-flex text-gray-400 hover:text-brand-navy transition-colors relative p-1.5 rounded-md hover:bg-gray-100">
+					<button className="hidden sm:inline-flex text-gray-400 hover:text-brand-navy transition-colors relative p-2 rounded-md hover:bg-gray-100">
 						<span className="sr-only">Notificaciones</span>
 						<BellIcon className="h-5 w-5" />
 						{/* Notification dot */}
-						<span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full"></span>
+						<span className="absolute top-1.5 right-1.5 h-2 w-2 bg-red-500 rounded-full"></span>
 					</button>
 
 					{/* Favorites */}
-					<Link href="/favoritos" className="hidden sm:inline-flex text-gray-400 hover:text-brand-navy transition-colors p-1.5 rounded-md hover:bg-gray-100">
+					<Link href="/favoritos" className="hidden sm:inline-flex text-gray-400 hover:text-brand-navy transition-colors p-2 rounded-md hover:bg-gray-100">
 						<span className="sr-only">Favoritos</span>
 						<HeartIcon className="h-5 w-5" />
 					</Link>
-					<Link href="/login" className="hidden md:inline-flex h-8 items-center px-3 rounded-md text-xs sm:text-sm font-medium text-gray-600 hover:text-brand-navy transition">Ingresar</Link>
-					<Link href="/registro" className="hidden md:inline-flex h-8 items-center rounded-md bg-secondary-500 px-3 text-xs sm:text-sm font-semibold text-brand-navy shadow-sm hover:bg-secondary-500/90 transition">Registrarse</Link>
-					<Link href="/publicar" className="inline-flex h-8 items-center rounded-md border border-secondary-500/60 px-3 text-xs sm:text-sm font-semibold text-brand-navy hover:bg-secondary-500/30 transition">Publicar</Link>
+					<Link href="/login" className="hidden md:inline-flex h-10 items-center px-3 rounded-md text-xs sm:text-sm font-medium text-gray-600 hover:text-brand-navy transition">Ingresar</Link>
+					<Link href="/registro" className="hidden md:inline-flex h-10 items-center rounded-md bg-secondary-500 px-3 text-xs sm:text-sm font-semibold text-brand-navy shadow-sm hover:bg-secondary-500/90 transition">Registrarse</Link>
+					<Link href="/publicar" className="inline-flex h-10 items-center rounded-md border border-secondary-500/60 px-3 text-xs sm:text-sm font-semibold text-brand-navy hover:bg-secondary-500/30 transition">Publicar</Link>
 
 					{/* Mobile menu button */}
 					<button
@@ -174,13 +173,13 @@ export function Header() {
 					<div className="flex items-center justify-between">
 						<Link href="/" className="-m-1.5 p-1.5">
 							<span className="sr-only">RentaFacil</span>
-							<Image 
-								src="/images/logo_sin_fondo.png"
-								alt="RentaFacil Logo"
-								width={120}
-								height={34}
-								className="h-8 w-auto"
-							/>
+							<Image
+                src="/images/renta_facil_logo2.png"
+                alt="RentaFacil Logo"
+                width={160}
+                height={42}
+                className='h-10 w-auto'
+              />
 						</Link>
 						<button
 							type="button"

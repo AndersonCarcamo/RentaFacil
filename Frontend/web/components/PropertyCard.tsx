@@ -45,7 +45,7 @@ export default function PropertyCard({ property, className = '', onFavoriteToggl
 					)}
 					{property.rating >= 4.8 && (
 						<span className="inline-flex items-center gap-1 rounded-md bg-primary-500/90 px-2 py-1 text-[10px] font-medium text-white backdrop-blur">
-							<StarIcon className="h-3.5 w-3.5" /> {property.rating}
+							<StarIcon className="h-3.5 w-3.5" /> {property.rating.toFixed(2)}
 						</span>
 					)}
 				</div>
@@ -88,7 +88,7 @@ export default function PropertyCard({ property, className = '', onFavoriteToggl
 					<div className="flex items-center gap-3 text-gray-400">
 						<div className="flex items-center gap-1">
 							<StarIcon className="h-4 w-4 text-yellow-400" />
-							<span className="text-gray-600 font-medium">{property.rating}</span>
+							<span className="text-gray-600 font-medium">{property.rating.toFixed(2)}</span>
 						</div>
 						<div className="flex items-center gap-1">
 							<EyeIcon className="h-4 w-4" />

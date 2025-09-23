@@ -37,7 +37,7 @@ class ApiKey(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     
     # User relationship
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("core.users.id", ondelete="CASCADE"), nullable=False)
     
     # API key details
     name = Column(String(255), nullable=False)
@@ -64,7 +64,7 @@ class ApiKey(Base):
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     revoked_at = Column(DateTime, nullable=True)
-    revoked_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    revoked_by = Column(UUID(as_uuid=True), ForeignKey("core.users.id"), nullable=True)
     
     # Relationships
     user = relationship("User", foreign_keys=[user_id], back_populates="api_keys")
@@ -146,7 +146,7 @@ class DeveloperApplication(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     
     # User relationship
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("core.users.id", ondelete="CASCADE"), nullable=False)
     
     # Application details
     name = Column(String(255), nullable=False)

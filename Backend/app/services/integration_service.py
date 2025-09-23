@@ -14,7 +14,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, desc, func
 
 from app.models.integration import (
-    WebhookEvent, IntegrationConfig, GeocodeCache, 
+    # WebhookEvent,  # Commented - table doesn't exist in database
+    IntegrationConfig, GeocodeCache, 
     ExternalApiLog, NearbyPlace,
     WebhookEventType, WebhookStatus, IntegrationType,
     PaymentProvider, GeocodeResultType
@@ -33,63 +34,63 @@ class IntegrationService:
         self.db = db
         self.logger = logging.getLogger(__name__)
     
-    # Webhook Processing
-    async def process_webhook(
-        self, 
-        provider: str, 
-        payload: Dict[str, Any], 
-        headers: Optional[Dict[str, str]] = None,
-        signature: Optional[str] = None
-    ) -> Dict[str, Any]:
-        """Process incoming webhook from external service"""
-        try:
-            # Validate signature if provided
-            if signature and not self._verify_webhook_signature(provider, payload, signature, headers):
-                raise IntegrationError(f"Invalid webhook signature for {provider}")
-            
-            # Determine event type
-            event_type = self._determine_event_type(provider, payload)
-            
-            # Create webhook event record
-            webhook_event = WebhookEvent(
-                provider=provider,
-                event_type=event_type,
-                event_id=self._extract_event_id(provider, payload),
-                raw_payload=payload,
-                headers=headers or {},
-                signature=signature,
-                status=WebhookStatus.PROCESSING
-            )
-            
-            self.db.add(webhook_event)
-            self.db.commit()
-            self.db.refresh(webhook_event)
-            
-            # Process based on provider and event type
-            result = await self._process_webhook_by_provider(provider, event_type, payload, webhook_event.id)
-            
-            # Update webhook status
-            webhook_event.status = WebhookStatus.PROCESSED
-            webhook_event.processed_at = datetime.utcnow()
-            self.db.commit()
-            
-            return {
-                "success": True,
-                "webhook_id": str(webhook_event.id),
-                "event_type": event_type,
-                "processed_at": webhook_event.processed_at
-            }
-            
-        except Exception as e:
-            self.logger.error(f"Webhook processing failed for {provider}: {str(e)}")
-            if 'webhook_event' in locals():
-                webhook_event.status = WebhookStatus.FAILED
-                webhook_event.error_message = str(e)
-                webhook_event.retry_count += 1
-                webhook_event.next_retry_at = datetime.utcnow() + timedelta(minutes=5 * webhook_event.retry_count)
-                self.db.commit()
-            
-            raise IntegrationError(f"Webhook processing failed: {str(e)}")
+    # Webhook Processing - DISABLED (WebhookEvent model doesn't exist in database)
+    # async def process_webhook(
+    #     self, 
+    #     provider: str, 
+    #     payload: Dict[str, Any], 
+    #     headers: Optional[Dict[str, str]] = None,
+    #     signature: Optional[str] = None
+    # ) -> Dict[str, Any]:
+    #     """Process incoming webhook from external service"""
+    #     try:
+    #         # Validate signature if provided
+    #         if signature and not self._verify_webhook_signature(provider, payload, signature, headers):
+    #             raise IntegrationError(f"Invalid webhook signature for {provider}")
+    #         
+    #         # Determine event type
+    #         event_type = self._determine_event_type(provider, payload)
+    #         
+    #         # Create webhook event record
+    #         webhook_event = WebhookEvent(
+    #             provider=provider,
+    #             event_type=event_type,
+    #             event_id=self._extract_event_id(provider, payload),
+    #             raw_payload=payload,
+    #             headers=headers or {},
+    #             signature=signature,
+    #             status=WebhookStatus.PROCESSING
+    #         )
+    #         
+    #         self.db.add(webhook_event)
+    #         self.db.commit()
+    #         self.db.refresh(webhook_event)
+    #         
+    #         # Process based on provider and event type
+    #         result = await self._process_webhook_by_provider(provider, event_type, payload, webhook_event.id)
+    #         
+    #         # Update webhook status
+    #         webhook_event.status = WebhookStatus.PROCESSED
+    #         webhook_event.processed_at = datetime.utcnow()
+    #         self.db.commit()
+    #         
+    #         return {
+    #             "success": True,
+    #             "webhook_id": str(webhook_event.id),
+    #             "event_type": event_type,
+    #             "processed_at": webhook_event.processed_at
+    #         }
+    #         
+    #     except Exception as e:
+    #         self.logger.error(f"Webhook processing failed for {provider}: {str(e)}")
+    #         if 'webhook_event' in locals():
+    #             webhook_event.status = WebhookStatus.FAILED
+    #             webhook_event.error_message = str(e)
+    #             webhook_event.retry_count += 1
+    #             webhook_event.next_retry_at = datetime.utcnow() + timedelta(minutes=5 * webhook_event.retry_count)
+    #             self.db.commit()
+    #         
+    #         raise IntegrationError(f"Webhook processing failed: {str(e)}")
     
     def _verify_webhook_signature(self, provider: str, payload: Dict[str, Any], signature: str, headers: Dict[str, str]) -> bool:
         """Verify webhook signature based on provider"""

@@ -51,41 +51,41 @@ class GeocodeResultType(str, enum.Enum):
     APPROXIMATE = "approximate"
 
 # Models
-class WebhookEvent(Base):
-    """Model for webhook events from external services"""
-    __tablename__ = "webhook_events"
-
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    provider = Column(String(50), nullable=False, index=True)  # stripe, culqi, etc.
-    event_type = Column(Enum(WebhookEventType), nullable=False, index=True)
-    event_id = Column(String(255), nullable=True, index=True)  # External event ID
-    
-    # Webhook data
-    raw_payload = Column(JSON, nullable=False)
-    headers = Column(JSON, nullable=True)
-    signature = Column(String(500), nullable=True)
-    
-    # Processing info
-    status = Column(Enum(WebhookStatus), default=WebhookStatus.PENDING, index=True)
-    processed_at = Column(DateTime, nullable=True)
-    error_message = Column(Text, nullable=True)
-    retry_count = Column(Integer, default=0)
-    next_retry_at = Column(DateTime, nullable=True)
-    
-    # Related entities
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True, index=True)
-    payment_id = Column(String(100), nullable=True, index=True)  # External payment ID
-    subscription_id = Column(UUID(as_uuid=True), nullable=True, index=True)
-    
-    # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    # Relationships
-    user = relationship("User", back_populates="webhook_events")
-
-    def __repr__(self):
-        return f"<WebhookEvent {self.provider}:{self.event_type}>"
+# class WebhookEvent(Base):
+#     """Model for webhook events from external services"""
+#     __tablename__ = "webhook_events"
+# 
+#     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+#     provider = Column(String(50), nullable=False, index=True)  # stripe, culqi, etc.
+#     event_type = Column(Enum(WebhookEventType), nullable=False, index=True)
+#     event_id = Column(String(255), nullable=True, index=True)  # External event ID
+#     
+#     # Webhook data
+#     raw_payload = Column(JSON, nullable=False)
+#     headers = Column(JSON, nullable=True)
+#     signature = Column(String(500), nullable=True)
+#     
+#     # Processing info
+#     status = Column(Enum(WebhookStatus), default=WebhookStatus.PENDING, index=True)
+#     processed_at = Column(DateTime, nullable=True)
+#     error_message = Column(Text, nullable=True)
+#     retry_count = Column(Integer, default=0)
+#     next_retry_at = Column(DateTime, nullable=True)
+#     
+#     # Related entities
+#     user_id = Column(UUID(as_uuid=True), ForeignKey("core.users.id"), nullable=True, index=True)
+#     payment_id = Column(String(100), nullable=True, index=True)  # External payment ID
+#     subscription_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+#     
+#     # Timestamps
+#     created_at = Column(DateTime, default=datetime.utcnow)
+#     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+#     
+#     # Relationships
+#     user = relationship("User", back_populates="webhook_events")
+# 
+#     def __repr__(self):
+#         return f"<WebhookEvent {self.provider}:{self.event_type}>"
 
 class IntegrationConfig(Base):
     """Model for integration configurations"""
@@ -118,7 +118,7 @@ class IntegrationConfig(Base):
     is_healthy = Column(Boolean, default=True, index=True)
     
     # Metadata
-    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    created_by = Column(UUID(as_uuid=True), ForeignKey("core.users.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -204,7 +204,7 @@ class ExternalApiLog(Base):
     retry_attempt = Column(Integer, default=0)
     
     # Context
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True, index=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("core.users.id"), nullable=True, index=True)
     correlation_id = Column(String(100), nullable=True, index=True)
     
     # Metadata

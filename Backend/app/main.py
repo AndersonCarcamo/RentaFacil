@@ -6,17 +6,20 @@ from app.api.endpoints.auth import router as auth_router
 from app.api.endpoints.users import router as users_router
 from app.api.endpoints.agencies import router as agencies_router
 from app.api.endpoints.listings import router as listings_router
-from app.api.endpoints.search import router as search_router
-from app.api.endpoints.media import router as media_router
-from app.api.endpoints.interactions import router as interactions_router
-from app.api.endpoints.subscriptions import router as subscriptions_router
-from app.api.endpoints.analytics import router as analytics_router
-from app.api.endpoints.verifications import router as verifications_router
-from app.api.endpoints.notifications import router as notifications_router
-from app.api.endpoints.admin import router as admin_router
-from app.api.endpoints.integrations import router as integrations_router
-from app.api.endpoints.webhooks import router as webhooks_router
-from app.api.endpoints.api_keys import router as api_keys_router
+from app.api.endpoints.listings_simple import router as listings_simple_router
+# Temporarily disabled routers that depend on non-existent database tables:
+# from app.api.endpoints.search import router as search_router
+# from app.api.endpoints.media import router as media_router
+# from app.api.endpoints.interactions import router as interactions_router
+# from app.api.endpoints.subscriptions import router as subscriptions_router
+# from app.api.endpoints.analytics import router as analytics_router
+# from app.api.endpoints.verifications import router as verifications_router
+# from app.api.endpoints.notifications import router as notifications_router
+# from app.api.endpoints.admin import router as admin_router
+# from app.api.endpoints.integrations import router as integrations_router
+# from app.api.endpoints.webhooks import router as webhooks_router
+# from app.api.endpoints.api_keys import router as api_keys_router
+from app.api.endpoints.system import router as system_router
 from app.api.endpoints.system import router as system_router
 from app.core.config import settings
 import time
@@ -118,7 +121,7 @@ async def root():
     }
 
 
-# Include routers
+# Include only basic routers that work with existing database tables
 app.include_router(
     auth_router,
     prefix="/v1/auth",
@@ -144,69 +147,9 @@ app.include_router(
 )
 
 app.include_router(
-    search_router,
-    prefix="/v1/search",
-    tags=["Search"]
-)
-
-app.include_router(
-    media_router,
-    prefix="/v1",
-    tags=["Media"]
-)
-
-app.include_router(
-    interactions_router,
-    prefix="/v1",
-    tags=["Interactions"]
-)
-
-app.include_router(
-    subscriptions_router,
-    prefix="/v1",
-    tags=["Subscriptions"]
-)
-
-app.include_router(
-    analytics_router,
-    prefix="/v1",
-    tags=["Analytics"]
-)
-
-app.include_router(
-    verifications_router,
-    prefix="/v1/verifications",
-    tags=["Verifications & Moderation"]
-)
-
-app.include_router(
-    notifications_router,
-    prefix="/v1/notifications",
-    tags=["Notifications"]
-)
-
-app.include_router(
-    admin_router,
-    prefix="/v1/admin",
-    tags=["Administration"]
-)
-
-app.include_router(
-    integrations_router,
-    prefix="/v1/integrations",
-    tags=["External Integrations"]
-)
-
-app.include_router(
-    webhooks_router,
-    prefix="/v1/webhooks",
-    tags=["Webhooks Management"]
-)
-
-app.include_router(
-    api_keys_router,
-    prefix="/v1/api-keys",
-    tags=["Developer Tools"]
+    listings_simple_router,
+    prefix="/v1/listings-simple",
+    tags=["Listings Simple"]
 )
 
 app.include_router(
@@ -214,6 +157,10 @@ app.include_router(
     prefix="",
     tags=["System"]
 )
+
+# Temporarily disabled routers until corresponding database tables are created:
+# search, media, interactions, subscriptions, analytics, verifications, 
+# notifications, admin, integrations, webhooks, api_keys
 
 
 if __name__ == "__main__":

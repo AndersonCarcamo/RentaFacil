@@ -34,7 +34,7 @@ class Webhook(Base):
     __tablename__ = "webhooks"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("core.users.id"), nullable=False)
     
     # Webhook configuration
     url = Column(String(2048), nullable=False)
@@ -110,7 +110,7 @@ class WebhookEvent(Base):
     
     # Event data
     event_data = Column(JSON, nullable=False)
-    triggered_by_user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    triggered_by_user_id = Column(UUID(as_uuid=True), ForeignKey("core.users.id"), nullable=True)
     
     # Processing status
     processed = Column(Boolean, default=False)
