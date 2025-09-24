@@ -122,8 +122,8 @@ export function Header() {
 						<Image
 							src="/images/renta_facil_logo2.png"
 							alt="RentaFacil Logo"
-							width={300}
-							height={80}
+							width={330}
+							height={50}
 							className='h-20 w-auto select-none'
 						/>
 					</Link>

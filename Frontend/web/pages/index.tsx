@@ -351,7 +351,37 @@ const HomePage: NextPage = () => {
             </div>
           </div>
         </section>
-
+        {/* CTA Section */}
+        <section className="section-padding bg-gradient-to-r from-primary-600 to-secondary-600 text-white">
+          <div className="container-custom text-center">
+            <h2 className="text-3xl md:text-4xl font-bold mb-6">
+              ¿Listo para encontrar tu nuevo hogar?
+            </h2>
+            <p className="text-xl mb-8 text-blue-100 max-w-2xl mx-auto">
+              Únete a miles de personas que ya encontraron su hogar ideal con RentaFacil
+            </p>
+            
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Button
+                as={Link}
+                href="/propiedades"
+                size="lg"
+                className="bg-white text-primary-600 hover:bg-gray-100"
+              >
+                Buscar propiedades
+              </Button>
+              <Button
+                as={Link}
+                href="/publicar"
+                size="lg"
+                variant="outline"
+                className="border-white text-white hover:bg-white hover:text-primary-600"
+              >
+                Publicar mi propiedad
+              </Button>
+            </div>
+          </div>
+        </section>
         {/* Featured Properties */}
         <section className="section-padding bg-gray-50">
           <div className="container-custom">
@@ -469,37 +499,7 @@ const HomePage: NextPage = () => {
           </div>
         </section>
 
-        {/* CTA Section */}
-        <section className="section-padding bg-gradient-to-r from-primary-600 to-secondary-600 text-white">
-          <div className="container-custom text-center">
-            <h2 className="text-3xl md:text-4xl font-bold mb-6">
-              ¿Listo para encontrar tu nuevo hogar?
-            </h2>
-            <p className="text-xl mb-8 text-blue-100 max-w-2xl mx-auto">
-              Únete a miles de personas que ya encontraron su hogar ideal con RentaFacil
-            </p>
-            
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button
-                as={Link}
-                href="/propiedades"
-                size="lg"
-                className="bg-white text-primary-600 hover:bg-gray-100"
-              >
-                Buscar propiedades
-              </Button>
-              <Button
-                as={Link}
-                href="/publicar"
-                size="lg"
-                variant="outline"
-                className="border-white text-white hover:bg-white hover:text-primary-600"
-              >
-                Publicar mi propiedad
-              </Button>
-            </div>
-          </div>
-        </section>
+        
       </main>
     </Layout>
   )

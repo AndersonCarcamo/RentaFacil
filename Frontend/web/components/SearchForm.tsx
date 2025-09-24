@@ -2,7 +2,7 @@ import { useState } from 'react'
 import Button from './ui/Button'
 import { MagnifyingGlassIcon, MapPinIcon, CurrencyDollarIcon, AdjustmentsHorizontalIcon, BuildingOffice2Icon, HomeIcon, KeyIcon } from '@heroicons/react/24/outline'
 
-type Mode = 'alquiler' | 'comprar' | 'proyecto'
+type Mode = 'alquiler' | 'comprar' | 'vender' | 'proyecto'
 
 interface SearchFormProps {
   onSearch?: (params: { 
@@ -82,10 +82,31 @@ interface SearchFormProps {
 			<div className="flex flex-wrap items-center gap-2">
 				<Tab value="alquiler" label="Alquiler" icon={BuildingOffice2Icon} />
 				<Tab value="comprar" label="Comprar" icon={CurrencyDollarIcon} />
+				<Tab value="vender" label="Vender" icon={CurrencyDollarIcon} />
 				<Tab value="proyecto" label="Proyecto" icon={AdjustmentsHorizontalIcon} />
 			</div>
 			<div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-				<div className="md:col-span-2">
+				{/* Tipo de Propiedad */}
+				<div>
+					<label className="flex flex-row gap-5 text-xs font-medium text-brand-navy">
+						Tipo de Propiedad
+						<select
+							value={propertyType}
+							onChange={(e) => setPropertyType(e.target.value)}
+							className="w-full rounded-lg border border-brand-navy/20 bg-white/70 py-2 px-3 text-sm text-brand-navy focus:border-brand-navy/40 focus:outline-none focus:ring-2 focus:ring-secondary-500/60"
+						>
+							<option value="">Todos</option>
+							<option value="apartment">Departamento</option>
+							<option value="house">Casa</option>
+							<option value="TipoAirbnb">Airbnb</option>
+							<option value="room">Habitación</option>
+							<option value="studio">Estudio</option>
+							<option value="office">Oficina</option>
+							<option value="commercial">Comercial</option>
+						</select>
+					</label>
+				</div>
+				<div className="md:col-span-4">
 					<label className="flex flex-col gap-1 text-xs font-medium text-brand-navy">
 						Ubicación
 						<div className="relative">
@@ -99,51 +120,10 @@ interface SearchFormProps {
 						</div>
 					</label>
 				</div>
-				<div>
-					<label className="flex flex-col gap-1 text-xs font-medium text-brand-navy">
-						Precio mín.
-						<input
-							value={minPrice}
-							onChange={(e) => setMinPrice(e.target.value.replace(/[^0-9]/g, ''))}
-							placeholder="0"
-							className="w-full rounded-lg border border-brand-navy/20 bg-white/70 py-2 px-3 text-sm text-brand-navy placeholder:text-brand-navy/40 focus:border-brand-navy/40 focus:outline-none focus:ring-2 focus:ring-secondary-500/60"
-						/>
-					</label>
-				</div>
-				<div>
-					<label className="flex flex-col gap-1 text-xs font-medium text-brand-navy">
-						Precio máx.
-						<input
-							value={maxPrice}
-							onChange={(e) => setMaxPrice(e.target.value.replace(/[^0-9]/g, ''))}
-							placeholder="5000"
-							className="w-full rounded-lg border border-brand-navy/20 bg-white/70 py-2 px-3 text-sm text-brand-navy placeholder:text-brand-navy/40 focus:border-brand-navy/40 focus:outline-none focus:ring-2 focus:ring-secondary-500/60"
-						/>
-					</label>
-				</div>
 			</div>
 			{advanced && (
 				<div className="space-y-4">
 					<div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-						{/* Tipo de Propiedad */}
-						<div>
-							<label className="flex flex-col gap-1 text-xs font-medium text-brand-navy">
-								Tipo de Propiedad
-								<select
-									value={propertyType}
-									onChange={(e) => setPropertyType(e.target.value)}
-									className="w-full rounded-lg border border-brand-navy/20 bg-white/70 py-2 px-3 text-sm text-brand-navy focus:border-brand-navy/40 focus:outline-none focus:ring-2 focus:ring-secondary-500/60"
-								>
-									<option value="">Todos</option>
-									<option value="apartment">Departamento</option>
-									<option value="house">Casa</option>
-									<option value="room">Habitación</option>
-									<option value="studio">Estudio</option>
-									<option value="office">Oficina</option>
-									<option value="commercial">Comercial</option>
-								</select>
-							</label>
-						</div>
 
 						{/* Habitaciones */}
 						<div>
@@ -161,6 +141,28 @@ interface SearchFormProps {
 									<option value="4">4+</option>
 									<option value="5">5+</option>
 								</select>
+							</label>
+						</div>
+						<div>
+							<label className="flex flex-col gap-1 text-xs font-medium text-brand-navy">
+								Precio mín.
+								<input
+									value={minPrice}
+									onChange={(e) => setMinPrice(e.target.value.replace(/[^0-9]/g, ''))}
+									placeholder="0"
+									className="w-full rounded-lg border border-brand-navy/20 bg-white/70 py-2 px-3 text-sm text-brand-navy placeholder:text-brand-navy/40 focus:border-brand-navy/40 focus:outline-none focus:ring-2 focus:ring-secondary-500/60"
+								/>
+							</label>
+						</div>
+						<div>
+							<label className="flex flex-col gap-1 text-xs font-medium text-brand-navy">
+								Precio máx.
+								<input
+									value={maxPrice}
+									onChange={(e) => setMaxPrice(e.target.value.replace(/[^0-9]/g, ''))}
+									placeholder="5000"
+									className="w-full rounded-lg border border-brand-navy/20 bg-white/70 py-2 px-3 text-sm text-brand-navy placeholder:text-brand-navy/40 focus:border-brand-navy/40 focus:outline-none focus:ring-2 focus:ring-secondary-500/60"
+								/>
 							</label>
 						</div>
 
