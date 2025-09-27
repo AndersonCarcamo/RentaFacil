@@ -12,7 +12,10 @@ import {
   ArrowRightIcon,
   CheckCircleIcon,
   HeartIcon,
-  EyeIcon
+  EyeIcon,
+  ShieldCheckIcon,
+  ChatBubbleLeftRightIcon,
+  BoltIcon
 } from '@heroicons/react/24/outline'
 
 // Componentes
@@ -64,6 +67,7 @@ const HomePage: NextPage = () => {
   const [isLoading, setIsLoading] = useState(false)
   const [featuredProperties, setFeaturedProperties] = useState<Property[]>([])
   const [propertiesLoading, setPropertiesLoading] = useState(true)
+  const [currentSlide, setCurrentSlide] = useState(0)
   
   // Estadísticas para mostrar
   const [stats, setStats] = useState({
@@ -154,7 +158,35 @@ const HomePage: NextPage = () => {
     setTimeout(animateStats, 500)
   }, [])
 
-  const handleSearch = async (params: { mode: string; location: string; minPrice?: number; maxPrice?: number }) => {
+  // Carrusel automático
+  useEffect(() => {
+    const totalSlides = 4
+    const interval = setInterval(() => {
+      setCurrentSlide(prev => (prev + 1) % totalSlides)
+    }, 3000) // Cambiar cada 3 segundos
+
+    return () => clearInterval(interval)
+  }, [])
+
+  const goToSlide = (slideIndex: number) => {
+    setCurrentSlide(slideIndex)
+  }
+
+  const handleSearch = async (params: { 
+    mode: string; 
+    location: string; 
+    minPrice?: number; 
+    maxPrice?: number;
+    propertyType?: string;
+    bedrooms?: number;
+    bathrooms?: number;
+    minArea?: number;
+    maxArea?: number;
+    furnished?: boolean;
+    verified?: boolean;
+    rentalMode?: string;
+    petFriendly?: boolean;
+  }) => {
     setIsLoading(true)
     setSearchQuery(params.location)
     
@@ -167,6 +199,15 @@ const HomePage: NextPage = () => {
       location: params.location,
       ...(params.minPrice && { minPrice: params.minPrice.toString() }),
       ...(params.maxPrice && { maxPrice: params.maxPrice.toString() }),
+      ...(params.propertyType && { propertyType: params.propertyType }),
+      ...(params.bedrooms && { bedrooms: params.bedrooms.toString() }),
+      ...(params.bathrooms && { bathrooms: params.bathrooms.toString() }),
+      ...(params.minArea && { minArea: params.minArea.toString() }),
+      ...(params.maxArea && { maxArea: params.maxArea.toString() }),
+      ...(params.furnished !== undefined && { furnished: params.furnished.toString() }),
+      ...(params.verified !== undefined && { verified: params.verified.toString() }),
+      ...(params.rentalMode && { rentalMode: params.rentalMode }),
+      ...(params.petFriendly !== undefined && { petFriendly: params.petFriendly.toString() }),
     })
     
     // Redirigir a página de resultados
@@ -221,15 +262,168 @@ const HomePage: NextPage = () => {
       </Head>
 
       <main id="main-content">
-        {/* Hero Section */}
+        {/* Hero Section - Opción 50/50 Split */}
+        <section className="h-screen grid grid-rows-2 overflow-hidden">
+          {/* Top 50% - SearchForm con Background */}
+          <div className="relative bg-gradient-to-br from-primary-600 via-primary-700 to-primary-800 text-white overflow-hidden flex items-center justify-center">
+            {/* Real Estate Theme Background Pattern */}
+            <div className="absolute inset-0 bg-black/20" />
+            <div 
+              className="absolute inset-0 opacity-20"
+              style={{
+                backgroundImage: `url("data:image/svg+xml,%3Csvg width='120' height='120' viewBox='0 0 120 120' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3Cg id='house'%3E%3Cpath d='M6 20L12 14L18 20V26H6V20Z' fill='none' stroke='%23ffffff' stroke-width='1.5' stroke-opacity='0.3'/%3E%3Crect x='8.5' y='22' width='2' height='3' fill='none' stroke='%23ffffff' stroke-width='1.2' stroke-opacity='0.25'/%3E%3Crect x='13' y='18' width='2' height='2' fill='none' stroke='%23ffffff' stroke-width='1' stroke-opacity='0.2'/%3E%3C/g%3E%3Cg id='building'%3E%3Crect x='2' y='12' width='10' height='14' fill='none' stroke='%23ffffff' stroke-width='1.5' stroke-opacity='0.25'/%3E%3Crect x='4' y='15' width='2' height='2' fill='none' stroke='%23ffffff' stroke-width='1' stroke-opacity='0.2'/%3E%3Crect x='7' y='15' width='2' height='2' fill='none' stroke='%23ffffff' stroke-width='1' stroke-opacity='0.2'/%3E%3Crect x='4' y='18' width='2' height='2' fill='none' stroke='%23ffffff' stroke-width='1' stroke-opacity='0.2'/%3E%3Crect x='7' y='18' width='2' height='2' fill='none' stroke='%23ffffff' stroke-width='1' stroke-opacity='0.2'/%3E%3Crect x='4' y='21' width='2' height='2' fill='none' stroke='%23ffffff' stroke-width='1' stroke-opacity='0.2'/%3E%3Crect x='7' y='21' width='2' height='2' fill='none' stroke='%23ffffff' stroke-width='1' stroke-opacity='0.2'/%3E%3C/g%3E%3Cg id='key'%3E%3Ccircle cx='4' cy='18' r='2' fill='none' stroke='%23ffffff' stroke-width='1.4' stroke-opacity='0.25'/%3E%3Cpath d='M6 18H12M9.5 16V20M10.5 16.5V19.5' stroke='%23ffffff' stroke-width='1.2' stroke-opacity='0.25' fill='none'/%3E%3C/g%3E%3Cg id='apartment'%3E%3Crect x='1' y='10' width='14' height='16' fill='none' stroke='%23ffffff' stroke-width='1.5' stroke-opacity='0.2'/%3E%3Crect x='3' y='13' width='2.5' height='2.5' fill='none' stroke='%23ffffff' stroke-width='1' stroke-opacity='0.15'/%3E%3Crect x='7' y='13' width='2.5' height='2.5' fill='none' stroke='%23ffffff' stroke-width='1' stroke-opacity='0.15'/%3E%3Crect x='11' y='13' width='2.5' height='2.5' fill='none' stroke='%23ffffff' stroke-width='1' stroke-opacity='0.15'/%3E%3Crect x='3' y='17' width='2.5' height='2.5' fill='none' stroke='%23ffffff' stroke-width='1' stroke-opacity='0.15'/%3E%3Crect x='7' y='17' width='2.5' height='2.5' fill='none' stroke='%23ffffff' stroke-width='1' stroke-opacity='0.15'/%3E%3Crect x='11' y='17' width='2.5' height='2.5' fill='none' stroke='%23ffffff' stroke-width='1' stroke-opacity='0.15'/%3E%3Crect x='3' y='21' width='2.5' height='2.5' fill='none' stroke='%23ffffff' stroke-width='1' stroke-opacity='0.15'/%3E%3Crect x='7' y='21' width='2.5' height='2.5' fill='none' stroke='%23ffffff' stroke-width='1' stroke-opacity='0.15'/%3E%3Crect x='11' y='21' width='2.5' height='2.5' fill='none' stroke='%23ffffff' stroke-width='1' stroke-opacity='0.15'/%3E%3C/g%3E%3Cg id='door'%3E%3Crect x='2' y='14' width='5' height='12' rx='2.5' fill='none' stroke='%23ffffff' stroke-width='1.4' stroke-opacity='0.25'/%3E%3Ccircle cx='5.5' cy='20' r='0.4' fill='%23ffffff' fill-opacity='0.2'/%3E%3C/g%3E%3C/defs%3E%3Cuse href='%23house' x='8' y='8'/%3E%3Cuse href='%23building' x='40' y='20'/%3E%3Cuse href='%23key' x='75' y='6' transform='rotate(45 79 24)'/%3E%3Cuse href='%23apartment' x='20' y='50'/%3E%3Cuse href='%23door' x='80' y='38' transform='rotate(-15 82.5 50)'/%3E%3Cuse href='%23key' x='12' y='80' transform='rotate(-30 16 98)'/%3E%3Cuse href='%23building' x='90' y='70'/%3E%3Cuse href='%23house' x='60' y='80'/%3E%3Cuse href='%23key' x='50' y='25' transform='rotate(60 54 43)'/%3E%3Cuse href='%23door' x='4' y='40'/%3E%3Cuse href='%23apartment' x='85' y='5'/%3E%3Cuse href='%23building' x='65' y='12'/%3E%3C/svg%3E")`,
+                backgroundSize: '120px 120px'
+              }}
+            />
+            
+            <div className="relative z-10 w-full max-w-4xl mx-auto px-6">
+              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 md:p-8 shadow-2xl border border-white/20">
+                <SearchForm
+                  onSearch={handleSearch}
+                  isLoading={isLoading}
+                  placeholder="¿Dónde quieres vivir? Ej: San Isidro, Miraflores..."
+                  className="bg-white text-gray-900"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom 50% - Split Layout with Carousel */}
+          <div className="bg-gradient-to-br from-gray-50 via-white to-gray-100 flex items-center justify-center px-6 relative overflow-hidden">
+            {/* Subtle Background Elements */}
+            <div className="absolute inset-0">
+              <div className="absolute top-20 right-20 w-32 h-32 bg-primary-100 rounded-full blur-3xl opacity-30"></div>
+              <div className="absolute bottom-32 left-16 w-40 h-40 bg-secondary-100 rounded-full blur-3xl opacity-20"></div>
+            </div>
+
+            <div className="relative z-10 w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+              {/* Left Side - Logo y Eslogan */}
+              <div className="text-center lg:text-left">
+                {/* Logo Principal */}
+                <div className="mb-8">
+                  <div className="text-5xl md:text-7xl font-bold mb-4" style={{ 
+                    textShadow: '0px 1px 0px rgba(0,0,0,0.08), 0px 2px 4px rgba(0,0,0,0.1)',
+                    transform: 'scale(1.1)',
+                    transformOrigin: 'left'
+                  }}>
+                    <span className="text-secondary-500">RENTA</span><span className="text-primary-500"> FÁCIL</span>
+                  </div>
+                  
+                  {/* Línea decorativa */}
+                  <div className="w-24 h-1 bg-gradient-to-r from-secondary-500 to-primary-500 lg:mx-0 mx-auto rounded-full mb-6"></div>
+                </div>
+
+                {/* Eslogan Principal */}
+                <h1 className="text-2xl md:text-4xl font-bold mb-6 text-gray-900 leading-tight">
+                  Encuentra tu hogar ideal en{' '}
+                  <span className="text-gray-800 underline decoration-primary-500 underline-offset-4 decoration-2">
+                    Perú
+                  </span>
+                </h1>
+                
+                {/* Descripción */}
+                <p className="text-lg md:text-xl text-gray-700 mb-8 leading-relaxed">
+                  La plataforma que conecta inquilinos y propietarios de manera{' '}
+                  <span className="text-gray-900 font-semibold">segura</span> y{' '}
+                  <span className="text-gray-900 font-semibold">transparente</span>
+                </p>
+
+                {/* Call to Action */}
+                <div className="flex flex-col sm:flex-row gap-4 lg:justify-start justify-center">
+                  <button className="bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white px-8 py-3 rounded-xl font-semibold shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300">
+                    Explorar Propiedades
+                  </button>
+                  
+                  <button className="bg-white border-2 border-primary-200 hover:border-primary-300 text-gray-800 px-8 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 hover:bg-primary-50">
+                    Publicar Propiedad
+                  </button>
+                </div>
+              </div>
+
+              {/* Right Side - Carrusel de Beneficios */}
+              <div className="relative">
+                <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-8 shadow-2xl border border-white/50">
+                  {/* Carousel Container */}
+                  <div className="overflow-hidden relative h-64">
+                    <div 
+                      className="flex transition-transform duration-500 ease-in-out h-full"
+                      style={{ transform: `translateX(-${currentSlide * 100}%)` }}
+                    >
+                      {/* Slide 1 - Búsqueda Inteligente */}
+                      <div className="w-full flex-shrink-0 text-center flex flex-col justify-center">
+                        <MagnifyingGlassIcon className="w-16 h-16 mx-auto mb-6 text-gray-800" />
+                        <h3 className="text-2xl font-bold text-gray-800 mb-4">Búsqueda Inteligente</h3>
+                        <p className="text-gray-600 leading-relaxed">
+                          Filtros avanzados para encontrar exactamente lo que buscas. 
+                          Por ubicación, precio, características y más.
+                        </p>
+                      </div>
+
+                      {/* Slide 2 - Verificación Segura */}
+                      <div className="w-full flex-shrink-0 text-center flex flex-col justify-center">
+                        <ShieldCheckIcon className="w-16 h-16 mx-auto mb-6 text-gray-800" />
+                        <h3 className="text-2xl font-bold text-gray-800 mb-4">Verificación Segura</h3>
+                        <p className="text-gray-600 leading-relaxed">
+                          Todas las propiedades y usuarios son verificados 
+                          para garantizar tu seguridad y tranquilidad.
+                        </p>
+                      </div>
+
+                      {/* Slide 3 - Comunicación Directa */}
+                      <div className="w-full flex-shrink-0 text-center flex flex-col justify-center">
+                        <ChatBubbleLeftRightIcon className="w-16 h-16 mx-auto mb-6 text-gray-800" />
+                        <h3 className="text-2xl font-bold text-gray-800 mb-4">Comunicación Directa</h3>
+                        <p className="text-gray-600 leading-relaxed">
+                          Contacta directamente con propietarios 
+                          sin intermediarios ni comisiones ocultas.
+                        </p>
+                      </div>
+
+                      {/* Slide 4 - Proceso Rápido */}
+                      <div className="w-full flex-shrink-0 text-center flex flex-col justify-center">
+                        <BoltIcon className="w-16 h-16 mx-auto mb-6 text-gray-800" />
+                        <h3 className="text-2xl font-bold text-gray-800 mb-4">Proceso Rápido</h3>
+                        <p className="text-gray-600 leading-relaxed">
+                          Desde la búsqueda hasta el contrato, 
+                          todo el proceso simplificado en una plataforma.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Carousel Indicators */}
+                  <div className="flex justify-center mt-6 space-x-2">
+                    {[0, 1, 2, 3].map((index) => (
+                      <div
+                        key={index}
+                        className={`w-3 h-3 rounded-full cursor-pointer transition-all duration-300 ${
+                          currentSlide === index 
+                            ? 'bg-primary-500' 
+                            : 'bg-gray-300 hover:bg-gray-400'
+                        }`}
+                        onClick={() => goToSlide(index)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* 
+        ========================================
+        HERO SECTION - VERSIÓN ORIGINAL (COMENTADA)
+        ========================================
+        Para activar esta versión, descomenta todo el bloque y comenta la versión 50/50 de arriba
+        
         <section className="relative bg-gradient-to-br from-primary-600 via-primary-700 to-primary-800 text-white overflow-hidden">
-          {/* Background Pattern */}
           <div className="absolute inset-0 bg-black/20" />
           <div 
-            className="absolute inset-0 opacity-10"
+            className="absolute inset-0 opacity-20"
             style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Ccircle cx='7' cy='7' r='7'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-              backgroundSize: '60px 60px'
+              backgroundImage: `url("data:image/svg+xml,%3Csvg width='120' height='120' viewBox='0 0 120 120' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3Cg id='house'%3E%3Cpath d='M6 20L12 14L18 20V26H6V20Z' fill='none' stroke='%23ffffff' stroke-width='1.5' stroke-opacity='0.3'/%3E%3Crect x='8.5' y='22' width='2' height='3' fill='none' stroke='%23ffffff' stroke-width='1.2' stroke-opacity='0.25'/%3E%3Crect x='13' y='18' width='2' height='2' fill='none' stroke='%23ffffff' stroke-width='1' stroke-opacity='0.2'/%3E%3C/g%3E%3Cg id='building'%3E%3Crect x='2' y='12' width='10' height='14' fill='none' stroke='%23ffffff' stroke-width='1.5' stroke-opacity='0.25'/%3E%3Crect x='4' y='15' width='2' height='2' fill='none' stroke='%23ffffff' stroke-width='1' stroke-opacity='0.2'/%3E%3Crect x='7' y='15' width='2' height='2' fill='none' stroke='%23ffffff' stroke-width='1' stroke-opacity='0.2'/%3E%3Crect x='4' y='18' width='2' height='2' fill='none' stroke='%23ffffff' stroke-width='1' stroke-opacity='0.2'/%3E%3Crect x='7' y='18' width='2' height='2' fill='none' stroke='%23ffffff' stroke-width='1' stroke-opacity='0.2'/%3E%3Crect x='4' y='21' width='2' height='2' fill='none' stroke='%23ffffff' stroke-width='1' stroke-opacity='0.2'/%3E%3Crect x='7' y='21' width='2' height='2' fill='none' stroke='%23ffffff' stroke-width='1' stroke-opacity='0.2'/%3E%3C/g%3E%3Cg id='key'%3E%3Ccircle cx='4' cy='18' r='2' fill='none' stroke='%23ffffff' stroke-width='1.4' stroke-opacity='0.25'/%3E%3Cpath d='M6 18H12M9.5 16V20M10.5 16.5V19.5' stroke='%23ffffff' stroke-width='1.2' stroke-opacity='0.25' fill='none'/%3E%3C/g%3E%3Cg id='apartment'%3E%3Crect x='1' y='10' width='14' height='16' fill='none' stroke='%23ffffff' stroke-width='1.5' stroke-opacity='0.2'/%3E%3Crect x='3' y='13' width='2.5' height='2.5' fill='none' stroke='%23ffffff' stroke-width='1' stroke-opacity='0.15'/%3E%3Crect x='7' y='13' width='2.5' height='2.5' fill='none' stroke='%23ffffff' stroke-width='1' stroke-opacity='0.15'/%3E%3Crect x='11' y='13' width='2.5' height='2.5' fill='none' stroke='%23ffffff' stroke-width='1' stroke-opacity='0.15'/%3E%3Crect x='3' y='17' width='2.5' height='2.5' fill='none' stroke='%23ffffff' stroke-width='1' stroke-opacity='0.15'/%3E%3Crect x='7' y='17' width='2.5' height='2.5' fill='none' stroke='%23ffffff' stroke-width='1' stroke-opacity='0.15'/%3E%3Crect x='11' y='17' width='2.5' height='2.5' fill='none' stroke='%23ffffff' stroke-width='1' stroke-opacity='0.15'/%3E%3Crect x='3' y='21' width='2.5' height='2.5' fill='none' stroke='%23ffffff' stroke-width='1' stroke-opacity='0.15'/%3E%3Crect x='7' y='21' width='2.5' height='2.5' fill='none' stroke='%23ffffff' stroke-width='1' stroke-opacity='0.15'/%3E%3Crect x='11' y='21' width='2.5' height='2.5' fill='none' stroke='%23ffffff' stroke-width='1' stroke-opacity='0.15'/%3E%3C/g%3E%3Cg id='door'%3E%3Crect x='2' y='14' width='5' height='12' rx='2.5' fill='none' stroke='%23ffffff' stroke-width='1.4' stroke-opacity='0.25'/%3E%3Ccircle cx='5.5' cy='20' r='0.4' fill='%23ffffff' fill-opacity='0.2'/%3E%3C/g%3E%3C/defs%3E%3Cuse href='%23house' x='8' y='8'/%3E%3Cuse href='%23building' x='40' y='20'/%3E%3Cuse href='%23key' x='75' y='6' transform='rotate(45 79 24)'/%3E%3Cuse href='%23apartment' x='20' y='50'/%3E%3Cuse href='%23door' x='80' y='38' transform='rotate(-15 82.5 50)'/%3E%3Cuse href='%23key' x='12' y='80' transform='rotate(-30 16 98)'/%3E%3Cuse href='%23building' x='90' y='70'/%3E%3Cuse href='%23house' x='60' y='80'/%3E%3Cuse href='%23key' x='50' y='25' transform='rotate(60 54 43)'/%3E%3Cuse href='%23door' x='4' y='40'/%3E%3Cuse href='%23apartment' x='85' y='5'/%3E%3Cuse href='%23building' x='65' y='12'/%3E%3C/svg%3E")`,
+              backgroundSize: '120px 120px'
             }}
           />
           
@@ -259,7 +453,6 @@ const HomePage: NextPage = () => {
                 Tu próximo alquiler te está esperando.
               </p>
               
-              {/* Search Form */}
               <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 md:p-8 shadow-2xl border border-white/20">
                 <SearchForm
                   onSearch={handleSearch}
@@ -272,6 +465,10 @@ const HomePage: NextPage = () => {
             </div>
           </div>
         </section>
+        ======================================== 
+        FIN VERSIÓN ORIGINAL
+        ======================================== 
+        */}
 
         {/* Map Section - Buscar Cerca */}
         <section className="relative h-[500px] overflow-hidden">
@@ -351,37 +548,113 @@ const HomePage: NextPage = () => {
             </div>
           </div>
         </section>
-        {/* CTA Section */}
-        <section className="section-padding bg-gradient-to-r from-primary-600 to-secondary-600 text-white">
-          <div className="container-custom text-center">
-            <h2 className="text-3xl md:text-4xl font-bold mb-6">
-              ¿Listo para encontrar tu nuevo hogar?
-            </h2>
-            <p className="text-xl mb-8 text-blue-100 max-w-2xl mx-auto">
-              Únete a miles de personas que ya encontraron su hogar ideal con RentaFacil
-            </p>
-            
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button
-                as={Link}
-                href="/propiedades"
-                size="lg"
-                className="bg-white text-primary-600 hover:bg-gray-100"
-              >
-                Buscar propiedades
-              </Button>
-              <Button
-                as={Link}
-                href="/publicar"
-                size="lg"
-                variant="outline"
-                className="border-white text-white hover:bg-white hover:text-primary-600"
-              >
-                Publicar mi propiedad
-              </Button>
+
+        {/* Call to Action - Publica tu Propiedad */}
+        <section className="py-16 bg-gradient-to-r from-secondary-500 via-secondary-400 to-secondary-500 relative overflow-hidden">
+          {/* Background Pattern */}
+          <div className="absolute inset-0 opacity-10">
+            <div 
+              className="w-full h-full"
+              style={{
+                backgroundImage: `url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.2'%3E%3Cpath d='M20 20c0-11.046-8.954-20-20-20v20h20z'/%3E%3C/g%3E%3C/svg%3E")`,
+                backgroundSize: '40px 40px'
+              }}
+            />
+          </div>
+          
+          <div className="container-custom relative">
+            <div className="max-w-4xl mx-auto text-center">
+              <h2 className="text-4xl md:text-5xl font-bold text-brand-navy mb-6">
+                ¿Tienes una propiedad?
+                <span className="block text-2xl md:text-3xl font-normal mt-2 text-brand-navy/80">
+                  Publícala y empieza a ganar dinero hoy
+                </span>
+              </h2>
+              
+              <p className="text-lg md:text-xl text-brand-navy/70 mb-8 max-w-3xl mx-auto">
+                Únete a miles de propietarios que ya están generando ingresos extra con sus propiedades
+              </p>
+              
+              {/* Beneficios */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+                <div className="bg-white/20 backdrop-blur-sm rounded-xl p-6 border border-white/30">
+                  <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-6 h-6 text-secondary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-semibold text-brand-navy mb-2">Ingresos Extra</h3>
+                  <p className="text-sm text-brand-navy/70">Genera hasta S/2,500 mensuales adicionales con tu propiedad</p>
+                </div>
+                
+                <div className="bg-white/20 backdrop-blur-sm rounded-xl p-6 border border-white/30">
+                  <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-6 h-6 text-secondary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-semibold text-brand-navy mb-2">100% Gratis</h3>
+                  <p className="text-sm text-brand-navy/70">Sin comisiones ocultas, solo pagas cuando cierres el trato</p>
+                </div>
+                
+                <div className="bg-white/20 backdrop-blur-sm rounded-xl p-6 border border-white/30">
+                  <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-6 h-6 text-secondary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-semibold text-brand-navy mb-2">Rápido y Fácil</h3>
+                  <p className="text-sm text-brand-navy/70">Publica en menos de 5 minutos y llega a miles de interesados</p>
+                </div>
+              </div>
+              
+              {/* CTA Buttons */}
+              <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                <Button
+                  as={Link}
+                  href="/publicar"
+                  variant="primary"
+                  size="lg"
+                  leftIcon={
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                  }
+                  className="bg-brand-navy hover:bg-brand-navy/90 text-white font-semibold px-8 py-4 text-lg shadow-xl"
+                >
+                  Publicar mi Propiedad GRATIS
+                </Button>
+                
+                <Button
+                  as={Link}
+                  href="/como-funciona"
+                  variant="outline"
+                  size="lg"
+                  className="border-2 border-brand-navy text-brand-navy hover:bg-brand-navy hover:text-white px-8 py-4 font-semibold"
+                >
+                  ¿Cómo Funciona?
+                </Button>
+              </div>
+              
+              {/* Trust indicators */}
+              <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-6 text-sm text-brand-navy/60">
+                <div className="flex items-center gap-2">
+                  <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  <span>+15,000 propietarios confían en nosotros</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  <span>Respaldo legal y verificación de inquilinos</span>
+                </div>
+              </div>
             </div>
           </div>
         </section>
+
         {/* Featured Properties */}
         <section className="section-padding bg-gray-50">
           <div className="container-custom">
@@ -498,7 +771,38 @@ const HomePage: NextPage = () => {
             </div>
           </div>
         </section>
-
+        
+        {/* CTA Section */}
+        <section className="section-padding bg-gradient-to-r from-primary-600 to-secondary-600 text-white">
+          <div className="container-custom text-center">
+            <h2 className="text-3xl md:text-4xl font-bold mb-6">
+              ¿Listo para encontrar tu nuevo hogar?
+            </h2>
+            <p className="text-xl mb-8 text-blue-100 max-w-2xl mx-auto">
+              Únete a miles de personas que ya encontraron su hogar ideal con RentaFacil
+            </p>
+            
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Button
+                as={Link}
+                href="/propiedades"
+                size="lg"
+                className="bg-white text-primary-600 hover:bg-gray-100"
+              >
+                Buscar propiedades
+              </Button>
+              <Button
+                as={Link}
+                href="/publicar"
+                size="lg"
+                variant="outline"
+                className="border-white text-white hover:bg-white hover:text-primary-600"
+              >
+                Publicar mi propiedad
+              </Button>
+            </div>
+          </div>
+        </section>
         
       </main>
     </Layout>

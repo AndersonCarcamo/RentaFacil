@@ -53,9 +53,9 @@ export function Header() {
 	return (
 		<header className="sticky top-0 z-50 border-b border-gray-200 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/70">
 			{/* Grid de 3 columnas para centrar logo */}
-			<div className="mx-auto grid max-w-7xl grid-cols-3 items-center h-20 px-3 sm:px-4 lg:px-6" aria-label="Global" style={{ transform: 'scale(1.1)', transformOrigin: 'center' }}>
+			<div className="mx-auto grid max-w-7xl grid-cols-3 items-center h-24 px-3 sm:px-4 lg:px-6" aria-label="Global" style={{ transform: 'scale(1.1)', transformOrigin: 'center' }}>
 				{/* Navegación izquierda */}
-				<Popover.Group className="hidden md:flex items-center gap-5 text-xs sm:text-sm">
+				<Popover.Group className="hidden md:flex items-center gap-5" style={{ fontSize: '1rem' }}>
 					{/* Tipos de Propiedad Dropdown */}
 					<Popover className="relative">
 						<Popover.Button className="flex items-center gap-1 font-medium text-gray-600 hover:text-brand-navy transition-colors">
@@ -124,7 +124,8 @@ export function Header() {
 							alt="RentaFacil Logo"
 							width={330}
 							height={50}
-							className='h-20 w-auto select-none'
+							className='w-auto select-none'
+							style={{ height: '6.5rem' }}
 						/>
 					</Link>
 				</div>
