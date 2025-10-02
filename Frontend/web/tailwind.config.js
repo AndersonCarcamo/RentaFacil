@@ -26,7 +26,7 @@ module.exports = {
           200: '#C5E7F5',
           300: '#A1D9EF',
           400: '#79C8E8',
-          500: '#2CA7E1', // Azul claro (informational)
+          500: '#22ACF5', // Azul claro (informational)
           600: '#1D7FAF',
           700: '#155C7D',
           800: '#0E3D54',

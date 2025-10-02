@@ -2,13 +2,168 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import PropertyCard from '../components/PropertyCard';
-import SearchForm from '../components/SearchForm';
+import SearchForm from '../components/SearchFormExtended';
 import { Property } from '../types/index';
+import { fetchProperties, PropertyFilters, PropertyResponse } from '../lib/api/properties';
 
 // Importar el Header original
 import { Header } from '../components/Header';
 
-// Mock data para las propiedades
+// Función para convertir PropertyResponse a Property (para compatibilidad)
+const convertToProperty = (apiProperty: PropertyResponse): Property => {
+  // Mapear currency de string a Currency type
+  const currency: Currency = (apiProperty.currency === 'USD' || apiProperty.currency === 'PEN') 
+    ? apiProperty.currency as Currency 
+    : 'PEN'
+  
+  // Mapear property_type de string a PropertyType
+  const propertyTypeMap: { [key: string]: PropertyType } = {
+    'apartment': 'apartment',
+    'house': 'house', 
+    'studio': 'studio',
+    'office': 'office',
+    'room': 'room',
+    'TipoAirbnb': 'room' // Mapear TipoAirbnb a room por ahora
+  }
+  const propertyType = propertyTypeMap[apiProperty.property_type] || undefined
+  
+  return {
+    id: apiProperty.id,
+    title: apiProperty.title,
+    description: apiProperty.description || 'Propiedad disponible',
+    price: Number(apiProperty.price),
+    currency,
+    location: `${apiProperty.district || ''}, ${apiProperty.department || ''}`.replace(/^,\s*/, ''),
+    propertyType,
+    bedrooms: apiProperty.bedrooms || 0,
+    bathrooms: apiProperty.bathrooms || 0,
+    area: Number(apiProperty.area_built || apiProperty.area_total || 0),
+    images: ['/images/properties/property-placeholder.svg'], // Placeholder hasta que tengamos media API
+    amenities: [
+      ...(apiProperty.furnished ? ['Amoblado'] : ['Sin amoblar']),
+      ...(apiProperty.parking_spots ? [`${apiProperty.parking_spots} estacionamiento(s)`] : []),
+      ...(apiProperty.pet_friendly ? ['Pet Friendly'] : []),
+      ...(apiProperty.is_airbnb_available ? ['Apto Airbnb'] : [])
+    ].slice(0, 3), // Máximo 3 amenities
+    rating: parseFloat((4.5 + (Math.random() * 0.5)).toFixed(2)), // Rating simulado entre 4.5-5.0
+    reviews: Math.floor(Math.random() * 50) + 10, // Reviews simuladas 10-60
+    isVerified: apiProperty.verification_status === 'verified',
+    isFavorite: false,
+    views: apiProperty.views_count
+  }
+}
+
+// Función para mapear parámetros de SearchFormExtended a PropertyFilters
+const mapSearchParamsToFilters = (params: any): PropertyFilters => {
+  const filters: PropertyFilters = {}
+  
+  // Mapear búsqueda por texto (ubicación se usa como búsqueda general)
+  if (params.location) {
+    filters.q = params.location // Usar como búsqueda de texto general
+    filters.location = params.location // También como filtro de ubicación
+  }
+  
+  // Mapear operación
+  if (params.mode) {
+    filters.operation = params.mode === 'alquiler' ? 'rent' : 
+                      params.mode === 'comprar' ? 'sale' : 
+                      params.mode === 'vender' ? 'sale' : 'rent'
+  }
+  
+  // Mapear tipo de propiedad
+  if (params.propertyType) {
+    filters.property_type = params.propertyType
+  }
+  
+  // Mapear precios
+  if (params.minPrice) {
+    filters.min_price = Number(params.minPrice)
+  }
+  if (params.maxPrice) {
+    filters.max_price = Number(params.maxPrice)
+  }
+  
+  // Mapear habitaciones (usar min_bedrooms y min_bathrooms)
+  if (params.bedrooms) {
+    filters.min_bedrooms = Number(params.bedrooms)
+  }
+  if (params.bathrooms) {
+    filters.min_bathrooms = Number(params.bathrooms)
+  }
+  
+  // Mapear área (usar area_built por defecto)
+  if (params.minArea) {
+    filters.min_area_built = Number(params.minArea)
+  }
+  if (params.maxArea) {
+    filters.max_area_built = Number(params.maxArea)
+  }
+  
+  // Mapear antigüedad (ageYears)
+  if (params.ageYears) {
+    switch (params.ageYears) {
+      case 'new':
+        filters.max_age_years = 0
+        break
+      case '0-5':
+        filters.min_age_years = 0
+        filters.max_age_years = 5
+        break
+      case '5-10':
+        filters.min_age_years = 5
+        filters.max_age_years = 10
+        break
+      case '10-20':
+        filters.min_age_years = 10
+        filters.max_age_years = 20
+        break
+      case '20+':
+        filters.min_age_years = 20
+        break
+    }
+  }
+  
+  // Mapear booleanos
+  if (params.furnished !== undefined) {
+    filters.furnished = params.furnished
+  }
+  if (params.verified !== undefined) {
+    // El endpoint de search no tiene 'verified', usar has_media como proxy
+    filters.has_media = params.verified
+  }
+  if (params.petFriendly !== undefined) {
+    filters.pet_friendly = params.petFriendly
+  }
+  
+  // Mapear modo de alquiler
+  if (params.rentalMode) {
+    switch (params.rentalMode) {
+      case 'traditional':
+        filters.rental_mode = 'full_property'
+        break
+      case 'shared':
+        filters.rental_mode = 'shared_room'
+        break
+      case 'coliving':
+      case 'private':
+        filters.rental_mode = 'private_room'
+        break
+      case 'airbnb':
+        filters.airbnb_eligible = true
+        break
+    }
+  }
+  
+  // Agregar paginación por defecto
+  filters.page = 1
+  filters.limit = 20
+  filters.sort_by = 'published_at'
+  filters.sort_order = 'desc'
+  
+  return filters
+}
+
+// Mock data para las propiedades (como fallback)
 const mockProperties: Property[] = [
   {
     id: "1",
@@ -187,40 +342,40 @@ const SearchPage = () => {
     const params = router.query;
     setSearchParams(params);
     
-    // Simular carga de datos
-    setTimeout(() => {
-      setProperties(mockProperties);
-      setLoading(false);
-    }, 1000);
+    // Cargar datos reales desde la API
+    const loadProperties = async () => {
+      try {
+        setLoading(true);
+        console.log('🔍 Cargando propiedades con parámetros:', params);
+        
+        // Convertir parámetros de URL a filtros de API
+        const filters = mapSearchParamsToFilters(params);
+        console.log('🔍 Filtros convertidos:', filters);
+        
+        // Llamar a la API
+        const apiProperties = await fetchProperties(filters);
+        console.log('✅ Propiedades recibidas de API:', apiProperties.length);
+        
+        // Convertir a formato compatible
+        const convertedProperties = apiProperties.map(convertToProperty);
+        console.log('✅ Propiedades convertidas:', convertedProperties.length);
+        
+        setProperties(convertedProperties);
+      } catch (error) {
+        console.error('❌ Error cargando propiedades:', error);
+        // En caso de error, usar datos mock como fallback
+        console.log('🔄 Usando datos mock como fallback...');
+        setProperties(mockProperties);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadProperties();
   }, [router.query]);
 
-  const filteredProperties = properties.filter(property => {
-    // Filtrar por parámetros de búsqueda
-    if (searchParams.location && !property.location.toLowerCase().includes(searchParams.location.toLowerCase())) {
-      return false;
-    }
-    if (searchParams.propertyType && property.propertyType !== searchParams.propertyType) {
-      return false;
-    }
-    if (searchParams.bedrooms && property.bedrooms < parseInt(searchParams.bedrooms)) {
-      return false;
-    }
-    if (searchParams.bathrooms && property.bathrooms < parseInt(searchParams.bathrooms)) {
-      return false;
-    }
-    if (searchParams.minPrice && property.price < parseInt(searchParams.minPrice)) {
-      return false;
-    }
-    if (searchParams.maxPrice && property.price > parseInt(searchParams.maxPrice)) {
-      return false;
-    }
-    if (searchParams.verified === 'true' && !property.isVerified) {
-      return false;
-    }
-    // Note: furnished y petFriendly no están en el tipo Property actual, 
-    // se pueden agregar como amenities o features si es necesario
-    return true;
-  });
+  // Ya no necesitamos filtrado local porque la API retorna resultados filtrados
+  const filteredProperties = properties;
 
   return (
     <>
@@ -235,7 +390,22 @@ const SearchPage = () => {
         {/* Search Form Sticky */}
         <div className="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-sm">
           <div className="max-w-7xl mx-auto px-4 py-4">
-            <SearchForm />
+            <SearchForm 
+              onSearch={(params) => {
+                // Construir nueva URL con parámetros de búsqueda
+                const searchParams = new URLSearchParams();
+                
+                Object.entries(params).forEach(([key, value]) => {
+                  if (value !== undefined && value !== null && value !== '') {
+                    searchParams.set(key, value.toString());
+                  }
+                });
+                
+                // Navegar a nueva URL con parámetros
+                router.push(`/search?${searchParams.toString()}`);
+              }}
+              isLoading={loading}
+            />
           </div>
         </div>
 

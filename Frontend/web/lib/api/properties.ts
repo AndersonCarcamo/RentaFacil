@@ -2,24 +2,43 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
 export interface PropertyFilters {
-  operation_type?: 'rent' | 'sale'
-  property_type?: string
-  city?: string
+  q?: string // Búsqueda por texto
+  location?: string
+  department?: string
+  province?: string
   district?: string
+  lat?: number
+  lng?: number
+  radius?: number
+  operation?: 'sale' | 'rent' | 'temp_rent' | 'auction' | 'exchange'
+  property_type?: string
+  advertiser_type?: string
   min_price?: number
   max_price?: number
-  bedrooms?: number
-  bathrooms?: number
-  min_area?: number
-  max_area?: number
+  currency?: string
+  min_bedrooms?: number
+  max_bedrooms?: number
+  min_bathrooms?: number
+  max_bathrooms?: number
+  min_area_built?: number
+  max_area_built?: number
+  min_area_total?: number
+  max_area_total?: number
+  min_parking_spots?: number
+  rental_term?: 'daily' | 'weekly' | 'monthly' | 'yearly'
   min_age_years?: number
   max_age_years?: number
-  verified?: boolean
+  has_media?: boolean
+  pet_friendly?: boolean
   furnished?: boolean
   rental_mode?: 'full_property' | 'private_room' | 'shared_room'
-  sort?: string
+  airbnb_eligible?: boolean
+  min_airbnb_score?: number
+  amenities?: number[]
   page?: number
   limit?: number
+  sort_by?: string
+  sort_order?: 'asc' | 'desc'
 }
 
 export interface PropertyResponse {
@@ -62,22 +81,29 @@ export interface PropertyResponse {
 }
 
 /**
- * Fetch properties with optional filters
+ * Fetch properties with optional filters using the search endpoint
  */
 export async function fetchProperties(filters?: PropertyFilters): Promise<PropertyResponse[]> {
   try {
-    const url = new URL(`${API_BASE_URL}/v1/listings/`)
+    const url = new URL(`${API_BASE_URL}/v1/search/`)
     
     // Add filters as query parameters
     if (filters) {
       Object.entries(filters).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
-          url.searchParams.append(key, value.toString())
+          if (Array.isArray(value)) {
+            // Handle array parameters (like amenities)
+            value.forEach((item) => {
+              url.searchParams.append(key, item.toString())
+            })
+          } else {
+            url.searchParams.append(key, value.toString())
+          }
         }
       })
     }
     
-    console.log('🔍 Fetching properties from:', url.toString())
+    console.log('🔍 Fetching properties from search endpoint:', url.toString())
     console.log('🔍 API_BASE_URL:', API_BASE_URL)
     console.log('🔍 Filters applied:', filters)
     
@@ -107,13 +133,18 @@ export async function fetchProperties(filters?: PropertyFilters): Promise<Proper
     }
 
     const data = await response.json()
-    console.log('✅ Properties received:', data.length)
-    console.log('✅ First property sample:', data[0] ? {
-      id: data[0].id,
-      title: data[0].title,
-      status: data[0].status
+    
+    // El endpoint de search retorna un objeto con propiedades en 'results'
+    const properties = data.results || data.listings || data
+    console.log('✅ Search results received:', properties.length)
+    console.log('✅ Total results:', data.total || 'unknown')
+    console.log('✅ First property sample:', properties[0] ? {
+      id: properties[0].id,
+      title: properties[0].title,
+      status: properties[0].status
     } : 'No properties')
-    return data as PropertyResponse[]
+    
+    return properties as PropertyResponse[]
   } catch (error) {
     console.error('💥 Error fetching properties:', error)
     console.error('💥 Error details:', {
@@ -149,6 +180,66 @@ export async function fetchProperty(id: string): Promise<PropertyResponse> {
   } catch (error) {
     console.error('Error fetching property:', error)
     throw error
+  }
+}
+
+/**
+ * Get search suggestions for autocompletion
+ */
+export async function getSearchSuggestions(query: string, type?: string): Promise<string[]> {
+  try {
+    const url = new URL(`${API_BASE_URL}/v1/search/suggestions`)
+    url.searchParams.append('q', query)
+    if (type) {
+      url.searchParams.append('type', type)
+    }
+    
+    const response = await fetch(url.toString(), {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+
+    const data = await response.json()
+    return data.suggestions || []
+  } catch (error) {
+    console.error('Error fetching search suggestions:', error)
+    return []
+  }
+}
+
+/**
+ * Get available filters based on current data
+ */
+export async function getAvailableFilters(location?: string): Promise<any> {
+  try {
+    const url = new URL(`${API_BASE_URL}/v1/search/filters`)
+    if (location) {
+      url.searchParams.append('location', location)
+    }
+    
+    const response = await fetch(url.toString(), {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+
+    return await response.json()
+  } catch (error) {
+    console.error('Error fetching available filters:', error)
+    return {}
   }
 }
 

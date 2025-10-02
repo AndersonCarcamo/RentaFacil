@@ -179,7 +179,8 @@ const LoginPage: React.FC = () => {
                 ¡Bienvenido de vuelta!
               </h2>
               <p className="text-2xl text-gray-800 max-w-2xl leading-relaxed" style={{
-                textShadow: '0px 1px 2px rgba(0,0,0,0.1)'
+                color: '#112331',
+                // textShadow: '0px 1px 2px rgba(0, 0, 0, 0.5)'
               }}>
                 Encuentra tu hogar ideal con RENTA fácil
               </p>

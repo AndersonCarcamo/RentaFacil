@@ -225,7 +225,7 @@ const HomePage: NextPage = () => {
           name="description" 
           content="Encuentra el alquiler perfecto en Perú. Miles de departamentos, casas y propiedades verificadas. Búsqueda fácil, precios justos y atención personalizada." 
         />
-        <meta name="keywords" content="alquiler, departamentos, casas, propiedades, Lima, Perú, inmobiliaria" />
+        <meta name="keywords" content="alquiler, departamentos, casas, propiedades, Lima, Perú, inmobiliaria, airbnb, roomate, cuartos" />
         
         {/* Open Graph */}
         <meta property="og:title" content="RentaFacil - Alquiler de Propiedades en Perú" />
@@ -262,11 +262,8 @@ const HomePage: NextPage = () => {
       </Head>
 
       <main id="main-content">
-        {/* Hero Section - Opción 50/50 Split */}
-        <section className="h-screen grid grid-rows-2 overflow-hidden">
-          {/* Top 50% - SearchForm con Background */}
+        {/* <section className="h-screen grid grid-rows-2 overflow-hidden">
           <div className="relative bg-gradient-to-br from-primary-600 via-primary-700 to-primary-800 text-white overflow-hidden flex items-center justify-center">
-            {/* Real Estate Theme Background Pattern */}
             <div className="absolute inset-0 bg-black/20" />
             <div 
               className="absolute inset-0 opacity-20"
@@ -288,18 +285,14 @@ const HomePage: NextPage = () => {
             </div>
           </div>
 
-          {/* Bottom 50% - Split Layout with Carousel */}
           <div className="bg-gradient-to-br from-gray-50 via-white to-gray-100 flex items-center justify-center px-6 relative overflow-hidden">
-            {/* Subtle Background Elements */}
             <div className="absolute inset-0">
               <div className="absolute top-20 right-20 w-32 h-32 bg-primary-100 rounded-full blur-3xl opacity-30"></div>
               <div className="absolute bottom-32 left-16 w-40 h-40 bg-secondary-100 rounded-full blur-3xl opacity-20"></div>
             </div>
 
             <div className="relative z-10 w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-              {/* Left Side - Logo y Eslogan */}
               <div className="text-center lg:text-left">
-                {/* Logo Principal */}
                 <div className="mb-8">
                   <div className="text-5xl md:text-7xl font-bold mb-4" style={{ 
                     textShadow: '0px 1px 0px rgba(0,0,0,0.08), 0px 2px 4px rgba(0,0,0,0.1)',
@@ -309,11 +302,9 @@ const HomePage: NextPage = () => {
                     <span className="text-secondary-500">RENTA</span><span className="text-primary-500"> FÁCIL</span>
                   </div>
                   
-                  {/* Línea decorativa */}
                   <div className="w-24 h-1 bg-gradient-to-r from-secondary-500 to-primary-500 lg:mx-0 mx-auto rounded-full mb-6"></div>
                 </div>
 
-                {/* Eslogan Principal */}
                 <h1 className="text-2xl md:text-4xl font-bold mb-6 text-gray-900 leading-tight">
                   Encuentra tu hogar ideal en{' '}
                   <span className="text-gray-800 underline decoration-primary-500 underline-offset-4 decoration-2">
@@ -321,14 +312,12 @@ const HomePage: NextPage = () => {
                   </span>
                 </h1>
                 
-                {/* Descripción */}
                 <p className="text-lg md:text-xl text-gray-700 mb-8 leading-relaxed">
                   La plataforma que conecta inquilinos y propietarios de manera{' '}
                   <span className="text-gray-900 font-semibold">segura</span> y{' '}
                   <span className="text-gray-900 font-semibold">transparente</span>
                 </p>
 
-                {/* Call to Action */}
                 <div className="flex flex-col sm:flex-row gap-4 lg:justify-start justify-center">
                   <button className="bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white px-8 py-3 rounded-xl font-semibold shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300">
                     Explorar Propiedades
@@ -340,16 +329,13 @@ const HomePage: NextPage = () => {
                 </div>
               </div>
 
-              {/* Right Side - Carrusel de Beneficios */}
               <div className="relative">
                 <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-8 shadow-2xl border border-white/50">
-                  {/* Carousel Container */}
                   <div className="overflow-hidden relative h-64">
                     <div 
                       className="flex transition-transform duration-500 ease-in-out h-full"
                       style={{ transform: `translateX(-${currentSlide * 100}%)` }}
                     >
-                      {/* Slide 1 - Búsqueda Inteligente */}
                       <div className="w-full flex-shrink-0 text-center flex flex-col justify-center">
                         <MagnifyingGlassIcon className="w-16 h-16 mx-auto mb-6 text-gray-800" />
                         <h3 className="text-2xl font-bold text-gray-800 mb-4">Búsqueda Inteligente</h3>
@@ -359,7 +345,6 @@ const HomePage: NextPage = () => {
                         </p>
                       </div>
 
-                      {/* Slide 2 - Verificación Segura */}
                       <div className="w-full flex-shrink-0 text-center flex flex-col justify-center">
                         <ShieldCheckIcon className="w-16 h-16 mx-auto mb-6 text-gray-800" />
                         <h3 className="text-2xl font-bold text-gray-800 mb-4">Verificación Segura</h3>
@@ -369,7 +354,6 @@ const HomePage: NextPage = () => {
                         </p>
                       </div>
 
-                      {/* Slide 3 - Comunicación Directa */}
                       <div className="w-full flex-shrink-0 text-center flex flex-col justify-center">
                         <ChatBubbleLeftRightIcon className="w-16 h-16 mx-auto mb-6 text-gray-800" />
                         <h3 className="text-2xl font-bold text-gray-800 mb-4">Comunicación Directa</h3>
@@ -379,7 +363,6 @@ const HomePage: NextPage = () => {
                         </p>
                       </div>
 
-                      {/* Slide 4 - Proceso Rápido */}
                       <div className="w-full flex-shrink-0 text-center flex flex-col justify-center">
                         <BoltIcon className="w-16 h-16 mx-auto mb-6 text-gray-800" />
                         <h3 className="text-2xl font-bold text-gray-800 mb-4">Proceso Rápido</h3>
@@ -391,7 +374,6 @@ const HomePage: NextPage = () => {
                     </div>
                   </div>
 
-                  {/* Carousel Indicators */}
                   <div className="flex justify-center mt-6 space-x-2">
                     {[0, 1, 2, 3].map((index) => (
                       <div
@@ -410,13 +392,13 @@ const HomePage: NextPage = () => {
             </div>
           </div>
         </section>
-
-        {/* 
-        ========================================
+         */}
+         
+        {/* ========================================
         HERO SECTION - VERSIÓN ORIGINAL (COMENTADA)
         ========================================
         Para activar esta versión, descomenta todo el bloque y comenta la versión 50/50 de arriba
-        
+         */}
         <section className="relative bg-gradient-to-br from-primary-600 via-primary-700 to-primary-800 text-white overflow-hidden">
           <div className="absolute inset-0 bg-black/20" />
           <div 
@@ -432,7 +414,7 @@ const HomePage: NextPage = () => {
               <h1 className="text-4xl md:text-6xl font-bold mb-10 text-balance">
                 
                 <div className="text-6xl md:text-7xl font-bold" style={{ 
-                  textShadow: '0px 1px 0px rgba(0,0,0,0.3), 0px 2px 0px rgba(0,0,0,0.2), 0px 3px 0px rgba(0,0,0,0.1), 0px 4px 8px rgba(0,0,0,0.15)',
+                  textShadow: '1px 2px 1px rgba(0,0,0,0.3), 0px 2px 0px rgba(0,0,0,0.2), 0px 3px 0px rgba(0,0,0,0.1), 0px 4px 8px rgba(0,0,0,0.15)',
                   filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))',
                   transform: 'scale(1.1)',
                   transformOrigin: 'center'
@@ -443,9 +425,9 @@ const HomePage: NextPage = () => {
 
               <h1 className="text-4xl md:text-6xl font-bold mb-8 text-balance">
                 Encuentra tu hogar ideal en{' '}
-                <span className="text-gradient bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent">
-                  Perú
-                </span>
+                {/* <span className="text-gradient bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent"> */}
+                <span style={{ color: '#e18b1aff', textShadow: '0px 1px 0px rgba(0,0,0,0.3), 0px 2px 0px rgba(0,0,0,0.2), 0px 3px 0px rgba(0,0,0,0.1), 0px 4px 8px rgba(0,0,0,0.15)', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))', transform: 'scale(1.1)', transformOrigin: 'center' }}>Perú</span>
+                {/* </span> */}
               </h1>
               
               <p className="text-xl md:text-2xl mb-16 text-blue-100 max-w-3xl mx-auto text-balance">
@@ -465,10 +447,10 @@ const HomePage: NextPage = () => {
             </div>
           </div>
         </section>
-        ======================================== 
+        {/* ======================================== 
         FIN VERSIÓN ORIGINAL
         ======================================== 
-        */}
+         */}
 
         {/* Map Section - Buscar Cerca */}
         <section className="relative h-[500px] overflow-hidden">
