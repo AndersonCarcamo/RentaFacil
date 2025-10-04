@@ -346,28 +346,47 @@ const SearchPage = () => {
     const loadProperties = async () => {
       try {
         setLoading(true);
-        console.log('🔍 Cargando propiedades con parámetros:', params);
+        console.log('🔍 === INICIO DE CARGA DE PROPIEDADES ===');
+        console.log('🔍 Parámetros de URL recibidos:', params);
+        console.log('🔍 API_BASE_URL configurada:', process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000');
         
         // Convertir parámetros de URL a filtros de API
         const filters = mapSearchParamsToFilters(params);
-        console.log('🔍 Filtros convertidos:', filters);
+        console.log('🔍 Filtros API convertidos:', filters);
+        console.log('🔍 Número de filtros aplicados:', Object.keys(filters).length);
         
-        // Llamar a la API
+        // Intentar llamar a la API
+        console.log('🚀 Iniciando llamada a fetchProperties...');
         const apiProperties = await fetchProperties(filters);
-        console.log('✅ Propiedades recibidas de API:', apiProperties.length);
+        console.log('✅ API RESPONSE - Propiedades recibidas:', apiProperties?.length || 0);
+        console.log('✅ API RESPONSE - Datos completos:', apiProperties);
+        
+        if (!apiProperties || apiProperties.length === 0) {
+          console.warn('⚠️ API retornó datos vacíos');
+          setProperties([]);
+          return;
+        }
         
         // Convertir a formato compatible
+        console.log('🔄 Convirtiendo propiedades...');
         const convertedProperties = apiProperties.map(convertToProperty);
-        console.log('✅ Propiedades convertidas:', convertedProperties.length);
+        console.log('✅ Propiedades convertidas exitosamente:', convertedProperties.length);
+        console.log('✅ Primera propiedad convertida:', convertedProperties[0]);
         
         setProperties(convertedProperties);
+        console.log('🎉 Propiedades cargadas y establecidas en el estado');
       } catch (error) {
-        console.error('❌ Error cargando propiedades:', error);
-        // En caso de error, usar datos mock como fallback
-        console.log('🔄 Usando datos mock como fallback...');
-        setProperties(mockProperties);
+        console.error('❌ ERROR COMPLETO:', error);
+        console.error('❌ Error tipo:', error?.constructor?.name);
+        console.error('❌ Error mensaje:', (error as Error)?.message || 'Sin mensaje');
+        console.error('❌ Error stack:', (error as Error)?.stack || 'Sin stack trace');
+        
+        // En caso de error, mostrar array vacío
+        console.log('🔄 ERROR: No se pudieron cargar las propiedades');
+        setProperties([]);
       } finally {
         setLoading(false);
+        console.log('🏁 === FIN DE CARGA DE PROPIEDADES ===');
       }
     };
     

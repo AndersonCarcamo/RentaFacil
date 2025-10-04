@@ -1,7 +1,8 @@
 import { useState, Fragment } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Dialog, Disclosure, Popover, Transition } from '@headlessui/react'
+import { Dialog, Disclosure, Popover, Transition, Menu } from '@headlessui/react'
+import { useAuth } from '../lib/hooks/useAuth'
 import { 
 	Bars3Icon, 
 	XMarkIcon,
@@ -12,7 +13,9 @@ import {
 	UserIcon,
 	HeartIcon,
 	BellIcon,
-	MagnifyingGlassIcon
+	MagnifyingGlassIcon,
+	ArrowRightOnRectangleIcon,
+	UserCircleIcon
 } from '@heroicons/react/24/outline'
 import { ChevronDownIcon } from '@heroicons/react/20/solid'
 
@@ -49,6 +52,16 @@ function classNames(...classes: string[]) {
 
 export function Header() {
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+	const { user, isLoggedIn, logout } = useAuth()
+
+	const handleLogout = async () => {
+		try {
+			await logout()
+			window.location.href = '/'
+		} catch (error) {
+			console.error('Error logging out:', error)
+		}
+	}
 
 	return (
 		<header className="sticky top-0 z-50 border-b border-gray-200 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/70">
@@ -102,9 +115,6 @@ export function Header() {
 							</Popover.Panel>
 						</Transition>
 					</Popover>
-					<Link href="/buscar" className="font-medium text-gray-600 hover:text-brand-navy transition-colors">
-						Buscar
-					</Link>
 					<Link href="/inmobiliarias" className="font-medium text-gray-600 hover:text-brand-navy transition-colors">
 						Inmobiliarias
 					</Link>
@@ -138,22 +148,136 @@ export function Header() {
 						<MagnifyingGlassIcon className="h-5 w-5" />
 					</button>
 
-					{/* Notifications */}
-					<button className="hidden sm:inline-flex text-gray-400 hover:text-brand-navy transition-colors relative p-2 rounded-md hover:bg-gray-100">
-						<span className="sr-only">Notificaciones</span>
-						<BellIcon className="h-5 w-5" />
-						{/* Notification dot */}
-						<span className="absolute top-1.5 right-1.5 h-2 w-2 bg-red-500 rounded-full"></span>
-					</button>
+					{isLoggedIn ? (
+						<>
+							{/* Notifications - Solo cuando está logueado */}
+							<button className="hidden sm:inline-flex text-gray-400 hover:text-brand-navy transition-colors relative p-2 rounded-md hover:bg-gray-100">
+								<span className="sr-only">Notificaciones</span>
+								<BellIcon className="h-5 w-5" />
+								{/* Notification dot */}
+								<span className="absolute top-1.5 right-1.5 h-2 w-2 bg-red-500 rounded-full"></span>
+							</button>
 
-					{/* Favorites */}
-					<Link href="/favoritos" className="hidden sm:inline-flex text-gray-400 hover:text-brand-navy transition-colors p-2 rounded-md hover:bg-gray-100">
-						<span className="sr-only">Favoritos</span>
-						<HeartIcon className="h-5 w-5" />
-					</Link>
-					<Link href="/login" className="hidden md:inline-flex h-10 items-center px-3 rounded-md text-xs sm:text-sm font-medium text-gray-600 hover:text-brand-navy transition">Ingresar</Link>
-					<Link href="/registro" className="hidden md:inline-flex h-10 items-center rounded-md bg-secondary-500 px-3 text-xs sm:text-sm font-semibold text-brand-navy shadow-sm hover:bg-secondary-500/90 transition">Registrarse</Link>
-					<Link href="/publicar" className="inline-flex h-10 items-center rounded-md border border-secondary-500/60 px-3 text-xs sm:text-sm font-semibold text-brand-navy hover:bg-secondary-500/30 transition">Publicar</Link>
+							{/* Favorites - Solo cuando está logueado */}
+							<Link href="/favoritos" className="hidden sm:inline-flex text-gray-400 hover:text-brand-navy transition-colors p-2 rounded-md hover:bg-gray-100">
+								<span className="sr-only">Favoritos</span>
+								<HeartIcon className="h-5 w-5" />
+							</Link>
+
+							{/* User Profile Menu */}
+							<Menu as="div" className="relative hidden md:inline-block">
+								<Menu.Button className="flex items-center gap-2 text-gray-600 hover:text-brand-navy transition-colors p-2 rounded-md hover:bg-gray-100">
+									<UserCircleIcon className="h-6 w-6" />
+									<span className="text-sm font-medium hidden lg:inline">
+										{user?.first_name || 'Usuario'}
+									</span>
+									<ChevronDownIcon className="h-4 w-4" />
+								</Menu.Button>
+
+								<Transition
+									as={Fragment}
+									enter="transition ease-out duration-100"
+									enterFrom="transform opacity-0 scale-95"
+									enterTo="transform opacity-100 scale-100"
+									leave="transition ease-in duration-75"
+									leaveFrom="transform opacity-100 scale-100"
+									leaveTo="transform opacity-0 scale-95"
+								>
+									<Menu.Items className="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+										<div className="py-1">
+											<div className="px-4 py-3 border-b border-gray-100">
+												<p className="text-sm font-medium text-gray-900">
+													{user?.first_name} {user?.last_name}
+												</p>
+												<p className="text-sm text-gray-500 truncate">
+													{user?.email}
+												</p>
+											</div>
+
+											<Menu.Item>
+												{({ active }) => (
+													<Link
+														href="/perfil"
+														className={classNames(
+															active ? 'bg-gray-100' : '',
+															'flex items-center gap-3 px-4 py-2 text-sm text-gray-700'
+														)}
+													>
+														<UserIcon className="h-5 w-5 text-gray-400" />
+														Mi Perfil
+													</Link>
+												)}
+											</Menu.Item>
+
+											<Menu.Item>
+												{({ active }) => (
+													<Link
+														href="/mis-propiedades"
+														className={classNames(
+															active ? 'bg-gray-100' : '',
+															'flex items-center gap-3 px-4 py-2 text-sm text-gray-700'
+														)}
+													>
+														<BuildingOfficeIcon className="h-5 w-5 text-gray-400" />
+														Mis Propiedades
+													</Link>
+												)}
+											</Menu.Item>
+
+											<Menu.Item>
+												{({ active }) => (
+													<Link
+														href="/favoritos"
+														className={classNames(
+															active ? 'bg-gray-100' : '',
+															'flex items-center gap-3 px-4 py-2 text-sm text-gray-700'
+														)}
+													>
+														<HeartIcon className="h-5 w-5 text-gray-400" />
+														Favoritos
+													</Link>
+												)}
+											</Menu.Item>
+
+											<div className="border-t border-gray-100"></div>
+
+											<Menu.Item>
+												{({ active }) => (
+													<button
+														onClick={handleLogout}
+														className={classNames(
+															active ? 'bg-gray-100' : '',
+															'flex w-full items-center gap-3 px-4 py-2 text-sm text-red-600'
+														)}
+													>
+														<ArrowRightOnRectangleIcon className="h-5 w-5" />
+														Cerrar Sesión
+													</button>
+												)}
+											</Menu.Item>
+										</div>
+									</Menu.Items>
+								</Transition>
+							</Menu>
+
+							<Link href="/publicar" className="inline-flex h-10 items-center rounded-md border border-secondary-500/60 px-3 text-xs sm:text-sm font-semibold text-brand-navy hover:bg-secondary-500/30 transition">
+								Publicar
+							</Link>
+						</>
+					) : (
+						<>
+							{/* Botones de login/registro cuando NO está logueado */}
+							<Link href="/login" className="hidden md:inline-flex h-10 items-center px-3 rounded-md text-xs sm:text-sm font-medium text-gray-600 hover:text-brand-navy transition">
+								Ingresar
+							</Link>
+							<Link href="/registro" className="hidden md:inline-flex h-10 items-center rounded-md bg-secondary-500 px-3 text-xs sm:text-sm font-semibold text-brand-navy shadow-sm hover:bg-secondary-500/90 transition">
+								Registrarse
+							</Link>
+							<Link href="/publicar" className="inline-flex h-10 items-center rounded-md border border-secondary-500/60 px-3 text-xs sm:text-sm font-semibold text-brand-navy hover:bg-secondary-500/30 transition">
+								Publicar
+							</Link>
+						</>
+					)}
 
 					{/* Mobile menu button */}
 					<button
@@ -252,18 +376,63 @@ export function Header() {
 								</Link>
 							</div>
 							<div className="py-6">
-								<Link
-									href="/login"
-									className="-mx-3 block rounded-lg px-3 py-2.5 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50"
-								>
-									Ingresar
-								</Link>
-								<Link
-									href="/registro"
-									className="-mx-3 block rounded-lg px-3 py-2.5 text-base font-semibold leading-7 text-brand-blue hover:bg-gray-50"
-								>
-									Registrarse
-								</Link>
+								{isLoggedIn ? (
+									<>
+										{/* User info */}
+										<div className="px-3 pb-4 border-b border-gray-200">
+											<p className="text-base font-semibold text-gray-900">
+												{user?.first_name} {user?.last_name}
+											</p>
+											<p className="text-sm text-gray-500 truncate">
+												{user?.email}
+											</p>
+										</div>
+										
+										<Link
+											href="/perfil"
+											className="-mx-3 mt-4 flex items-center gap-3 rounded-lg px-3 py-2.5 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50"
+										>
+											<UserIcon className="h-5 w-5 text-gray-400" />
+											Mi Perfil
+										</Link>
+										<Link
+											href="/mis-propiedades"
+											className="-mx-3 flex items-center gap-3 rounded-lg px-3 py-2.5 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50"
+										>
+											<BuildingOfficeIcon className="h-5 w-5 text-gray-400" />
+											Mis Propiedades
+										</Link>
+										<Link
+											href="/favoritos"
+											className="-mx-3 flex items-center gap-3 rounded-lg px-3 py-2.5 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50"
+										>
+											<HeartIcon className="h-5 w-5 text-gray-400" />
+											Favoritos
+										</Link>
+										<button
+											onClick={handleLogout}
+											className="-mx-3 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-base font-semibold leading-7 text-red-600 hover:bg-gray-50"
+										>
+											<ArrowRightOnRectangleIcon className="h-5 w-5" />
+											Cerrar Sesión
+										</button>
+									</>
+								) : (
+									<>
+										<Link
+											href="/login"
+											className="-mx-3 block rounded-lg px-3 py-2.5 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50"
+										>
+											Ingresar
+										</Link>
+										<Link
+											href="/registro"
+											className="-mx-3 block rounded-lg px-3 py-2.5 text-base font-semibold leading-7 text-brand-blue hover:bg-gray-50"
+										>
+											Registrarse
+										</Link>
+									</>
+								)}
 							</div>
 						</div>
 					</div>

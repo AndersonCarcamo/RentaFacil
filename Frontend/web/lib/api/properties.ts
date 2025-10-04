@@ -85,7 +85,7 @@ export interface PropertyResponse {
  */
 export async function fetchProperties(filters?: PropertyFilters): Promise<PropertyResponse[]> {
   try {
-    const url = new URL(`${API_BASE_URL}/v1/search/`)
+    const url = new URL(`${API_BASE_URL}/v1/search`)
     
     // Add filters as query parameters
     if (filters) {
@@ -134,10 +134,11 @@ export async function fetchProperties(filters?: PropertyFilters): Promise<Proper
 
     const data = await response.json()
     
-    // El endpoint de search retorna un objeto con propiedades en 'results'
-    const properties = data.results || data.listings || data
+    // El endpoint de search retorna un objeto con propiedades en 'data'
+    const properties = data.data || data.results || data.listings || data
     console.log('✅ Search results received:', properties.length)
-    console.log('✅ Total results:', data.total || 'unknown')
+    console.log('✅ Total results:', data.meta?.total_results || data.total || 'unknown')
+    console.log('✅ Search time:', data.meta?.search_time || 'unknown')
     console.log('✅ First property sample:', properties[0] ? {
       id: properties[0].id,
       title: properties[0].title,

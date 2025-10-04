@@ -77,8 +77,15 @@ class FirebaseService:
             return self._mock_verify_token(token)
         
         try:
+            logger.info(f"Verifying Firebase token (length: {len(token)})")
+            logger.info(f"Token prefix: {token[:30]}...")
+            
             # Verify the token with Firebase
-            decoded_token = auth.verify_id_token(token)
+            # Allow 60 seconds of clock skew tolerance
+            decoded_token = auth.verify_id_token(token, clock_skew_seconds=60)
+            
+            logger.info(f"Token verified successfully for user: {decoded_token.get('email')}")
+            
             return {
                 'uid': decoded_token['uid'],
                 'email': decoded_token.get('email'),
@@ -87,14 +94,16 @@ class FirebaseService:
                 'picture': decoded_token.get('picture'),
                 'phone_number': decoded_token.get('phone_number')
             }
-        except auth.InvalidIdTokenError:
-            logger.warning("Invalid Firebase ID token")
+        except auth.InvalidIdTokenError as e:
+            logger.warning(f"Invalid Firebase ID token: {str(e)}")
             return None
-        except auth.ExpiredIdTokenError:
-            logger.warning("Expired Firebase ID token")
+        except auth.ExpiredIdTokenError as e:
+            logger.warning(f"Expired Firebase ID token: {str(e)}")
             return None
         except Exception as e:
-            logger.error(f"Error verifying Firebase token: {e}")
+            logger.error(f"Error verifying Firebase token: {type(e).__name__} - {str(e)}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
             return None
     
     async def get_user_by_uid(self, uid: str) -> Optional[Dict[str, Any]]:

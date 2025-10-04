@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { Header } from '../components/Header';
 import Button from '../components/ui/Button';
+import { useAuth } from '../lib/hooks/useAuth';
 import { 
   EnvelopeIcon, 
   KeyIcon,
@@ -12,30 +13,56 @@ import {
 
 const LoginPage: React.FC = () => {
   const router = useRouter();
+  const { login, isLoggedIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
   const [showRegistrationSuccess, setShowRegistrationSuccess] = useState(false);
 
   useEffect(() => {
+    // Redirect if already logged in
+    if (isLoggedIn) {
+      router.push('/');
+      return;
+    }
+
     // Check if user was redirected from registration
     if (router.query.registered === 'true') {
       setShowRegistrationSuccess(true);
       // Remove the query parameter
       router.replace('/login', undefined, { shallow: true });
     }
-  }, [router.query]);
+  }, [router.query, isLoggedIn, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError('');
 
-    // Simulate login
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    // Mock successful login - redirect to dashboard
-    router.push('/');
-    setIsLoading(false);
+    try {
+      // Use real authentication with backend API
+      await login(email, password);
+      router.push('/'); // Redirect to home after successful login
+    } catch (err) {
+      console.error('Login error:', err);
+      // Show user-friendly error message
+      let errorMessage = 'Error al iniciar sesión. Por favor, verifica tus credenciales.';
+      
+      if (err instanceof Error) {
+        if (err.message.includes('401') || err.message.includes('Invalid')) {
+          errorMessage = 'Email o contraseña incorrectos.';
+        } else if (err.message.includes('404') || err.message.includes('not found')) {
+          errorMessage = 'Usuario no encontrado. ¿Necesitas registrarte?';
+        } else if (err.message.includes('suspended')) {
+          errorMessage = 'Tu cuenta ha sido suspendida. Contacta con soporte.';
+        }
+      }
+      
+      setError(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -76,6 +103,13 @@ const LoginPage: React.FC = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Error message */}
+              {error && (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-sm text-red-800">{error}</p>
+                </div>
+              )}
+
               {/* Email */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -140,14 +174,6 @@ const LoginPage: React.FC = () => {
                 </p>
               </div>
             </form>
-
-            {/* Demo info */}
-            <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <h3 className="text-sm font-medium text-blue-800 mb-1">Página Demo</h3>
-              <p className="text-xs text-blue-700">
-                Esta es una página de login temporal. Cualquier email/contraseña te permitirá "iniciar sesión".
-              </p>
-            </div>
             </div>
           </div>
 

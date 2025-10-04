@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { Header } from '../components/Header';
 import Button from '../components/ui/Button';
+import { useAuth } from '../lib/hooks/useAuth';
 import { 
   EyeIcon, 
   EyeSlashIcon, 
@@ -15,20 +16,26 @@ import {
   ExclamationCircleIcon,
   PhotoIcon,
   XMarkIcon,
-  CloudArrowUpIcon
+  CloudArrowUpIcon,
+  BuildingOfficeIcon
 } from '@heroicons/react/24/outline';
 
 interface FormData {
   email: string;
+  password: string;
+  confirmPassword: string;
   firstName: string;
   lastName: string;
   phone: string;
   nationalId: string;
   nationalIdType: string;
-  role: 'USER' | 'LANDLORD';
+  role: 'USER' | 'LANDLORD' | 'AGENT';
   acceptTerms: boolean;
   acceptPrivacy: boolean;
   profilePicture?: File | null;
+  // Campos adicionales para inmobiliaria
+  agencyName?: string;
+  agencyRuc?: string;
 }
 
 interface FormErrors {
@@ -37,10 +44,14 @@ interface FormErrors {
 
 const RegisterPage: React.FC = () => {
   const router = useRouter();
+  const { register: apiRegister } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formData, setFormData] = useState<FormData>({
     email: '',
+    password: '',
+    confirmPassword: '',
     firstName: '',
     lastName: '',
     phone: '',
@@ -49,7 +60,9 @@ const RegisterPage: React.FC = () => {
     role: 'USER',
     acceptTerms: false,
     acceptPrivacy: false,
-    profilePicture: null
+    profilePicture: null,
+    agencyName: '',
+    agencyRuc: ''
   });
   const [errors, setErrors] = useState<FormErrors>({});
   const [success, setSuccess] = useState(false);
@@ -93,13 +106,79 @@ const RegisterPage: React.FC = () => {
       newErrors.lastName = 'El apellido no puede exceder 100 caracteres';
     }
 
+    // Password validation
+    if (!formData.password) {
+      newErrors.password = 'La contraseña es obligatoria';
+    } else if (formData.password.length < 8) {
+      newErrors.password = 'La contraseña debe tener al menos 8 caracteres';
+    } else if (!/(?=.*[a-z])/.test(formData.password)) {
+      newErrors.password = 'La contraseña debe contener al menos una letra minúscula';
+    } else if (!/(?=.*[A-Z])/.test(formData.password)) {
+      newErrors.password = 'La contraseña debe contener al menos una letra mayúscula';
+    } else if (!/(?=.*\d)/.test(formData.password)) {
+      newErrors.password = 'La contraseña debe contener al menos un número';
+    }
+
+    // Confirm password validation
+    if (!formData.confirmPassword) {
+      newErrors.confirmPassword = 'Debes confirmar tu contraseña';
+    } else if (formData.password !== formData.confirmPassword) {
+      newErrors.confirmPassword = 'Las contraseñas no coinciden';
+    }
+
     // Optional fields validation
     if (formData.phone && !validatePhone(formData.phone)) {
       newErrors.phone = 'El teléfono debe estar en formato internacional (+51987654321)';
     }
 
-    if (formData.nationalId && formData.nationalId.length > 20) {
-      newErrors.nationalId = 'El documento no puede exceder 20 caracteres';
+    // Validación de documentos de identidad para USER y LANDLORD
+    if (formData.role !== 'AGENT') {
+      // Para LANDLORD, el documento es obligatorio
+      if (formData.role === 'LANDLORD') {
+        if (!formData.nationalId || !formData.nationalId.trim()) {
+          newErrors.nationalId = 'El número de documento es obligatorio para propietarios';
+        } else if (formData.nationalIdType === 'RUC') {
+          if (!/^\d{11}$/.test(formData.nationalId)) {
+            newErrors.nationalId = 'El RUC debe tener exactamente 11 dígitos';
+          }
+        } else if (formData.nationalIdType === 'DNI') {
+          if (!/^\d{8}$/.test(formData.nationalId)) {
+            newErrors.nationalId = 'El DNI debe tener exactamente 8 dígitos';
+          }
+        } else if (formData.nationalId.length > 20) {
+          newErrors.nationalId = 'El documento no puede exceder 20 caracteres';
+        }
+      } else {
+        // Para USER, es opcional pero si lo ingresa, debe ser válido
+        if (formData.nationalId) {
+          if (formData.nationalIdType === 'RUC') {
+            if (!/^\d{11}$/.test(formData.nationalId)) {
+              newErrors.nationalId = 'El RUC debe tener exactamente 11 dígitos';
+            }
+          } else if (formData.nationalIdType === 'DNI') {
+            if (!/^\d{8}$/.test(formData.nationalId)) {
+              newErrors.nationalId = 'El DNI debe tener exactamente 8 dígitos';
+            }
+          } else if (formData.nationalId.length > 20) {
+            newErrors.nationalId = 'El documento no puede exceder 20 caracteres';
+          }
+        }
+      }
+    }
+
+    // Validaciones específicas para inmobiliaria
+    if (formData.role === 'AGENT') {
+      if (!formData.agencyName?.trim()) {
+        newErrors.agencyName = 'El nombre de la inmobiliaria es obligatorio';
+      } else if (formData.agencyName.trim().length < 3) {
+        newErrors.agencyName = 'El nombre debe tener al menos 3 caracteres';
+      }
+
+      if (!formData.agencyRuc?.trim()) {
+        newErrors.agencyRuc = 'El RUC es obligatorio para inmobiliarias';
+      } else if (!/^\d{11}$/.test(formData.agencyRuc.trim())) {
+        newErrors.agencyRuc = 'El RUC debe tener 11 dígitos';
+      }
     }
 
     // Terms and conditions
@@ -217,6 +296,32 @@ const RegisterPage: React.FC = () => {
     return cleaned;
   };
 
+  const getPasswordStrength = (password: string): { strength: number; label: string; color: string } => {
+    if (!password) return { strength: 0, label: '', color: '' };
+    
+    let strength = 0;
+    
+    // Length check
+    if (password.length >= 8) strength += 25;
+    if (password.length >= 12) strength += 10;
+    
+    // Character variety checks
+    if (/[a-z]/.test(password)) strength += 20;
+    if (/[A-Z]/.test(password)) strength += 20;
+    if (/\d/.test(password)) strength += 15;
+    if (/[^a-zA-Z0-9]/.test(password)) strength += 10;
+    
+    if (strength <= 35) {
+      return { strength, label: 'Débil', color: 'bg-red-500' };
+    } else if (strength <= 65) {
+      return { strength, label: 'Media', color: 'bg-yellow-500' };
+    } else {
+      return { strength, label: 'Fuerte', color: 'bg-green-500' };
+    }
+  };
+
+  const passwordStrength = getPasswordStrength(formData.password);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -227,33 +332,59 @@ const RegisterPage: React.FC = () => {
     setIsLoading(true);
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      // Mock registration logic
-      const registrationData = {
+      // Use real API registration
+      const registrationData: any = {
         email: formData.email.toLowerCase().trim(),
+        password: formData.password,
         first_name: formData.firstName.trim(),
         last_name: formData.lastName.trim(),
-        phone: formData.phone || null,
-        national_id: formData.nationalId || null,
-        national_id_type: formData.nationalIdType,
-        role: formData.role
+        phone: formData.phone || undefined,
+        role: formData.role.toLowerCase() as 'user' | 'landlord' | 'agent'
       };
 
-      console.log('Registration data:', registrationData);
+      // Para usuarios y propietarios, enviar documento de identidad
+      if (formData.role !== 'AGENT') {
+        registrationData.national_id = formData.nationalId || undefined;
+        registrationData.national_id_type = formData.nationalIdType;
+      } else {
+        // Para inmobiliarias, enviar información de la agencia
+        registrationData.agency_name = formData.agencyName?.trim();
+        registrationData.agency_ruc = formData.agencyRuc?.trim();
+        // El RUC de la agencia se usa como identificador
+        registrationData.national_id = formData.agencyRuc?.trim();
+        registrationData.national_id_type = 'RUC';
+      }
 
-      // Simulate success
+      console.log('📝 Enviando datos de registro:', { ...registrationData, password: '***' });
+
+      // Call the real registration API (with Firebase)
+      await apiRegister(registrationData);
+
+      // Show success
       setSuccess(true);
       
       // Redirect after success
       setTimeout(() => {
-        router.push('/auth/login?registered=true');
+        router.push('/login?registered=true');
       }, 2000);
 
     } catch (error) {
-      console.error('Registration error:', error);
-      setErrors({ general: 'Error al crear la cuenta. Por favor, inténtalo de nuevo.' });
+      console.error('❌ Registration error:', error);
+      
+      // Handle specific error messages
+      let errorMessage = 'Error al crear la cuenta. Por favor, inténtalo de nuevo.';
+      
+      if (error instanceof Error) {
+        if (error.message.includes('409') || error.message.includes('already')) {
+          errorMessage = 'El email ya está registrado. Intenta con otro email.';
+        } else if (error.message.includes('400')) {
+          errorMessage = 'Los datos proporcionados no son válidos. Revisa la información.';
+        } else if (error.message.includes('Firebase UID already registered')) {
+          errorMessage = 'Esta cuenta ya está registrada. Intenta iniciar sesión.';
+        }
+      }
+      
+      setErrors({ general: errorMessage });
     } finally {
       setIsLoading(false);
     }
@@ -302,27 +433,26 @@ const RegisterPage: React.FC = () => {
         <Header />
         
         <div 
-          className="flex items-center justify-center min-h-[calc(100vh-96px)] px-4 py-8"
+          className="min-h-[calc(100vh-96px)] px-4 py-8"
           style={{
             backgroundColor: '#145879',
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='120' height='120' viewBox='0 0 120 120' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3Cg id='house'%3E%3Cpath d='M6 20L12 14L18 20V26H6V20Z' fill='none' stroke='%23d1d5db' stroke-width='1.5' stroke-opacity='0.2'/%3E%3Crect x='8.5' y='22' width='2' height='3' fill='none' stroke='%23d1d5db' stroke-width='1.2' stroke-opacity='0.2'/%3E%3Crect x='13' y='18' width='2' height='2' fill='none' stroke='%23d1d5db' stroke-width='1' stroke-opacity='0.2'/%3E%3C/g%3E%3Cg id='building'%3E%3Crect x='2' y='12' width='10' height='14' fill='none' stroke='%23d1d5db' stroke-width='1.5' stroke-opacity='0.2'/%3E%3Crect x='4' y='15' width='2' height='2' fill='none' stroke='%23d1d5db' stroke-width='1' stroke-opacity='0.2'/%3E%3Crect x='7' y='15' width='2' height='2' fill='none' stroke='%23d1d5db' stroke-width='1' stroke-opacity='0.2'/%3E%3Crect x='4' y='18' width='2' height='2' fill='none' stroke='%23d1d5db' stroke-width='1' stroke-opacity='0.2'/%3E%3Crect x='7' y='18' width='2' height='2' fill='none' stroke='%23d1d5db' stroke-width='1' stroke-opacity='0.2'/%3E%3Crect x='4' y='21' width='2' height='2' fill='none' stroke='%23d1d5db' stroke-width='1' stroke-opacity='0.2'/%3E%3Crect x='7' y='21' width='2' height='2' fill='none' stroke='%23d1d5db' stroke-width='1' stroke-opacity='0.2'/%3E%3C/g%3E%3Cg id='key'%3E%3Ccircle cx='4' cy='18' r='2' fill='none' stroke='%23d1d5db' stroke-width='1.4' stroke-opacity='0.2'/%3E%3Cpath d='M6 18H12M9.5 16V20M10.5 16.5V19.5' stroke='%23d1d5db' stroke-width='1.2' stroke-opacity='0.2' fill='none'/%3E%3C/g%3E%3Cg id='apartment'%3E%3Crect x='1' y='10' width='14' height='16' fill='none' stroke='%23d1d5db' stroke-width='1.5' stroke-opacity='0.2'/%3E%3Crect x='3' y='13' width='2.5' height='2.5' fill='none' stroke='%23d1d5db' stroke-width='1' stroke-opacity='0.2'/%3E%3Crect x='7' y='13' width='2.5' height='2.5' fill='none' stroke='%23d1d5db' stroke-width='1' stroke-opacity='0.2'/%3E%3Crect x='11' y='13' width='2.5' height='2.5' fill='none' stroke='%23d1d5db' stroke-width='1' stroke-opacity='0.2'/%3E%3Crect x='3' y='17' width='2.5' height='2.5' fill='none' stroke='%23d1d5db' stroke-width='1' stroke-opacity='0.4'/%3E%3Crect x='7' y='17' width='2.5' height='2.5' fill='none' stroke='%23d1d5db' stroke-width='1' stroke-opacity='0.2'/%3E%3Crect x='11' y='17' width='2.5' height='2.5' fill='none' stroke='%23d1d5db' stroke-width='1' stroke-opacity='0.2'/%3E%3Crect x='3' y='21' width='2.5' height='2.5' fill='none' stroke='%23d1d5db' stroke-width='1' stroke-opacity='0.4'/%3E%3Crect x='7' y='21' width='2.5' height='2.5' fill='none' stroke='%23d1d5db' stroke-width='1' stroke-opacity='0.4'/%3E%3Crect x='11' y='21' width='2.5' height='2.5' fill='none' stroke='%23d1d5db' stroke-width='1' stroke-opacity='0.4'/%3E%3C/g%3E%3Cg id='door'%3E%3Crect x='2' y='14' width='5' height='12' rx='2.5' fill='none' stroke='%23d1d5db' stroke-width='1.4' stroke-opacity='0.6'/%3E%3Ccircle cx='5.5' cy='20' r='0.4' fill='%23d1d5db' fill-opacity='0.5'/%3E%3C/g%3E%3C/defs%3E%3Cuse href='%23house' x='8' y='8'/%3E%3Cuse href='%23building' x='40' y='20'/%3E%3Cuse href='%23key' x='75' y='6' transform='rotate(45 79 24)'/%3E%3Cuse href='%23apartment' x='20' y='50'/%3E%3Cuse href='%23door' x='80' y='38' transform='rotate(-15 82.5 50)'/%3E%3Cuse href='%23key' x='12' y='80' transform='rotate(-30 16 98)'/%3E%3Cuse href='%23building' x='90' y='70'/%3E%3Cuse href='%23house' x='60' y='80'/%3E%3Cuse href='%23key' x='50' y='25' transform='rotate(60 54 43)'/%3E%3Cuse href='%23door' x='4' y='40'/%3E%3Cuse href='%23apartment' x='85' y='5'/%3E%3Cuse href='%23building' x='65' y='12'/%3E%3C/svg%3E")`,
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='120' height='120' viewBox='0 0 120 120' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3Cg id='house'%3E%3Cpath d='M6 20L12 14L18 20V26H6V20Z' fill='none' stroke='%23ffffff' stroke-width='1' stroke-opacity='0.06'/%3E%3Crect x='8.5' y='22' width='2' height='3' fill='none' stroke='%23ffffff' stroke-width='0.8' stroke-opacity='0.04'/%3E%3Crect x='13' y='18' width='2' height='2' fill='none' stroke='%23ffffff' stroke-width='0.8' stroke-opacity='0.04'/%3E%3C/g%3E%3Cg id='building'%3E%3Crect x='2' y='12' width='10' height='14' fill='none' stroke='%23ffffff' stroke-width='1' stroke-opacity='0.06'/%3E%3Crect x='4' y='15' width='2' height='2' fill='none' stroke='%23ffffff' stroke-width='0.8' stroke-opacity='0.04'/%3E%3Crect x='7' y='15' width='2' height='2' fill='none' stroke='%23ffffff' stroke-width='0.8' stroke-opacity='0.04'/%3E%3Crect x='4' y='18' width='2' height='2' fill='none' stroke='%23ffffff' stroke-width='0.8' stroke-opacity='0.04'/%3E%3Crect x='7' y='18' width='2' height='2' fill='none' stroke='%23ffffff' stroke-width='0.8' stroke-opacity='0.04'/%3E%3Crect x='4' y='21' width='2' height='2' fill='none' stroke='%23ffffff' stroke-width='0.8' stroke-opacity='0.04'/%3E%3Crect x='7' y='21' width='2' height='2' fill='none' stroke='%23ffffff' stroke-width='0.8' stroke-opacity='0.04'/%3E%3C/g%3E%3Cg id='key'%3E%3Ccircle cx='4' cy='18' r='2' fill='none' stroke='%23ffffff' stroke-width='1' stroke-opacity='0.06'/%3E%3Cpath d='M6 18H12M9.5 16V20M10.5 16.5V19.5' stroke='%23ffffff' stroke-width='0.8' stroke-opacity='0.04' fill='none'/%3E%3C/g%3E%3Cg id='apartment'%3E%3Crect x='1' y='10' width='14' height='16' fill='none' stroke='%23ffffff' stroke-width='1' stroke-opacity='0.05'/%3E%3Crect x='3' y='13' width='2.5' height='2.5' fill='none' stroke='%23ffffff' stroke-width='0.8' stroke-opacity='0.03'/%3E%3Crect x='7' y='13' width='2.5' height='2.5' fill='none' stroke='%23ffffff' stroke-width='0.8' stroke-opacity='0.03'/%3E%3Crect x='11' y='13' width='2.5' height='2.5' fill='none' stroke='%23ffffff' stroke-width='0.8' stroke-opacity='0.03'/%3E%3Crect x='3' y='17' width='2.5' height='2.5' fill='none' stroke='%23ffffff' stroke-width='0.8' stroke-opacity='0.03'/%3E%3Crect x='7' y='17' width='2.5' height='2.5' fill='none' stroke='%23ffffff' stroke-width='0.8' stroke-opacity='0.03'/%3E%3Crect x='11' y='17' width='2.5' height='2.5' fill='none' stroke='%23ffffff' stroke-width='0.8' stroke-opacity='0.03'/%3E%3Crect x='3' y='21' width='2.5' height='2.5' fill='none' stroke='%23ffffff' stroke-width='0.8' stroke-opacity='0.03'/%3E%3Crect x='7' y='21' width='2.5' height='2.5' fill='none' stroke='%23ffffff' stroke-width='0.8' stroke-opacity='0.03'/%3E%3Crect x='11' y='21' width='2.5' height='2.5' fill='none' stroke='%23ffffff' stroke-width='0.8' stroke-opacity='0.03'/%3E%3C/g%3E%3Cg id='door'%3E%3Crect x='2' y='14' width='5' height='12' rx='2.5' fill='none' stroke='%23ffffff' stroke-width='1' stroke-opacity='0.05'/%3E%3Ccircle cx='5.5' cy='20' r='0.4' fill='%23ffffff' fill-opacity='0.04'/%3E%3C/g%3E%3C/defs%3E%3Cuse href='%23house' x='8' y='8'/%3E%3Cuse href='%23building' x='40' y='20'/%3E%3Cuse href='%23key' x='75' y='6' transform='rotate(45 79 24)'/%3E%3Cuse href='%23apartment' x='20' y='50'/%3E%3Cuse href='%23door' x='80' y='38' transform='rotate(-15 82.5 50)'/%3E%3Cuse href='%23key' x='12' y='80' transform='rotate(-30 16 98)'/%3E%3Cuse href='%23building' x='90' y='70'/%3E%3Cuse href='%23house' x='60' y='80'/%3E%3Cuse href='%23key' x='50' y='25' transform='rotate(60 54 43)'/%3E%3Cuse href='%23door' x='4' y='40'/%3E%3Cuse href='%23apartment' x='85' y='5'/%3E%3Cuse href='%23building' x='65' y='12'/%3E%3C/svg%3E")`,
             backgroundSize: '120px 120px'
           }}
         >
-          <div className="max-w-6xl w-full bg-white rounded-xl shadow-lg p-8">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* Formulario - 2 columnas */}
-              <div className="lg:col-span-2">
-                {/* Header */}
-                <div className="text-center mb-8">
-                  <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                    Crear Cuenta
-                  </h1>
-                  <p className="text-gray-600">
-                    Únete a RENTA fácil y encuentra tu hogar ideal
-                  </p>
-                </div>
+          <div className="max-w-6xl mx-auto">
+            <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+              {/* Header */}
+              <div className="bg-white px-8 py-6 border-b-2 border-gray-100">
+                <h1 className="text-3xl font-bold mb-2 text-gray-900">
+                  Crear Cuenta
+                </h1>
+                <p className="text-gray-600">
+                  Únete a RENTA fácil y encuentra tu hogar ideal
+                </p>
+              </div>
 
+              <div className="p-8">
             {/* Error general */}
             {errors.general && (
               <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
@@ -342,12 +472,14 @@ const RegisterPage: React.FC = () => {
                   <ul className="text-sm text-blue-800 space-y-1">
                     <li><strong>Usuario:</strong> Buscar propiedades, contactar propietarios, guardar favoritos</li>
                     <li><strong>Propietario:</strong> Publicar propiedades, recibir consultas, gestionar alquileres</li>
+                    <li><strong>Inmobiliaria:</strong> Gestionar múltiples propiedades, representar a propietarios</li>
                   </ul>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {[
                     { value: 'USER', label: 'Usuario', desc: 'Buscar y contactar propietarios' },
-                    { value: 'LANDLORD', label: 'Propietario', desc: 'Publicar y gestionar propiedades' }
+                    { value: 'LANDLORD', label: 'Propietario', desc: 'Publicar y gestionar propiedades' },
+                    { value: 'AGENT', label: 'Inmobiliaria', desc: 'Gestionar múltiples propiedades' }
                   ].map((option) => (
                     <label
                       key={option.value}
@@ -379,7 +511,7 @@ const RegisterPage: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Nombre *
+                    {formData.role === 'AGENT' ? 'Nombre del Representante *' : 'Nombre *'}
                   </label>
                   <div className="relative">
                     <UserIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
@@ -390,7 +522,7 @@ const RegisterPage: React.FC = () => {
                       className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
                         errors.firstName ? 'border-red-300' : 'border-gray-300'
                       }`}
-                      placeholder="Tu nombre"
+                      placeholder={formData.role === 'AGENT' ? 'Nombre del representante' : 'Tu nombre'}
                       maxLength={100}
                     />
                   </div>
@@ -401,7 +533,7 @@ const RegisterPage: React.FC = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Apellido *
+                    {formData.role === 'AGENT' ? 'Apellido del Representante *' : 'Apellido *'}
                   </label>
                   <div className="relative">
                     <UserIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
@@ -412,7 +544,7 @@ const RegisterPage: React.FC = () => {
                       className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
                         errors.lastName ? 'border-red-300' : 'border-gray-300'
                       }`}
-                      placeholder="Tu apellido"
+                      placeholder={formData.role === 'AGENT' ? 'Apellido del representante' : 'Tu apellido'}
                       maxLength={100}
                     />
                   </div>
@@ -422,94 +554,307 @@ const RegisterPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Email */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Correo Electrónico *
-                </label>
-                <div className="relative">
-                  <EnvelopeIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                  <input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => handleInputChange('email', e.target.value)}
-                    className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
-                      errors.email ? 'border-red-300' : 'border-gray-300'
-                    }`}
-                    placeholder="tu@email.com"
-                  />
-                </div>
-                {errors.email && (
-                  <p className="mt-1 text-sm text-red-600">{errors.email}</p>
-                )}
-              </div>
+              {/* Campos específicos para Inmobiliaria */}
+              {formData.role === 'AGENT' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Nombre de la Inmobiliaria *
+                    </label>
+                    <div className="relative">
+                      <BuildingOfficeIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                      <input
+                        type="text"
+                        value={formData.agencyName || ''}
+                        onChange={(e) => handleInputChange('agencyName', e.target.value)}
+                        className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
+                          errors.agencyName ? 'border-red-300' : 'border-gray-300'
+                        }`}
+                        placeholder="Nombre de tu inmobiliaria"
+                        maxLength={200}
+                      />
+                    </div>
+                    {errors.agencyName && (
+                      <p className="mt-1 text-sm text-red-600">{errors.agencyName}</p>
+                    )}
+                  </div>
 
-              {/* Teléfono */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Teléfono (Opcional)
-                </label>
-                <div className="relative">
-                  <PhoneIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                  <input
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) => handleInputChange('phone', formatPhoneInput(e.target.value))}
-                    className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
-                      errors.phone ? 'border-red-300' : 'border-gray-300'
-                    }`}
-                    placeholder="+51987654321"
-                    maxLength={20}
-                  />
-                </div>
-                {errors.phone && (
-                  <p className="mt-1 text-sm text-red-600">{errors.phone}</p>
-                )}
-                <p className="mt-1 text-xs text-gray-500">
-                  Formato internacional: +[código país][número]
-                </p>
-              </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      RUC de la Inmobiliaria *
+                    </label>
+                    <div className="relative">
+                      <IdentificationIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                      <input
+                        type="text"
+                        value={formData.agencyRuc || ''}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/\D/g, '').slice(0, 11);
+                          handleInputChange('agencyRuc', value);
+                        }}
+                        className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
+                          errors.agencyRuc ? 'border-red-300' : 'border-gray-300'
+                        }`}
+                        placeholder="12345678901"
+                        maxLength={11}
+                      />
+                    </div>
+                    {errors.agencyRuc && (
+                      <p className="mt-1 text-sm text-red-600">{errors.agencyRuc}</p>
+                    )}
+                    <p className="mt-1 text-xs text-gray-500">
+                      El RUC debe tener 11 dígitos
+                    </p>
+                  </div>
+                </>
+              )}
 
-              {/* Documento de Identidad */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Email y Teléfono - Grid 2 columnas */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Email */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Tipo de Documento
-                  </label>
-                  <select
-                    value={formData.nationalIdType}
-                    onChange={(e) => handleInputChange('nationalIdType', e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                  >
-                    <option value="DNI">DNI</option>
-                    <option value="CE">Carné de Extranjería</option>
-                    <option value="Pasaporte">Pasaporte</option>
-                    <option value="RUC">RUC</option>
-                  </select>
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Número de Documento (Opcional)
+                    Correo Electrónico *
                   </label>
                   <div className="relative">
-                    <IdentificationIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <EnvelopeIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                     <input
-                      type="text"
-                      value={formData.nationalId}
-                      onChange={(e) => handleInputChange('nationalId', e.target.value)}
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => handleInputChange('email', e.target.value)}
                       className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
-                        errors.nationalId ? 'border-red-300' : 'border-gray-300'
+                        errors.email ? 'border-red-300' : 'border-gray-300'
                       }`}
-                      placeholder="12345678"
+                      placeholder="tu@email.com"
+                    />
+                  </div>
+                  {errors.email && (
+                    <p className="mt-1 text-sm text-red-600">{errors.email}</p>
+                  )}
+                </div>
+
+                {/* Teléfono */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Teléfono (Opcional)
+                  </label>
+                  <div className="relative">
+                    <PhoneIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <input
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) => handleInputChange('phone', formatPhoneInput(e.target.value))}
+                      className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
+                        errors.phone ? 'border-red-300' : 'border-gray-300'
+                      }`}
+                      placeholder="+51987654321"
                       maxLength={20}
                     />
                   </div>
-                  {errors.nationalId && (
-                    <p className="mt-1 text-sm text-red-600">{errors.nationalId}</p>
+                  {errors.phone && (
+                    <p className="mt-1 text-sm text-red-600">{errors.phone}</p>
                   )}
+                  <p className="mt-1 text-xs text-gray-500">
+                    Formato internacional: +[código país][número]
+                  </p>
                 </div>
               </div>
+
+              {/* Contraseña y Confirmar - Grid 2 columnas */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Contraseña */}
+                <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Contraseña *
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={formData.password}
+                    onChange={(e) => handleInputChange('password', e.target.value)}
+                    className={`w-full px-4 py-3 pr-12 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
+                      errors.password ? 'border-red-300' : 'border-gray-300'
+                    }`}
+                    placeholder="Mínimo 8 caracteres"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showPassword ? (
+                      <EyeSlashIcon className="h-5 w-5" />
+                    ) : (
+                      <EyeIcon className="h-5 w-5" />
+                    )}
+                  </button>
+                </div>
+                {errors.password && (
+                  <p className="mt-1 text-sm text-red-600">{errors.password}</p>
+                )}
+                {formData.password && !errors.password && (
+                  <div className="mt-2">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs text-gray-600">Fortaleza:</span>
+                      <span className={`text-xs font-medium ${
+                        passwordStrength.strength <= 35 ? 'text-red-600' :
+                        passwordStrength.strength <= 65 ? 'text-yellow-600' :
+                        'text-green-600'
+                      }`}>
+                        {passwordStrength.label}
+                      </span>
+                    </div>
+                    <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full transition-all duration-300 ${passwordStrength.color}`}
+                        style={{ width: `${passwordStrength.strength}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+                <p className="mt-1 text-xs text-gray-500">
+                  Debe contener al menos 8 caracteres, una mayúscula, una minúscula y un número
+                </p>
+              </div>
+
+              {/* Confirmar Contraseña */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Confirmar Contraseña *
+                </label>
+                <div className="relative">
+                  <input
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    value={formData.confirmPassword}
+                    onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+                    className={`w-full px-4 py-3 pr-12 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
+                      errors.confirmPassword ? 'border-red-300' : 'border-gray-300'
+                    }`}
+                    placeholder="Repite tu contraseña"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showConfirmPassword ? (
+                      <EyeSlashIcon className="h-5 w-5" />
+                    ) : (
+                      <EyeIcon className="h-5 w-5" />
+                    )}
+                  </button>
+                </div>
+                {errors.confirmPassword && (
+                  <p className="mt-1 text-sm text-red-600">{errors.confirmPassword}</p>
+                )}
+              </div>
+            </div>
+
+              {/* Documento de Identidad - Condicional según tipo de usuario */}
+              {formData.role !== 'AGENT' ? (
+                // DNI/Pasaporte/CE/RUC para Usuario y Propietario
+                <>
+                  {formData.role === 'LANDLORD' && (
+                    <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 mt-0.5">
+                          <IdentificationIcon className="h-5 w-5 text-amber-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-amber-900 font-medium mb-1">
+                            Verificación de Identidad Requerida
+                          </p>
+                          <p className="text-sm text-amber-800">
+                            Como propietario, necesitamos verificar tu identidad para publicar propiedades. Tu documento es obligatorio para garantizar la seguridad de la plataforma.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Tipo de Documento {formData.role === 'LANDLORD' && '*'}
+                    </label>
+                    <select
+                      value={formData.nationalIdType}
+                      onChange={(e) => handleInputChange('nationalIdType', e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                      required={formData.role === 'LANDLORD'}
+                    >
+                      <option value="DNI">DNI</option>
+                      <option value="CE">Carné de Extranjería</option>
+                      <option value="Pasaporte">Pasaporte</option>
+                      <option value="RUC">RUC</option>
+                    </select>
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Número de Documento {formData.role === 'LANDLORD' ? '*' : '(Opcional)'}
+                    </label>
+                    <div className="relative">
+                      <IdentificationIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                      <input
+                        type="text"
+                        value={formData.nationalId}
+                        onChange={(e) => {
+                          // Si es RUC, solo permitir números y máximo 11 dígitos
+                          if (formData.nationalIdType === 'RUC') {
+                            const value = e.target.value.replace(/\D/g, '').slice(0, 11);
+                            handleInputChange('nationalId', value);
+                          } else if (formData.nationalIdType === 'DNI') {
+                            // Si es DNI, solo permitir números y máximo 8 dígitos
+                            const value = e.target.value.replace(/\D/g, '').slice(0, 8);
+                            handleInputChange('nationalId', value);
+                          } else {
+                            handleInputChange('nationalId', e.target.value);
+                          }
+                        }}
+                        className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
+                          errors.nationalId ? 'border-red-300' : 'border-gray-300'
+                        }`}
+                        placeholder={
+                          formData.nationalIdType === 'RUC' ? '12345678901' :
+                          formData.nationalIdType === 'DNI' ? '12345678' :
+                          formData.nationalIdType === 'CE' ? 'Número de carnet' :
+                          'Número de pasaporte'
+                        }
+                        maxLength={formData.nationalIdType === 'RUC' ? 11 : 20}
+                        required={formData.role === 'LANDLORD'}
+                      />
+                    </div>
+                    {errors.nationalId && (
+                      <p className="mt-1 text-sm text-red-600">{errors.nationalId}</p>
+                    )}
+                    {formData.nationalId && formData.nationalId.length > 0 && (
+                      <p className="mt-1 text-xs text-gray-500">
+                        {formData.nationalIdType === 'RUC' && `${formData.nationalId.length}/11 dígitos`}
+                        {formData.nationalIdType === 'DNI' && `${formData.nationalId.length}/8 dígitos`}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                </>
+              ) : (
+                // Nota informativa para Inmobiliarias
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <div className="flex-shrink-0 mt-0.5">
+                      <BuildingOfficeIcon className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-blue-900 font-medium mb-1">
+                        Registro como Inmobiliaria
+                      </p>
+                      <p className="text-sm text-blue-800">
+                        Las inmobiliarias deben registrarse con el RUC de la empresa. Ya has ingresado el RUC en el campo específico arriba. Este RUC será tu identificador principal como inmobiliaria.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Términos y Condiciones */}
               <div className="space-y-3">
@@ -554,7 +899,108 @@ const RegisterPage: React.FC = () => {
                 )}
               </div>
 
+              {/* Foto de Perfil (Opcional) */}
+              <div className="pt-4 border-t border-gray-200">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">
+                  Foto de Perfil (Opcional)
+                </h3>
+                
+                <div 
+                  className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+                    isDragOver 
+                      ? 'border-blue-500 bg-blue-50' 
+                      : 'border-gray-300 hover:border-gray-400'
+                  }`}
+                  onDrop={handleDrop}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                >
+                  {imagePreview ? (
+                    <div className="space-y-4">
+                      <div className="relative w-32 h-32 mx-auto">
+                        <img 
+                          src={imagePreview} 
+                          alt="Preview" 
+                          className="w-full h-full object-cover rounded-full border-4 border-white shadow-lg"
+                        />
+                        <button
+                          type="button"
+                          onClick={removeImage}
+                          className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-colors"
+                        >
+                          <XMarkIcon className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <p className="text-sm text-gray-600">
+                        ¡Perfecto! Tu foto se ve genial.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => document.getElementById('file-upload')?.click()}
+                        className="text-sm text-blue-600 hover:text-blue-800 font-medium underline"
+                      >
+                        Cambiar foto
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <CloudArrowUpIcon className="w-12 h-12 text-gray-400 mx-auto" />
+                      <div>
+                        <p className="text-gray-600 mb-2">
+                          Arrastra tu foto aquí o{' '}
+                          <button
+                            type="button"
+                            onClick={() => document.getElementById('file-upload')?.click()}
+                            className="text-blue-600 hover:text-blue-800 font-medium underline"
+                          >
+                            selecciona un archivo
+                          </button>
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          PNG, JPG, WebP hasta 5MB
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <input
+                    id="file-upload"
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        handleFileChange(file);
+                      }
+                    }}
+                    className="hidden"
+                  />
+                </div>
+
+                {errors.profilePicture && (
+                  <p className="mt-2 text-sm text-red-600 flex items-center gap-1">
+                    <ExclamationCircleIcon className="w-4 h-4" />
+                    {errors.profilePicture}
+                  </p>
+                )}
+
+                <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <PhotoIcon className="w-5 w-5 text-gray-500 mt-0.5 flex-shrink-0" />
+                    <div className="text-sm text-gray-600">
+                      <p className="font-medium mb-1">¿Por qué una foto de perfil?</p>
+                      <ul className="space-y-1 text-xs">
+                        <li>• Genera más confianza con propietarios</li>
+                        <li>• Aumenta tus posibilidades de contacto</li>
+                        <li>• Personaliza tu experiencia</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Submit Button */}
+              <div className="pt-6">
               <Button
                 type="submit"
                 variant="primary"
@@ -566,117 +1012,16 @@ const RegisterPage: React.FC = () => {
               </Button>
 
               {/* Login Link */}
-              <div className="text-center">
+              <div className="text-center mt-4">
                 <p className="text-sm text-gray-600">
                   ¿Ya tienes cuenta?{' '}
-                  <Link href="/auth/login" className="text-blue-600 hover:text-blue-800 font-medium underline">
+                  <Link href="/login" className="text-blue-600 hover:text-blue-800 font-medium underline">
                     Inicia sesión aquí
                   </Link>
                 </p>
               </div>
+            </div>
             </form>
-              </div>
-
-              {/* Foto de Perfil - 1 columna */}
-              <div className="lg:col-span-1">
-                <div className="sticky top-8">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">
-                    Foto de Perfil (Opcional)
-                  </h3>
-                  
-                  <div 
-                    className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
-                      isDragOver 
-                        ? 'border-blue-500 bg-blue-50' 
-                        : 'border-gray-300 hover:border-gray-400'
-                    }`}
-                    onDrop={handleDrop}
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                  >
-                    {imagePreview ? (
-                      <div className="space-y-4">
-                        <div className="relative w-32 h-32 mx-auto">
-                          <img 
-                            src={imagePreview} 
-                            alt="Preview" 
-                            className="w-full h-full object-cover rounded-full border-4 border-white shadow-lg"
-                          />
-                          <button
-                            type="button"
-                            onClick={removeImage}
-                            className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-colors"
-                          >
-                            <XMarkIcon className="w-4 h-4" />
-                          </button>
-                        </div>
-                        <p className="text-sm text-gray-600">
-                          ¡Perfecto! Tu foto se ve genial.
-                        </p>
-                        <button
-                          type="button"
-                          onClick={() => document.getElementById('file-upload')?.click()}
-                          className="text-sm text-blue-600 hover:text-blue-800 font-medium underline"
-                        >
-                          Cambiar foto
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        <CloudArrowUpIcon className="w-12 h-12 text-gray-400 mx-auto" />
-                        <div>
-                          <p className="text-gray-600 mb-2">
-                            Arrastra tu foto aquí o{' '}
-                            <button
-                              type="button"
-                              onClick={() => document.getElementById('file-upload')?.click()}
-                              className="text-blue-600 hover:text-blue-800 font-medium underline"
-                            >
-                              selecciona un archivo
-                            </button>
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            PNG, JPG, WebP hasta 5MB
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                    
-                    <input
-                      id="file-upload"
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          handleFileChange(file);
-                        }
-                      }}
-                      className="hidden"
-                    />
-                  </div>
-
-                  {errors.profilePicture && (
-                    <p className="mt-2 text-sm text-red-600 flex items-center gap-1">
-                      <ExclamationCircleIcon className="w-4 h-4" />
-                      {errors.profilePicture}
-                    </p>
-                  )}
-
-                  <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-                    <div className="flex items-start gap-3">
-                      <PhotoIcon className="w-5 h-5 text-gray-500 mt-0.5 flex-shrink-0" />
-                      <div className="text-sm text-gray-600">
-                        <p className="font-medium mb-1">¿Por qué una foto de perfil?</p>
-                        <ul className="space-y-1 text-xs">
-                          <li>• Genera más confianza con propietarios</li>
-                          <li>• Aumenta tus posibilidades de contacto</li>
-                          <li>• Personaliza tu experiencia</li>
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
           </div>

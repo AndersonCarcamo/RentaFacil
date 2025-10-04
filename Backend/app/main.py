@@ -7,8 +7,8 @@ from app.api.endpoints.users import router as users_router
 from app.api.endpoints.agencies import router as agencies_router
 from app.api.endpoints.listings import router as listings_router
 from app.api.endpoints.listings_simple import router as listings_simple_router
+from app.api.endpoints.search import router as search_router
 # Temporarily disabled routers that depend on non-existent database tables:
-# from app.api.endpoints.search import router as search_router
 # from app.api.endpoints.media import router as media_router
 # from app.api.endpoints.interactions import router as interactions_router
 # from app.api.endpoints.subscriptions import router as subscriptions_router
@@ -150,6 +150,12 @@ app.include_router(
     listings_simple_router,
     prefix="/v1/listings-simple",
     tags=["Listings Simple"]
+)
+
+app.include_router(
+    search_router,
+    prefix="/v1/search",
+    tags=["Search"]
 )
 
 app.include_router(

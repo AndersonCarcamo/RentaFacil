@@ -4,6 +4,7 @@ import { ThemeProvider } from 'next-themes'
 import { Toaster } from 'react-hot-toast'
 import { useState } from 'react'
 import Head from 'next/head'
+import { AuthProvider } from '../lib/hooks/useAuth'
 
 // Estilos globales
 import '@/styles/globals.css'
@@ -63,8 +64,10 @@ export default function App({ Component, pageProps }: AppProps) {
           enableSystem={true}
           disableTransitionOnChange={false}
         >
-          {/* Componente principal de la aplicación */}
-          <Component {...pageProps} />
+          <AuthProvider>
+            {/* Componente principal de la aplicación */}
+            <Component {...pageProps} />
+          </AuthProvider>
           
           {/* Toast notifications globales */}
           <Toaster
