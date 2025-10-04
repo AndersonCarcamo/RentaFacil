@@ -5,6 +5,7 @@ import { useRouter } from 'next/router';
 import { Header } from '../components/Header';
 import Button from '../components/ui/Button';
 import { useAuth } from '../lib/hooks/useAuth';
+import { validateDocument, formatDocument, getDocumentMaxLength, getRUCType } from '../lib/utils/documentValidation';
 import { 
   EyeIcon, 
   EyeSlashIcon, 
@@ -137,30 +138,19 @@ const RegisterPage: React.FC = () => {
       if (formData.role === 'LANDLORD') {
         if (!formData.nationalId || !formData.nationalId.trim()) {
           newErrors.nationalId = 'El número de documento es obligatorio para propietarios';
-        } else if (formData.nationalIdType === 'RUC') {
-          if (!/^\d{11}$/.test(formData.nationalId)) {
-            newErrors.nationalId = 'El RUC debe tener exactamente 11 dígitos';
+        } else {
+          // Validar documento usando las funciones de validación
+          const validation = validateDocument(formData.nationalIdType, formData.nationalId);
+          if (!validation.valid) {
+            newErrors.nationalId = validation.error || 'El documento no es válido';
           }
-        } else if (formData.nationalIdType === 'DNI') {
-          if (!/^\d{8}$/.test(formData.nationalId)) {
-            newErrors.nationalId = 'El DNI debe tener exactamente 8 dígitos';
-          }
-        } else if (formData.nationalId.length > 20) {
-          newErrors.nationalId = 'El documento no puede exceder 20 caracteres';
         }
       } else {
         // Para USER, es opcional pero si lo ingresa, debe ser válido
-        if (formData.nationalId) {
-          if (formData.nationalIdType === 'RUC') {
-            if (!/^\d{11}$/.test(formData.nationalId)) {
-              newErrors.nationalId = 'El RUC debe tener exactamente 11 dígitos';
-            }
-          } else if (formData.nationalIdType === 'DNI') {
-            if (!/^\d{8}$/.test(formData.nationalId)) {
-              newErrors.nationalId = 'El DNI debe tener exactamente 8 dígitos';
-            }
-          } else if (formData.nationalId.length > 20) {
-            newErrors.nationalId = 'El documento no puede exceder 20 caracteres';
+        if (formData.nationalId && formData.nationalId.trim()) {
+          const validation = validateDocument(formData.nationalIdType, formData.nationalId);
+          if (!validation.valid) {
+            newErrors.nationalId = validation.error || 'El documento no es válido';
           }
         }
       }
@@ -176,8 +166,12 @@ const RegisterPage: React.FC = () => {
 
       if (!formData.agencyRuc?.trim()) {
         newErrors.agencyRuc = 'El RUC es obligatorio para inmobiliarias';
-      } else if (!/^\d{11}$/.test(formData.agencyRuc.trim())) {
-        newErrors.agencyRuc = 'El RUC debe tener 11 dígitos';
+      } else {
+        // Validar RUC usando la función de validación
+        const validation = validateDocument('RUC', formData.agencyRuc);
+        if (!validation.valid) {
+          newErrors.agencyRuc = validation.error || 'El RUC no es válido';
+        }
       }
     }
 
@@ -270,17 +264,64 @@ const RegisterPage: React.FC = () => {
   };
 
   const handleInputChange = (field: keyof FormData, value: string | boolean) => {
+    // Formatear el documento según el tipo antes de guardarlo
+    let processedValue = value;
+    
+    if (field === 'nationalId' && typeof value === 'string') {
+      // Limitar la longitud según el tipo de documento
+      const maxLength = getDocumentMaxLength(formData.nationalIdType);
+      processedValue = formatDocument(formData.nationalIdType, value).substring(0, maxLength);
+    }
+    
+    if (field === 'agencyRuc' && typeof value === 'string') {
+      // Para RUC solo permitir números y máximo 11 dígitos
+      processedValue = value.replace(/\D/g, '').substring(0, 11);
+    }
+    
     setFormData(prev => ({
       ...prev,
-      [field]: value
+      [field]: processedValue
     }));
 
-    // Clear error for this field when user starts typing
-    if (errors[field]) {
-      setErrors(prev => ({
-        ...prev,
-        [field]: ''
-      }));
+    // Validación en tiempo real para documentos
+    if (field === 'nationalId' && typeof value === 'string' && value.trim()) {
+      const validation = validateDocument(formData.nationalIdType, processedValue as string);
+      if (!validation.valid) {
+        setErrors(prev => ({
+          ...prev,
+          nationalId: validation.error || 'Documento inválido'
+        }));
+      } else {
+        // Limpiar error si es válido
+        setErrors(prev => {
+          const newErrors = { ...prev };
+          delete newErrors.nationalId;
+          return newErrors;
+        });
+      }
+    } else if (field === 'agencyRuc' && typeof value === 'string' && value.trim()) {
+      const validation = validateDocument('RUC', processedValue as string);
+      if (!validation.valid) {
+        setErrors(prev => ({
+          ...prev,
+          agencyRuc: validation.error || 'RUC inválido'
+        }));
+      } else {
+        // Limpiar error si es válido
+        setErrors(prev => {
+          const newErrors = { ...prev };
+          delete newErrors.agencyRuc;
+          return newErrors;
+        });
+      }
+    } else {
+      // Clear error for other fields when user starts typing
+      if (errors[field]) {
+        setErrors(prev => ({
+          ...prev,
+          [field]: ''
+        }));
+      }
     }
   };
 
@@ -799,39 +840,41 @@ const RegisterPage: React.FC = () => {
                       <input
                         type="text"
                         value={formData.nationalId}
-                        onChange={(e) => {
-                          // Si es RUC, solo permitir números y máximo 11 dígitos
-                          if (formData.nationalIdType === 'RUC') {
-                            const value = e.target.value.replace(/\D/g, '').slice(0, 11);
-                            handleInputChange('nationalId', value);
-                          } else if (formData.nationalIdType === 'DNI') {
-                            // Si es DNI, solo permitir números y máximo 8 dígitos
-                            const value = e.target.value.replace(/\D/g, '').slice(0, 8);
-                            handleInputChange('nationalId', value);
-                          } else {
-                            handleInputChange('nationalId', e.target.value);
-                          }
-                        }}
+                        onChange={(e) => handleInputChange('nationalId', e.target.value)}
                         className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
                           errors.nationalId ? 'border-red-300' : 'border-gray-300'
                         }`}
                         placeholder={
-                          formData.nationalIdType === 'RUC' ? '12345678901' :
-                          formData.nationalIdType === 'DNI' ? '12345678' :
-                          formData.nationalIdType === 'CE' ? 'Número de carnet' :
+                          formData.nationalIdType === 'RUC' ? '20123456789 (11 dígitos)' :
+                          formData.nationalIdType === 'DNI' ? '12345678 (8 dígitos)' :
+                          formData.nationalIdType === 'CE' ? '123456789 (9 dígitos)' :
                           'Número de pasaporte'
                         }
-                        maxLength={formData.nationalIdType === 'RUC' ? 11 : 20}
+                        maxLength={getDocumentMaxLength(formData.nationalIdType)}
                         required={formData.role === 'LANDLORD'}
                       />
                     </div>
                     {errors.nationalId && (
-                      <p className="mt-1 text-sm text-red-600">{errors.nationalId}</p>
+                      <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                        <ExclamationCircleIcon className="w-4 h-4" />
+                        {errors.nationalId}
+                      </p>
                     )}
-                    {formData.nationalId && formData.nationalId.length > 0 && (
+                    {!errors.nationalId && formData.nationalId && formData.nationalId.length > 0 && (
                       <p className="mt-1 text-xs text-gray-500">
-                        {formData.nationalIdType === 'RUC' && `${formData.nationalId.length}/11 dígitos`}
+                        {formData.nationalIdType === 'RUC' && (
+                          <>
+                            {formData.nationalId.length}/11 dígitos
+                            {formData.nationalId.length === 11 && getRUCType(formData.nationalId) && (
+                              <span className="ml-2 text-blue-600 font-medium">
+                                • {getRUCType(formData.nationalId)}
+                              </span>
+                            )}
+                          </>
+                        )}
                         {formData.nationalIdType === 'DNI' && `${formData.nationalId.length}/8 dígitos`}
+                        {formData.nationalIdType === 'CE' && `${formData.nationalId.length}/9 dígitos`}
+                        {formData.nationalIdType === 'Pasaporte' && `${formData.nationalId.length} caracteres`}
                       </p>
                     )}
                   </div>
