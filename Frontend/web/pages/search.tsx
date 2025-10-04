@@ -3,7 +3,8 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import PropertyCard from '../components/PropertyCard';
 import SearchForm from '../components/SearchFormExtended';
-import { Property } from '../types/index';
+import PropertyModal from '../components/PropertyModal';
+import { Property, Currency, PropertyType } from '../types/index';
 import { fetchProperties, PropertyFilters, PropertyResponse } from '../lib/api/properties';
 
 // Importar el Header original
@@ -336,6 +337,18 @@ const SearchPage = () => {
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchParams, setSearchParams] = useState<SearchParams>({});
+  const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const openPropertyModal = (propertyId: string) => {
+    setSelectedPropertyId(propertyId);
+    setIsModalOpen(true);
+  };
+
+  const closePropertyModal = () => {
+    setIsModalOpen(false);
+    setSelectedPropertyId(null);
+  };
 
   useEffect(() => {
     // Obtener parámetros de búsqueda de la URL
@@ -494,7 +507,10 @@ const SearchPage = () => {
                       .sort((a, b) => b.rating - a.rating)
                       .map((property) => (
                         <div key={property.id} className="transform transition-transform hover:scale-105">
-                          <PropertyCard property={property} />
+                          <PropertyCard 
+                            property={property}
+                            onClick={openPropertyModal}
+                          />
                         </div>
                       ))
                   ) : (
@@ -518,6 +534,15 @@ const SearchPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Property Modal */}
+      {selectedPropertyId && (
+        <PropertyModal
+          propertyId={selectedPropertyId}
+          isOpen={isModalOpen}
+          onClose={closePropertyModal}
+        />
+      )}
     </>
   );
 };

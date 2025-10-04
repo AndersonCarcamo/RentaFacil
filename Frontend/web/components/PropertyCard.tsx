@@ -12,20 +12,29 @@ interface PropertyCardProps {
 	property: Property
 	className?: string
 	onFavoriteToggle?: (id: string, next: boolean) => void
+	onClick?: (id: string) => void
 }
 
-export default function PropertyCard({ property, className = '', onFavoriteToggle }: PropertyCardProps) {
+export default function PropertyCard({ property, className = '', onFavoriteToggle, onClick }: PropertyCardProps) {
 	const [favorite, setFavorite] = useState(property.isFavorite)
 
 	const toggleFav = (e: React.MouseEvent) => {
 		e.preventDefault()
+		e.stopPropagation()
 		const next = !favorite
 		setFavorite(next)
 		onFavoriteToggle?.(property.id, next)
 	}
 
+	const handleClick = () => {
+		onClick?.(property.id)
+	}
+
 	return (
-		<article className={`group relative overflow-hidden rounded-xl border border-gray-200 bg-white shadow-soft transition hover:shadow-medium ${className}`}>
+		<article 
+			className={`group relative overflow-hidden rounded-xl border border-gray-200 bg-white shadow-soft transition hover:shadow-medium cursor-pointer ${className}`}
+			onClick={handleClick}
+		>
 			<div className="relative aspect-[4/3] w-full overflow-hidden">
 				<Image
 					src={property.images[0] || '/images/placeholder.jpg'}

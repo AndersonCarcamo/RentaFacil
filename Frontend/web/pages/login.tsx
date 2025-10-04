@@ -178,7 +178,7 @@ const LoginPage: React.FC = () => {
           </div>
 
           {/* Lado Derecho - Fondo Amarillo con Logo */}
-          <div className="hidden lg:flex lg:col-span-3 items-center justify-center relative overflow-hidden" style={{ backgroundColor: '#f0d911' }}>
+          <div className="hidden lg:flex lg:col-span-3 items-center justify-center relative overflow-hidden" style={{ backgroundColor: '#EDDD00' }}>
             {/* Background overlay */}
             <div className="absolute inset-0 bg-black/10" />
             
