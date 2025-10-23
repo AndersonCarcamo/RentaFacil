@@ -84,6 +84,7 @@ interface SearchFormProps {
 				<Tab value="comprar" label="Comprar" icon={CurrencyDollarIcon} />
 				<Tab value="vender" label="Vender" icon={TagIcon} />
 				<Tab value="proyecto" label="Proyecto" icon={AdjustmentsHorizontalIcon} />
+				<Tab value="tipo_Airbnb" label="Tipo Airbnb" icon={AdjustmentsHorizontalIcon} />
 			</div>
 			{/* Tipo de Propiedad */}
 			<div className="flex items-center gap-3">

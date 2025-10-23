@@ -4,10 +4,9 @@ from typing import List, Optional, Dict, Any, Tuple
 from datetime import datetime, timedelta, timezone
 from app.models.media import Image, Video
 from app.models.listing import Listing
-from app.schemas.media import (
-    ImageCreate, ImageUpdate, VideoCreate, VideoUpdate,
-    UploadUrlRequest, UploadUrlResponse
-)
+from app.schemas.images import ImageCreate, ImageUpdate
+from app.schemas.videos import VideoCreate, VideoUpdate
+from app.schemas.media import UploadUrlRequest, UploadUrlResponse
 from app.core.exceptions import BusinessLogicError
 from app.services.local_media_service import LocalMediaService
 from app.services.media_cache_service import MediaCacheService

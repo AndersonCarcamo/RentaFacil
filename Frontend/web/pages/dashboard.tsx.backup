@@ -1,0 +1,790 @@
+import React, { useState, useEffect } from 'react';
+import Head from 'next/head';
+import { useRouter } from 'next/router';
+import { useAuth } from '../lib/hooks/useAuth';
+import { Header } from '../components/Header';
+import Button from '../components/ui/Button';
+import {
+  PlusIcon,
+  PencilIcon,
+  TrashIcon,
+  DocumentDuplicateIcon,
+  EyeIcon,
+  EyeSlashIcon,
+  Cog6ToothIcon,
+  HomeIcon,
+  ChartBarIcon,
+  BanknotesIcon,
+  UsersIcon,
+  XMarkIcon,
+  CheckIcon,
+  PhoneIcon,
+  EnvelopeIcon,
+  DevicePhoneMobileIcon,
+  MapPinIcon,
+  CameraIcon,
+  StarIcon,
+  ChatBubbleLeftEllipsisIcon
+} from '@heroicons/react/24/outline';
+import { StarIcon as StarSolidIcon } from '@heroicons/react/24/solid';
+
+interface Property {
+  id: string;
+  title: string;
+  address: string;
+  type: 'APARTMENT' | 'HOUSE' | 'ROOM' | 'STUDIO';
+  rentalType: 'TRADITIONAL' | 'ROOM_SHARE' | 'COLIVING' | 'AIRBNB';
+  price: number;
+  status: 'ACTIVE' | 'INACTIVE' | 'DRAFT';
+  bedrooms?: number;
+  bathrooms?: number;
+  area?: number;
+  images: string[];
+  createdAt: string;
+  views: number;
+  contacts: number;
+  // Campos específicos para Airbnb
+  rating?: number;
+  totalReviews?: number;
+  comments?: PropertyComment[];
+}
+
+interface PropertyComment {
+  id: string;
+  author: string;
+  rating: number;
+  text: string;
+  date: string;
+}
+
+interface ContactSettings {
+  whatsapp: {
+    enabled: boolean;
+    number: string;
+  };
+  email: {
+    enabled: boolean;
+    address: string;
+  };
+  phone: {
+    enabled: boolean;
+    number: string;
+  };
+}
+
+const DashboardPage: React.FC = () => {
+  const router = useRouter();
+  const { user, loading, logout } = useAuth();
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [showContactModal, setShowContactModal] = useState(false);
+  const [showPropertyModal, setShowPropertyModal] = useState(false);
+  const [showCommentsModal, setShowCommentsModal] = useState(false);
+  const [editingProperty, setEditingProperty] = useState<Property | null>(null);
+  const [selectedPropertyComments, setSelectedPropertyComments] = useState<Property | null>(null);
+  const [contactSettings, setContactSettings] = useState<ContactSettings>({
+    whatsapp: { enabled: false, number: '' },
+    email: { enabled: false, address: '' },
+    phone: { enabled: false, number: '' }
+  });
+
+  // Sample properties data - continuing with the rest of the component...
+      {showCommentsModal && selectedPropertyComments && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Comentarios y Reseñas
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    {selectedPropertyComments.title}
+                  </p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <div className="flex items-center gap-1">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <StarSolidIcon
+                          key={star}
+                          className={`w-4 h-4 ${
+                            star <= (selectedPropertyComments.rating || 0)
+                              ? 'text-yellow-400'
+                              : 'text-gray-200'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-sm font-medium text-gray-900">
+                      {selectedPropertyComments.rating?.toFixed(1)}
+                    </span>
+                    <span className="text-sm text-gray-500">
+                      ({selectedPropertyComments.totalReviews} reseñas)
+                    </span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowCommentsModal(false);
+                    setSelectedPropertyComments(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <XMarkIcon className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="space-y-4 max-h-96 overflow-y-auto">
+                {selectedPropertyComments.comments?.map((comment) => (
+                  <div key={comment.id} className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                          <span className="text-sm font-semibold text-blue-600">
+                            {comment.author.charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-semibold text-gray-900">
+                            {comment.author}
+                          </h4>
+                          <p className="text-xs text-gray-500">{comment.date}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <StarSolidIcon
+                            key={star}
+                            className={`w-3 h-3 ${
+                              star <= comment.rating
+                                ? 'text-yellow-400'
+                                : 'text-gray-200'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    <p className="text-sm text-gray-700">{comment.text}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-6 flex justify-end">
+                <Button
+                  onClick={() => {
+                    setShowCommentsModal(false);
+                    setSelectedPropertyComments(null);
+                  }}
+                  variant="primary"
+                >
+                  Cerrar
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
+export default DashboardPage;
+      images: ['/sample-property-4.jpg'],
+      createdAt: '2024-01-20',
+      views: 128,
+      contacts: 23,
+      rating: 4.8,
+      totalReviews: 47,
+      comments: [
+        {
+          id: '1',
+          author: 'María González',
+          rating: 5,
+          text: 'Excelente lugar, muy limpio y bien ubicado. El host fue muy atento.',
+          date: '2024-01-25'
+        },
+        {
+          id: '2',
+          author: 'Carlos Ramírez',
+          rating: 4,
+          text: 'Buena ubicación en Barranco, cerca a restaurantes y bares. Recomendado.',
+          date: '2024-01-22'
+        },
+        {
+          id: '3',
+          author: 'Ana Torres',
+          rating: 5,
+          text: 'Perfecto para una estadía corta. Todo tal como se ve en las fotos.',
+          date: '2024-01-18'
+        }
+      ]
+    }
+  ];
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/login');
+      return;
+    }
+    
+    // Load sample data
+    setProperties(sampleProperties);
+    
+    // Load contact settings from localStorage or API
+    const savedSettings = localStorage.getItem('contactSettings');
+    if (savedSettings) {
+      setContactSettings(JSON.parse(savedSettings));
+    }
+  }, [user, loading, router]);
+
+  const handleToggleStatus = (propertyId: string) => {
+    setProperties(prev => prev.map(prop => 
+      prop.id === propertyId 
+        ? { ...prop, status: prop.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE' }
+        : prop
+    ));
+  };
+
+  const handleDeleteProperty = (propertyId: string) => {
+    if (confirm('¿Estás seguro de que quieres eliminar esta propiedad?')) {
+      setProperties(prev => prev.filter(prop => prop.id !== propertyId));
+    }
+  };
+
+  const handleDuplicateProperty = (property: Property) => {
+    const duplicated: Property = {
+      ...property,
+      id: Date.now().toString(),
+      title: `${property.title} (Copia)`,
+      status: 'DRAFT',
+      createdAt: new Date().toISOString().split('T')[0],
+      views: 0,
+      contacts: 0
+    };
+    setProperties(prev => [duplicated, ...prev]);
+  };
+
+  const handleEditProperty = (property: Property) => {
+    setEditingProperty(property);
+    setShowPropertyModal(true);
+  };
+
+  const handleViewComments = (property: Property) => {
+    setSelectedPropertyComments(property);
+    setShowCommentsModal(true);
+  };
+
+  const handleSaveContactSettings = () => {
+    localStorage.setItem('contactSettings', JSON.stringify(contactSettings));
+    setShowContactModal(false);
+    alert('Configuración de contacto guardada exitosamente');
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'ACTIVE': return 'text-green-600 bg-green-100';
+      case 'INACTIVE': return 'text-red-600 bg-red-100';
+      case 'DRAFT': return 'text-yellow-600 bg-yellow-100';
+      default: return 'text-gray-600 bg-gray-100';
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'ACTIVE': return 'Activa';
+      case 'INACTIVE': return 'Inactiva';
+      case 'DRAFT': return 'Borrador';
+      default: return 'Desconocido';
+    }
+  };
+
+  const getPropertyTypeText = (type: string) => {
+    switch (type) {
+      case 'APARTMENT': return 'Departamento';
+      case 'HOUSE': return 'Casa';
+      case 'ROOM': return 'Habitación';
+      case 'STUDIO': return 'Estudio';
+      default: return type;
+    }
+  };
+
+  const getRentalTypeText = (type: string) => {
+    switch (type) {
+      case 'TRADITIONAL': return 'Alquiler Tradicional';
+      case 'ROOM_SHARE': return 'Por Habitación';
+      case 'COLIVING': return 'Coliving';
+      case 'AIRBNB': return 'Tipo Airbnb';
+      default: return type;
+    }
+  };
+
+  const getRentalTypeColor = (type: string) => {
+    switch (type) {
+      case 'TRADITIONAL': return 'bg-blue-100 text-blue-800';
+      case 'ROOM_SHARE': return 'bg-purple-100 text-purple-800';
+      case 'COLIVING': return 'bg-green-100 text-green-800';
+      case 'AIRBNB': return 'bg-orange-100 text-orange-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  const activeProperties = properties.filter(p => p.status === 'ACTIVE').length;
+  const totalProperties = properties.length;
+  const airbnbProperties = properties.filter(p => p.rentalType === 'AIRBNB');
+  const averageRating = airbnbProperties.length > 0 
+    ? airbnbProperties.reduce((sum, p) => sum + (p.rating || 0), 0) / airbnbProperties.length 
+    : 0;
+  const totalReviews = airbnbProperties.reduce((sum, p) => sum + (p.totalReviews || 0), 0);
+
+  return (
+    <>
+      <Head>
+        <title>Dashboard - RENTA fácil</title>
+        <meta name="description" content="Gestiona tus propiedades en alquiler" />
+      </Head>
+
+      <div className="min-h-screen bg-gray-50">
+        <Header />
+
+        <div className="max-w-7xl mx-auto px-4 py-8">
+          {/* Header del Dashboard */}
+          <div className="mb-8">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+                <p className="text-gray-600 mt-1">
+                  Gestiona tus propiedades y configuraciones
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  onClick={() => setShowContactModal(true)}
+                  variant="secondary"
+                  className="flex items-center gap-2"
+                >
+                  <Cog6ToothIcon className="w-4 h-4" />
+                  Configurar Contacto
+                </Button>
+                <Button
+                  onClick={() => {
+                    setEditingProperty(null);
+                    setShowPropertyModal(true);
+                  }}
+                  variant="primary"
+                  className="flex items-center gap-2"
+                >
+                  <PlusIcon className="w-4 h-4" />
+                  Nueva Propiedad
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Estadísticas */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Propiedades Activas</p>
+                  <p className="text-3xl font-bold text-gray-900">{activeProperties}</p>
+                  <p className="text-xs text-gray-500">de {totalProperties} total</p>
+                </div>
+                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <HomeIcon className="w-6 h-6 text-blue-600" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Propiedades Tipo Airbnb</p>
+                  <p className="text-3xl font-bold text-gray-900">{airbnbProperties.length}</p>
+                  <p className="text-xs text-gray-500">temporales activas</p>
+                </div>
+                <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                  <ChartBarIcon className="w-6 h-6 text-orange-600" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Puntuación Promedio</p>
+                  <div className="flex items-center gap-1">
+                    <p className="text-3xl font-bold text-gray-900">
+                      {averageRating > 0 ? averageRating.toFixed(1) : '--'}
+                    </p>
+                    {averageRating > 0 && <StarSolidIcon className="w-6 h-6 text-yellow-400" />}
+                  </div>
+                  <p className="text-xs text-gray-500">{totalReviews} reseñas totales</p>
+                </div>
+                <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+                  <StarIcon className="w-6 h-6 text-yellow-600" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Total Comentarios</p>
+                  <p className="text-3xl font-bold text-gray-900">{totalReviews}</p>
+                  <p className="text-xs text-gray-500">en propiedades Airbnb</p>
+                </div>
+                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                  <ChatBubbleLeftEllipsisIcon className="w-6 h-6 text-purple-600" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Lista de Propiedades */}
+          <div className="bg-white rounded-xl shadow-md border border-gray-100">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-900">Mis Propiedades</h2>
+            </div>
+            
+            {properties.length === 0 ? (
+              <div className="p-12 text-center">
+                <HomeIcon className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-2 text-sm font-semibold text-gray-900">No tienes propiedades</h3>
+                <p className="mt-1 text-sm text-gray-500">Comienza creando tu primera propiedad.</p>
+                <div className="mt-6">
+                  <Button
+                    onClick={() => {
+                      setEditingProperty(null);
+                      setShowPropertyModal(true);
+                    }}
+                    variant="primary"
+                  >
+                    <PlusIcon className="w-4 h-4 mr-2" />
+                    Nueva Propiedad
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Propiedad
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Tipo & Modalidad
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Precio
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Estado
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Estadísticas
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Acciones
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {properties.map((property) => (
+                      <tr key={property.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="flex-shrink-0 h-12 w-12">
+                              <div className="h-12 w-12 rounded-lg bg-gray-200 flex items-center justify-center">
+                                <CameraIcon className="h-6 w-6 text-gray-400" />
+                              </div>
+                            </div>
+                            <div className="ml-4">
+                              <div className="text-sm font-medium text-gray-900">
+                                {property.title}
+                              </div>
+                              <div className="text-sm text-gray-500 flex items-center">
+                                <MapPinIcon className="h-3 w-3 mr-1" />
+                                {property.address}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="space-y-1">
+                            <span className="text-sm text-gray-900">
+                              {getPropertyTypeText(property.type)}
+                            </span>
+                            <div>
+                              <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${getRentalTypeColor(property.rentalType)}`}>
+                                {getRentalTypeText(property.rentalType)}
+                              </span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="text-sm font-medium text-gray-900">
+                            S/ {property.price.toLocaleString()}
+                          </span>
+                          {property.rentalType === 'AIRBNB' && (
+                            <span className="text-xs text-gray-500 block">/noche</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(property.status)}`}>
+                            {getStatusText(property.status)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <div>{property.views} vistas</div>
+                          <div>{property.contacts} contactos</div>
+                          {property.rentalType === 'AIRBNB' && property.rating && (
+                            <div className="flex items-center gap-1 mt-1">
+                              <StarSolidIcon className="w-3 h-3 text-yellow-400" />
+                              <span className="text-xs font-medium">{property.rating}</span>
+                              <span className="text-xs">({property.totalReviews})</span>
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => handleToggleStatus(property.id)}
+                              className={`p-1 rounded-full hover:bg-gray-100 ${
+                                property.status === 'ACTIVE' ? 'text-green-600' : 'text-gray-400'
+                              }`}
+                              title={property.status === 'ACTIVE' ? 'Desactivar' : 'Activar'}
+                            >
+                              {property.status === 'ACTIVE' ? 
+                                <EyeIcon className="h-4 w-4" /> : 
+                                <EyeSlashIcon className="h-4 w-4" />
+                              }
+                            </button>
+                            {property.rentalType === 'AIRBNB' && property.comments && property.comments.length > 0 && (
+                              <button
+                                onClick={() => handleViewComments(property)}
+                                className="p-1 rounded-full hover:bg-gray-100 text-orange-600"
+                                title="Ver Comentarios"
+                              >
+                                <ChatBubbleLeftEllipsisIcon className="h-4 w-4" />
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleEditProperty(property)}
+                              className="p-1 rounded-full hover:bg-gray-100 text-blue-600"
+                              title="Editar"
+                            >
+                              <PencilIcon className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDuplicateProperty(property)}
+                              className="p-1 rounded-full hover:bg-gray-100 text-purple-600"
+                              title="Duplicar"
+                            >
+                              <DocumentDuplicateIcon className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteProperty(property.id)}
+                              className="p-1 rounded-full hover:bg-gray-100 text-red-600"
+                              title="Eliminar"
+                            >
+                              <TrashIcon className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Modal de Configuración de Contacto */}
+      {showContactModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Configuración de Contacto
+                </h3>
+                <button
+                  onClick={() => setShowContactModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <XMarkIcon className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                {/* WhatsApp */}
+                <div className="border border-gray-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <DevicePhoneMobileIcon className="h-5 w-5 text-green-600" />
+                      <label className="text-sm font-medium text-gray-700">WhatsApp</label>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={contactSettings.whatsapp.enabled}
+                      onChange={(e) => setContactSettings(prev => ({
+                        ...prev,
+                        whatsapp: { ...prev.whatsapp, enabled: e.target.checked }
+                      }))}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </div>
+                  {contactSettings.whatsapp.enabled && (
+                    <input
+                      type="tel"
+                      placeholder="Ej: +51987654321"
+                      value={contactSettings.whatsapp.number}
+                      onChange={(e) => setContactSettings(prev => ({
+                        ...prev,
+                        whatsapp: { ...prev.whatsapp, number: e.target.value }
+                      }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  )}
+                </div>
+
+                {/* Email */}
+                <div className="border border-gray-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <EnvelopeIcon className="h-5 w-5 text-blue-600" />
+                      <label className="text-sm font-medium text-gray-700">Email</label>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={contactSettings.email.enabled}
+                      onChange={(e) => setContactSettings(prev => ({
+                        ...prev,
+                        email: { ...prev.email, enabled: e.target.checked }
+                      }))}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </div>
+                  {contactSettings.email.enabled && (
+                    <input
+                      type="email"
+                      placeholder="correo@ejemplo.com"
+                      value={contactSettings.email.address}
+                      onChange={(e) => setContactSettings(prev => ({
+                        ...prev,
+                        email: { ...prev.email, address: e.target.value }
+                      }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  )}
+                </div>
+
+                {/* Teléfono */}
+                <div className="border border-gray-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <PhoneIcon className="h-5 w-5 text-purple-600" />
+                      <label className="text-sm font-medium text-gray-700">Teléfono</label>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={contactSettings.phone.enabled}
+                      onChange={(e) => setContactSettings(prev => ({
+                        ...prev,
+                        phone: { ...prev.phone, enabled: e.target.checked }
+                      }))}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </div>
+                  {contactSettings.phone.enabled && (
+                    <input
+                      type="tel"
+                      placeholder="01-1234567"
+                      value={contactSettings.phone.number}
+                      onChange={(e) => setContactSettings(prev => ({
+                        ...prev,
+                        phone: { ...prev.phone, number: e.target.value }
+                      }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  )}
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <Button
+                  onClick={() => setShowContactModal(false)}
+                  variant="secondary"
+                  className="flex-1"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={handleSaveContactSettings}
+                  variant="primary"
+                  className="flex-1"
+                >
+                  Guardar
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Propiedad (Crear/Editar) */}
+      {showPropertyModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  {editingProperty ? 'Editar Propiedad' : 'Nueva Propiedad'}
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowPropertyModal(false);
+                    setEditingProperty(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <XMarkIcon className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="text-center py-12">
+                <HomeIcon className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-2 text-sm font-semibold text-gray-900">Formulario en desarrollo</h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  El formulario completo de propiedades estará disponible próximamente.
+                </p>
+                <div className="mt-6">
+                  <Button
+                    onClick={() => {
+                      setShowPropertyModal(false);
+                      setEditingProperty(null);
+                    }}
+                    variant="primary"
+                  >
+                    Cerrar
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
+export default DashboardPage;

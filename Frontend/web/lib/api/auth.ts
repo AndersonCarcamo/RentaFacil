@@ -1,5 +1,5 @@
 // API utilities for authentication
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
 // Types for authentication
 export interface LoginRequest {
@@ -26,6 +26,7 @@ export interface AuthUser {
   profile_picture_url?: string
   national_id?: string
   national_id_type?: string
+  agency_name?: string  // Para agentes inmobiliarios
   role: string
   is_verified: boolean
   is_active: boolean
@@ -366,3 +367,52 @@ export async function authenticatedRequest(url: string, options: RequestInit = {
   
   return response
 }
+
+/**
+ * Update user role and national ID
+ */
+export interface UpdateRoleRequest {
+  role: 'landlord' | 'agent'
+  national_id: string
+  national_id_type?: string
+  agency_name?: string
+}
+
+export async function updateUserRole(roleData: UpdateRoleRequest): Promise<AuthUser> {
+  try {
+    console.log('🔄 Updating user role with data:', roleData)
+    console.log('🌐 API URL:', `${API_BASE_URL}/v1/users/me`)
+    
+    const response = await authenticatedRequest(`${API_BASE_URL}/v1/users/me`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(roleData),
+    })
+
+    console.log('📡 Response status:', response.status)
+    console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()))
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('❌ Role update error response:', errorText)
+      console.error('❌ Response status:', response.status)
+      throw new Error(`Role update failed: ${response.status} - ${errorText}`)
+    }
+
+    const updatedUser: AuthUser = await response.json()
+    console.log('✅ Role updated successfully!')
+    console.log('👤 Updated user data:', updatedUser)
+    console.log('🔐 New role:', updatedUser.role)
+    
+    // Update stored user info
+    localStorage.setItem('user', JSON.stringify(updatedUser))
+    
+    return updatedUser
+  } catch (error) {
+    console.error('💥 Role update error:', error)
+    throw error
+  }
+}
+

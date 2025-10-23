@@ -1,14 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
-import PropertyCard from '../components/PropertyCard';
-import SearchForm from '../components/SearchFormExtended';
+import dynamic from 'next/dynamic';
+import PropertyCardHorizontal from '../components/PropertyCardHorizontal';
+import SearchFormCompact from '../components/SearchFormCompact';
 import PropertyModal from '../components/PropertyModal';
 import { Property, Currency, PropertyType } from '../types/index';
 import { fetchProperties, PropertyFilters, PropertyResponse } from '../lib/api/properties';
 
 // Importar el Header original
 import { Header } from '../components/Header';
+
+// Importar MapView dinámicamente solo en el cliente (evita SSR issues con Leaflet)
+const MapView = dynamic(() => import('../components/MapView'), {
+  ssr: false,
+  loading: () => (
+    <div className="h-full flex items-center justify-center bg-gray-100 rounded-lg">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+        <p className="text-gray-600">Cargando mapa...</p>
+      </div>
+    </div>
+  )
+});
 
 // Función para convertir PropertyResponse a Property (para compatibilidad)
 const convertToProperty = (apiProperty: PropertyResponse): Property => {
@@ -282,43 +296,6 @@ const mockProperties: Property[] = [
   }
 ];
 
-// Componente del Mapa (Mock)
-const MapComponent = () => {
-  return (
-    <div className="h-full bg-gray-100 rounded-lg flex items-center justify-center relative overflow-hidden">
-      {/* Background Pattern */}
-      <div 
-        className="absolute inset-0 opacity-5"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%23374151' stroke-width='1'%3E%3Cpath d='M10 10h40M10 20h40M10 30h40M10 40h40M10 50h40'/%3E%3Cpath d='M10 10v40M20 10v40M30 10v40M40 10v40M50 10v40'/%3E%3C/g%3E%3C/svg%3E")`,
-          backgroundSize: '60px 60px'
-        }}
-      />
-      
-      {/* Mock Map Content */}
-      <div className="text-center z-10">
-        <div className="w-16 h-16 mx-auto mb-4 bg-blue-100 rounded-full flex items-center justify-center">
-          <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-          </svg>
-        </div>
-        <h3 className="text-lg font-semibold text-gray-700 mb-2">Mapa Interactivo</h3>
-        <p className="text-gray-500 text-sm max-w-xs mx-auto">
-          Aquí se mostrará el mapa con las ubicaciones de las propiedades encontradas
-        </p>
-        
-        {/* Mock Map Pins */}
-        <div className="absolute top-20 left-16 w-3 h-3 bg-red-500 rounded-full border-2 border-white shadow-lg"></div>
-        <div className="absolute top-32 right-24 w-3 h-3 bg-red-500 rounded-full border-2 border-white shadow-lg"></div>
-        <div className="absolute bottom-32 left-32 w-3 h-3 bg-red-500 rounded-full border-2 border-white shadow-lg"></div>
-        <div className="absolute bottom-20 right-16 w-3 h-3 bg-red-500 rounded-full border-2 border-white shadow-lg"></div>
-        <div className="absolute top-24 left-1/2 transform -translate-x-1/2 w-3 h-3 bg-red-500 rounded-full border-2 border-white shadow-lg"></div>
-      </div>
-    </div>
-  );
-};
-
 interface SearchParams {
   [key: string]: string | string[] | undefined;
   location?: string;
@@ -335,6 +312,7 @@ interface SearchParams {
 const SearchPage = () => {
   const router = useRouter();
   const [properties, setProperties] = useState<Property[]>([]);
+  const [apiProperties, setApiProperties] = useState<PropertyResponse[]>([]); // Para el mapa
   const [loading, setLoading] = useState(true);
   const [searchParams, setSearchParams] = useState<SearchParams>({});
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
@@ -370,19 +348,23 @@ const SearchPage = () => {
         
         // Intentar llamar a la API
         console.log('🚀 Iniciando llamada a fetchProperties...');
-        const apiProperties = await fetchProperties(filters);
-        console.log('✅ API RESPONSE - Propiedades recibidas:', apiProperties?.length || 0);
-        console.log('✅ API RESPONSE - Datos completos:', apiProperties);
+        const apiPropertiesResponse = await fetchProperties(filters);
+        console.log('✅ API RESPONSE - Propiedades recibidas:', apiPropertiesResponse?.length || 0);
+        console.log('✅ API RESPONSE - Datos completos:', apiPropertiesResponse);
         
-        if (!apiProperties || apiProperties.length === 0) {
+        if (!apiPropertiesResponse || apiPropertiesResponse.length === 0) {
           console.warn('⚠️ API retornó datos vacíos');
           setProperties([]);
+          setApiProperties([]);
           return;
         }
         
+        // Guardar las propiedades originales de la API (para el mapa)
+        setApiProperties(apiPropertiesResponse);
+        
         // Convertir a formato compatible
         console.log('🔄 Convirtiendo propiedades...');
-        const convertedProperties = apiProperties.map(convertToProperty);
+        const convertedProperties = apiPropertiesResponse.map(convertToProperty);
         console.log('✅ Propiedades convertidas exitosamente:', convertedProperties.length);
         console.log('✅ Primera propiedad convertida:', convertedProperties[0]);
         
@@ -416,13 +398,41 @@ const SearchPage = () => {
         <meta name="description" content="Encuentra tu propiedad ideal en RENTA fácil" />
       </Head>
       
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-[#F5C842] relative">
+        {/* Textura de fondo con iconos */}
+        <div className="absolute inset-0 opacity-5 pointer-events-none">
+          <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <pattern id="property-pattern" x="0" y="0" width="200" height="200" patternUnits="userSpaceOnUse">
+                {/* Casa */}
+                <path d="M50 80 L50 100 L30 100 L30 80 L40 70 L50 80 Z M35 85 L35 95 L38 95 L38 85 Z M42 85 L42 95 L45 95 L45 85 Z" fill="currentColor"/>
+                
+                {/* Llave */}
+                <path d="M120 30 C120 27 122 25 125 25 C128 25 130 27 130 30 C130 33 128 35 125 35 L125 50 L122 50 L122 35 C119 35 117 33 117 30 Z M125 40 L127 40 L127 42 L125 42 Z M125 44 L127 44 L127 46 L125 46 Z" fill="currentColor"/>
+                
+                {/* Edificio/Departamento */}
+                <path d="M160 60 L160 100 L140 100 L140 60 Z M145 65 L148 65 L148 70 L145 70 Z M152 65 L155 65 L155 70 L152 70 Z M145 75 L148 75 L148 80 L145 80 Z M152 75 L155 75 L155 80 L152 80 Z M145 85 L148 85 L148 90 L145 90 Z M152 85 L155 85 L155 90 L152 90 Z" fill="currentColor"/>
+                
+                {/* Casa 2 */}
+                <path d="M180 120 L180 140 L160 140 L160 120 L170 110 L180 120 Z M165 125 L165 135 L168 135 L168 125 Z M172 125 L172 135 L175 135 L175 125 Z" fill="currentColor"/>
+                
+                {/* Llave 2 */}
+                <path d="M40 160 C40 157 42 155 45 155 C48 155 50 157 50 160 C50 163 48 165 45 165 L45 180 L42 180 L42 165 C39 165 37 163 37 160 Z M45 170 L47 170 L47 172 L45 172 Z M45 174 L47 174 L47 176 L45 176 Z" fill="currentColor"/>
+                
+                {/* Edificio 2 */}
+                <path d="M90 140 L90 180 L70 180 L70 140 Z M75 145 L78 145 L78 150 L75 150 Z M82 145 L85 145 L85 150 L82 150 Z M75 155 L78 155 L78 160 L75 160 Z M82 155 L85 155 L85 160 L82 160 Z M75 165 L78 165 L78 170 L75 170 Z M82 165 L85 165 L85 170 L82 170 Z" fill="currentColor"/>
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#property-pattern)"/>
+          </svg>
+        </div>
+
         <Header />
         
         {/* Search Form Sticky */}
         <div className="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-sm">
           <div className="max-w-7xl mx-auto px-4 py-4">
-            <SearchForm 
+            <SearchFormCompact 
               onSearch={(params) => {
                 // Construir nueva URL con parámetros de búsqueda
                 const searchParams = new URLSearchParams();
@@ -442,18 +452,21 @@ const SearchPage = () => {
         </div>
 
         {/* Main Content */}
-        <div className="max-w-7xl mx-auto px-4 py-6">
+        <div className="max-w-7xl mx-auto px-4 py-6 relative z-10">
           <div className="flex gap-6 h-[calc(100vh-200px)]">
             {/* Mapa - Lado Izquierdo */}
-            <div className="w-1/2 bg-white rounded-lg shadow-lg p-4">
+            <div className="w-2/5 bg-white/95 backdrop-blur-sm rounded-lg shadow-xl p-4">
               <div className="h-full">
-                <MapComponent />
+                <MapView 
+                  listings={apiProperties} 
+                  onMarkerClick={openPropertyModal}
+                />
               </div>
             </div>
 
             {/* Resultados - Lado Derecho */}
-            <div className="w-1/2">
-              <div className="bg-white rounded-lg shadow-lg p-6 h-full overflow-hidden flex flex-col">
+            <div className="w-3/5">
+              <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-xl p-6 h-full overflow-hidden flex flex-col">
                 {/* Header de Resultados */}
                 <div className="mb-6">
                   <h2 className="text-2xl font-bold text-gray-900 mb-2">
@@ -462,52 +475,22 @@ const SearchPage = () => {
                   <p className="text-gray-600">
                     {loading ? 'Cargando...' : `${filteredProperties.length} propiedades encontradas`}
                   </p>
-                  
-                  {/* Filtros Activos */}
-                  {Object.keys(searchParams).length > 0 && (
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      {Object.entries(searchParams).map(([key, value]) => (
-                        value && (
-                          <span 
-                            key={key}
-                            className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800"
-                          >
-                            {key}: {value.toString()}
-                            <button
-                              onClick={() => {
-                                const newQuery = { ...router.query };
-                                delete newQuery[key];
-                                router.push({ pathname: '/search', query: newQuery });
-                              }}
-                              className="ml-2 text-blue-600 hover:text-blue-800"
-                            >
-                              ×
-                            </button>
-                          </span>
-                        )
-                      ))}
-                    </div>
-                  )}
                 </div>
 
                 {/* Lista de Propiedades */}
-                <div className="flex-1 overflow-y-auto space-y-4 pr-2">
+                <div className="flex-1 overflow-y-auto space-y-3 pr-2">
                   {loading ? (
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                       {[1, 2, 3, 4].map((i) => (
-                        <div key={i} className="animate-pulse">
-                          <div className="h-32 bg-gray-200 rounded-lg mb-3"></div>
-                          <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                          <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-                        </div>
+                        <div key={i} className="animate-pulse h-48 bg-gray-200 rounded-xl"></div>
                       ))}
                     </div>
                   ) : filteredProperties.length > 0 ? (
                     filteredProperties
                       .sort((a, b) => b.rating - a.rating)
                       .map((property) => (
-                        <div key={property.id} className="transform transition-transform hover:scale-105">
-                          <PropertyCard 
+                        <div key={property.id} className="transform transition-transform hover:scale-[1.02]">
+                          <PropertyCardHorizontal 
                             property={property}
                             onClick={openPropertyModal}
                           />

@@ -2,16 +2,19 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 from app.api.endpoints.auth import router as auth_router
 from app.api.endpoints.users import router as users_router
 from app.api.endpoints.agencies import router as agencies_router
 from app.api.endpoints.listings import router as listings_router
 from app.api.endpoints.listings_simple import router as listings_simple_router
 from app.api.endpoints.search import router as search_router
+from app.api.endpoints.media import router as media_router
+from app.api.endpoints.images import router as images_router
+from app.api.endpoints.subscriptions import router as subscriptions_router
 # Temporarily disabled routers that depend on non-existent database tables:
-# from app.api.endpoints.media import router as media_router
 # from app.api.endpoints.interactions import router as interactions_router
-# from app.api.endpoints.subscriptions import router as subscriptions_router
 # from app.api.endpoints.analytics import router as analytics_router
 # from app.api.endpoints.verifications import router as verifications_router
 # from app.api.endpoints.notifications import router as notifications_router
@@ -159,13 +162,48 @@ app.include_router(
 )
 
 app.include_router(
+    media_router,
+    prefix="/v1/media",
+    tags=["Media"]
+)
+
+app.include_router(
+    subscriptions_router,
+    prefix="/v1/subscriptions",
+    tags=["Subscriptions"]
+)
+
+app.include_router(
+    images_router,
+    prefix="/v1/images",
+    tags=["Images"]
+)
+
+app.include_router(
     system_router,
     prefix="",
     tags=["System"]
 )
 
+# Mount static files for media (avatars, images, etc.)
+MEDIA_DIR = Path(__file__).parent.parent / "media"
+MEDIA_DIR.mkdir(exist_ok=True)  # Ensure media directory exists
+
+# Create subdirectories
+(MEDIA_DIR / "avatars").mkdir(exist_ok=True)
+(MEDIA_DIR / "listings").mkdir(exist_ok=True)
+
+app.mount("/media", StaticFiles(directory=str(MEDIA_DIR)), name="media")
+
+# Mount uploads directory for listing images
+UPLOADS_DIR = Path(__file__).parent.parent / "uploads"
+UPLOADS_DIR.mkdir(exist_ok=True)
+(UPLOADS_DIR / "listings").mkdir(exist_ok=True)
+
+app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
+
 # Temporarily disabled routers until corresponding database tables are created:
-# search, media, interactions, subscriptions, analytics, verifications, 
+# interactions, subscriptions, analytics, verifications, 
 # notifications, admin, integrations, webhooks, api_keys
 
 

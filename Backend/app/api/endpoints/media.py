@@ -5,11 +5,9 @@ from typing import List, Optional
 from app.core.database import get_db
 from app.api.deps import get_current_user
 from app.services.media_service import MediaService
-from app.schemas.media import (
-    ImageResponse, VideoResponse, ImagesListResponse, VideosListResponse,
-    ImageUpdate, VideoUpdate, UploadUrlRequest, UploadUrlResponse,
-    BulkMediaResponse
-)
+from app.schemas.images import ImageResponse, ImageUpdate, ImagesListResponse, BulkMediaResponse
+from app.schemas.videos import VideoResponse, VideoUpdate, VideosListResponse
+from app.schemas.media import UploadUrlRequest, UploadUrlResponse
 from app.models.listing import Listing
 from app.core.exceptions import BusinessLogicError
 import uuid

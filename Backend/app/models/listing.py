@@ -108,6 +108,24 @@ class Listing(Base):
     airbnb_score = Column(Integer, nullable=True)  # Score 0-100 de elegibilidad Airbnb
     airbnb_eligible = Column(Boolean, nullable=True)  # Si es elegible para Airbnb
     airbnb_opted_out = Column(Boolean, nullable=False, default=False)  # Si usuario optó por NO Airbnb
+    rental_model = Column(Text, nullable=True, default='traditional')  # traditional or airbnb
+    
+    # Airbnb-specific fields (from script 18)
+    smoking_allowed = Column(Boolean, nullable=True)
+    deposit_required = Column(Boolean, nullable=False, default=False)
+    deposit_amount = Column(DECIMAL(12, 2), nullable=True)
+    minimum_stay_nights = Column(Integer, nullable=True, default=1)
+    maximum_stay_nights = Column(Integer, nullable=True)
+    check_in_time = Column(Text, nullable=True)  # TIME field as text (HH:MM)
+    check_out_time = Column(Text, nullable=True)  # TIME field as text (HH:MM)
+    max_guests = Column(Integer, nullable=True)
+    cleaning_included = Column(Boolean, nullable=False, default=False)
+    cleaning_fee = Column(DECIMAL(12, 2), nullable=True)
+    utilities_included = Column(Boolean, nullable=False, default=False)
+    internet_included = Column(Boolean, nullable=False, default=False)
+    house_rules = Column(Text, nullable=True)
+    cancellation_policy = Column(Text, nullable=True, default='flexible')
+    available_from = Column(Text, nullable=True)  # DATE field as text (YYYY-MM-DD)
     
     # Verification and status
     verification_status = Column(Text, nullable=False, default='pending')  # Maps to core.verification_status enum

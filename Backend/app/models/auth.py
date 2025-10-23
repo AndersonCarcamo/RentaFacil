@@ -32,8 +32,12 @@ class User(Base):
     first_name = Column(Text, nullable=True)
     last_name = Column(Text, nullable=True)
     profile_picture_url = Column(Text, nullable=True)
+    bio = Column(Text, nullable=True)
     national_id = Column(Text, nullable=True)
     national_id_type = Column(Text, default='DNI')
+    
+    # Agency information (for agents)
+    agency_name = Column(Text, nullable=True)
     
     # Status and verification
     is_verified = Column(Boolean, default=False, nullable=False)

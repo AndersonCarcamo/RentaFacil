@@ -5,6 +5,7 @@ import { useRouter } from 'next/router';
 import { Header } from '../components/Header';
 import Button from '../components/ui/Button';
 import { useAuth } from '../lib/hooks/useAuth';
+import { uploadAvatar } from '../lib/api/users';
 import { 
   EnvelopeIcon, 
   KeyIcon,
@@ -13,7 +14,7 @@ import {
 
 const LoginPage: React.FC = () => {
   const router = useRouter();
-  const { login, isLoggedIn } = useAuth();
+  const { login, isLoggedIn, refreshUser } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -43,6 +44,39 @@ const LoginPage: React.FC = () => {
     try {
       // Use real authentication with backend API
       await login(email, password);
+      
+      // Check if there's a pending avatar upload from registration
+      const pendingAvatar = sessionStorage.getItem('pending_avatar_upload');
+      const pendingFilename = sessionStorage.getItem('pending_avatar_filename');
+      
+      if (pendingAvatar && pendingFilename) {
+        try {
+          console.log('📸 Detectado avatar pendiente, subiendo...');
+          
+          // Convert base64 to File object
+          const response = await fetch(pendingAvatar);
+          const blob = await response.blob();
+          const file = new File([blob], pendingFilename, { type: blob.type });
+          
+          // Upload avatar
+          await uploadAvatar(file);
+          
+          // Refresh user context to update avatar in Header
+          if (refreshUser) {
+            await refreshUser();
+          }
+          
+          // Clear pending upload
+          sessionStorage.removeItem('pending_avatar_upload');
+          sessionStorage.removeItem('pending_avatar_filename');
+          
+          console.log('✅ Avatar subido exitosamente después del registro');
+        } catch (uploadError) {
+          console.error('⚠️ Error al subir avatar pendiente:', uploadError);
+          // Don't fail login if avatar upload fails
+        }
+      }
+      
       router.push('/'); // Redirect to home after successful login
     } catch (err) {
       console.error('Login error:', err);

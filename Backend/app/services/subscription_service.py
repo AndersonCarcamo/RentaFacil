@@ -130,7 +130,7 @@ class SubscriptionService:
             and_(
                 Subscription.user_id == user_id,
                 Subscription.status == SubscriptionStatus.ACTIVE,
-                Subscription.current_period_end > datetime.utcnow()
+                Subscription.current_period_end > datetime.now()
             )
         ).first()
     

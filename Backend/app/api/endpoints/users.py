@@ -259,25 +259,46 @@ async def upload_avatar(
 ):
     """Upload user avatar."""
     try:
+        # Import here to avoid circular dependency
+        from app.services.media_service import MediaService
+        import os
+        
         # Validate file type
-        if not is_valid_image_type(avatar.filename):
-            raise http_400_bad_request("Invalid image type. Allowed: jpg, jpeg, png, gif, webp")
+        if not avatar.content_type or not avatar.content_type.startswith('image/'):
+            raise http_400_bad_request("Invalid file type. Only images are allowed (jpg, jpeg, png, gif, webp)")
         
-        # Validate file size (10MB max)
-        if avatar.size > 10 * 1024 * 1024:
-            raise http_400_bad_request(f"File too large. Maximum size: {format_file_size(10 * 1024 * 1024)}")
+        # Read file data
+        file_data = await avatar.read()
         
-        # In a real application, you would:
-        # 1. Upload to cloud storage (AWS S3, Cloudinary, etc.)
-        # 2. Resize/optimize the image
-        # 3. Generate thumbnails
-        # 4. Return the public URL
+        # Validate file size (10MB max for avatars)
+        max_size = 10 * 1024 * 1024  # 10MB
+        if len(file_data) > max_size:
+            raise http_400_bad_request(f"File too large. Maximum size: 10MB")
         
-        # For now, we'll simulate the upload
-        avatar_url = f"https://api.easyrent.pe/uploads/avatars/{current_user.id}/{avatar.filename}"
+        # Initialize media service
+        media_service = MediaService(db)
         
+        # Create avatars directory if it doesn't exist
+        avatar_dir = os.path.join("media", "avatars")
+        os.makedirs(avatar_dir, exist_ok=True)
+        
+        # Generate unique filename
+        file_extension = os.path.splitext(avatar.filename)[1] or '.jpg'
+        unique_filename = f"{current_user.id}{file_extension}"
+        file_path = os.path.join(avatar_dir, unique_filename)
+        
+        # Save file locally
+        with open(file_path, "wb") as f:
+            f.write(file_data)
+        
+        # Generate avatar URL (will be served by Nginx)
+        avatar_url = f"/media/avatars/{unique_filename}"
+        
+        # Update user profile with new avatar URL
         user_service = UserService(db)
         user = user_service.upload_avatar(current_user, avatar_url)
+        
+        logger.info(f"Avatar uploaded successfully for user {current_user.id}")
         
         return AvatarUploadResponse(
             message="Avatar uploaded successfully",
@@ -288,7 +309,7 @@ async def upload_avatar(
         raise
     except Exception as e:
         logger.error(f"Error uploading avatar: {e}")
-        raise http_500_internal_error("Failed to upload avatar")
+        raise http_500_internal_error(f"Failed to upload avatar: {str(e)}")
 
 
 @router.delete("/users/me/avatar",

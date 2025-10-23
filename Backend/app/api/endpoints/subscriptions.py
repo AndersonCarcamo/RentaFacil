@@ -18,34 +18,81 @@ router = APIRouter()
 
 # =================== PLANS ===================
 
-@router.get("/plans", response_model=List[PlanResponse], summary="Obtener planes disponibles")
+@router.get("/plans", summary="Obtener planes disponibles")
 async def get_plans(
     active_only: bool = Query(True, description="Solo planes activos"),
     db: Session = Depends(get_db)
 ):
-    """Obtener todos los planes disponibles"""
+    """Obtener todos los planes disponibles desde la tabla core.plans"""
     try:
-        service = SubscriptionService(db)
-        plans = service.get_plans(active_only=active_only)
+        from app.models.subscription import Plan
+        from app.schemas.subscriptions import FrontendPlanResponse, FrontendPlanLimits
         
-        return [
-            PlanResponse(
-                id=plan.id,
-                name=plan.name,
-                description=plan.description,
-                price_monthly=plan.price_monthly,
-                price_yearly=plan.price_yearly,
-                features=plan.features or [],
-                limits=plan.limits or {},
-                active=plan.active,
-                sort_order=plan.sort_order,
-                created_at=plan.created_at,
-                updated_at=plan.updated_at
+        # Query directa a la tabla plans
+        query = db.query(Plan)
+        if active_only:
+            query = query.filter(Plan.is_active == True)
+        
+        plans = query.order_by(Plan.tier).all()
+        
+        # Construir respuesta con formato frontend
+        response_plans = []
+        for plan in plans:
+            features = []
+            if plan.max_active_listings:
+                features.append(f"{plan.max_active_listings} {'propiedad' if plan.max_active_listings == 1 else 'propiedades'} activas")
+            if plan.max_images_per_listing:
+                features.append(f"Hasta {plan.max_images_per_listing} {'imagen' if plan.max_images_per_listing == 1 else 'imágenes'} por propiedad")
+            if plan.max_videos_per_listing:
+                features.append(f"Hasta {plan.max_videos_per_listing} {'video' if plan.max_videos_per_listing == 1 else 'videos'} por propiedad")
+            if plan.listing_active_days:
+                features.append(f"Listados activos por {plan.listing_active_days} días")
+            if plan.featured_listings:
+                features.append("Listados destacados")
+            if plan.priority_support:
+                features.append("Soporte prioritario")
+            if plan.analytics_access:
+                features.append("Acceso a analíticas")
+            if plan.api_access:
+                features.append("Acceso a API")
+            
+            # Calcular precios según el período
+            price_monthly = plan.price_amount
+            price_yearly = plan.price_amount
+            
+            if plan.period == 'monthly':
+                price_yearly = plan.price_amount * 12
+            elif plan.period == 'yearly':
+                price_monthly = plan.price_amount / 12
+            elif plan.period == 'quarterly':
+                price_monthly = plan.price_amount / 3
+                price_yearly = (plan.price_amount / 3) * 12
+            
+            response_plans.append(
+                FrontendPlanResponse(
+                    id=plan.id,
+                    name=plan.name,
+                    description=plan.description or f"Plan {plan.tier.capitalize() if isinstance(plan.tier, str) else plan.tier.value.capitalize()}",
+                    price_monthly=round(price_monthly, 2),
+                    price_yearly=round(price_yearly, 2),
+                    features=features,
+                    limits=FrontendPlanLimits(
+                        max_listings=plan.max_active_listings,
+                        max_images=plan.max_images_per_listing,
+                        max_videos=plan.max_videos_per_listing,
+                    ),
+                    active=plan.is_active,
+                    sort_order=0,  # Podemos usar tier como orden
+                    created_at=plan.created_at,
+                    updated_at=plan.updated_at
+                )
             )
-            for plan in plans
-        ]
+        
+        return response_plans
         
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error getting plans: {str(e)}")
 
 
@@ -84,6 +131,109 @@ async def get_plan(
 
 # =================== SUBSCRIPTIONS ===================
 
+@router.get("/current", summary="Obtener suscripción activa del usuario")
+async def get_current_subscription(
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Obtener la suscripción activa del usuario actual usando v_user_current_plan - O(1) lookup"""
+    try:
+        from app.schemas.subscriptions import FrontendSubscriptionResponse, FrontendPlanResponse, FrontendPlanLimits
+        from sqlalchemy import text
+        from datetime import datetime
+        
+        user_id = str(current_user.id)
+        
+        # Query directo a la vista v_user_current_plan - O(1) lookup ultra rápido
+        query = text("""
+            SELECT 
+                user_id, subscription_id, plan_id, plan_code, plan_name,
+                tier, period_months, max_active_listings, listing_active_days,
+                max_images_per_listing, max_videos_per_listing, 
+                featured_listings, priority_support, analytics_access, api_access,
+                current_period_start, current_period_end, status
+            FROM core.v_user_current_plan
+            WHERE user_id = :user_id
+            LIMIT 1
+        """)
+        
+        result = db.execute(query, {"user_id": user_id}).fetchone()
+        
+        # Ahora todos los usuarios tienen suscripción gracias al trigger
+        # Pero por si acaso, manejamos el caso edge
+        if not result:
+            raise HTTPException(
+                status_code=404, 
+                detail="No active subscription found. Please contact support."
+            )
+        
+        # Construir features desde los datos del plan
+        features = []
+        if result.max_active_listings:
+            features.append(f"{result.max_active_listings} {'propiedad' if result.max_active_listings == 1 else 'propiedades'} activas")
+        if result.max_images_per_listing:
+            features.append(f"Hasta {result.max_images_per_listing} {'imagen' if result.max_images_per_listing == 1 else 'imágenes'} por propiedad")
+        if result.max_videos_per_listing:
+            features.append(f"Hasta {result.max_videos_per_listing} {'video' if result.max_videos_per_listing == 1 else 'videos'} por propiedad")
+        if result.listing_active_days:
+            features.append(f"Listados activos por {result.listing_active_days} días")
+        if result.featured_listings:
+            features.append("Listados destacados")
+        if result.priority_support:
+            features.append("Soporte prioritario")
+        if result.analytics_access:
+            features.append("Acceso a analíticas")
+        if result.api_access:
+            features.append("Acceso a API")
+        
+        # Construir respuesta del plan
+        plan_response = FrontendPlanResponse(
+            id=result.plan_id,
+            name=result.plan_name,
+            description=f"Plan {result.tier.capitalize()}",  # tier ya es string, no Enum
+            price_monthly=0,  # TODO: Obtener de tabla plans si se necesita
+            price_yearly=0,
+            features=features,
+            limits=FrontendPlanLimits(
+                max_listings=result.max_active_listings,
+                max_images=result.max_images_per_listing,
+                max_videos=result.max_videos_per_listing,
+            ),
+            active=True,
+            sort_order=0,
+            created_at=datetime.utcnow(),  # La vista no tiene estos campos
+            updated_at=datetime.utcnow()
+        )
+        
+        # Construir respuesta de suscripción
+        response = FrontendSubscriptionResponse(
+            id=result.subscription_id,
+            user_id=result.user_id,
+            plan_id=result.plan_id,
+            status=result.status,
+            billing_cycle="monthly",  # Default - TODO: calcular desde period_months
+            start_date=result.current_period_start,
+            current_period_start=result.current_period_start,
+            current_period_end=result.current_period_end,
+            cancelled_at=None,  # La vista no tiene este campo
+            pause_until=None,
+            auto_renewal=True,
+            cancel_at_period_end=False,
+            plan=plan_response,
+            created_at=result.current_period_start,
+            updated_at=datetime.utcnow()
+        )
+        
+        return response
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Error getting current subscription: {str(e)}")
+
+
 @router.get("/subscriptions", response_model=PaginatedSubscriptions, summary="Obtener suscripciones del usuario")
 async def get_subscriptions(
     page: int = Query(1, ge=1, description="Número de página"),
@@ -94,7 +244,7 @@ async def get_subscriptions(
     """Obtener suscripciones del usuario"""
     try:
         service = SubscriptionService(db)
-        user_id = str(current_user.get("user_id", current_user.get("id")))
+        user_id = str(current_user.id)
         subscriptions, total = service.get_user_subscriptions(user_id, page, limit)
         
         pages = (total + limit - 1) // limit
@@ -164,7 +314,7 @@ async def create_subscription(
     """Crear nueva suscripción"""
     try:
         service = SubscriptionService(db)
-        user_id = str(current_user.get("user_id", current_user.get("id")))
+        user_id = str(current_user.id)
         subscription = service.create_subscription(user_id, subscription_data)
         
         # Cargar el plan
@@ -220,7 +370,7 @@ async def get_subscription(
     """Obtener detalles de una suscripción específica"""
     try:
         service = SubscriptionService(db)
-        user_id = str(current_user.get("user_id", current_user.get("id")))
+        user_id = str(current_user.id)
         subscription = service.get_subscription_by_id(subscription_id, user_id)
         
         if not subscription:
@@ -307,7 +457,7 @@ async def update_subscription(
     """Actualizar suscripción"""
     try:
         service = SubscriptionService(db)
-        user_id = str(current_user.get("user_id", current_user.get("id")))
+        user_id = str(current_user.id)
         subscription = service.update_subscription(subscription_id, user_id, update_data)
         
         if not subscription:
@@ -367,7 +517,7 @@ async def cancel_subscription(
     """Cancelar suscripción"""
     try:
         service = SubscriptionService(db)
-        user_id = str(current_user.get("user_id", current_user.get("id")))
+        user_id = str(current_user.id)
         subscription = service.cancel_subscription(subscription_id, user_id, cancel_data)
         
         if not subscription:
@@ -397,7 +547,7 @@ async def pause_subscription(
     """Pausar suscripción"""
     try:
         service = SubscriptionService(db)
-        user_id = str(current_user.get("user_id", current_user.get("id")))
+        user_id = str(current_user.id)
         subscription = service.pause_subscription(subscription_id, user_id, pause_data)
         
         if not subscription:
@@ -426,7 +576,7 @@ async def resume_subscription(
     """Reanudar suscripción pausada"""
     try:
         service = SubscriptionService(db)
-        user_id = str(current_user.get("user_id", current_user.get("id")))
+        user_id = str(current_user.id)
         subscription = service.resume_subscription(subscription_id, user_id)
         
         if not subscription:
@@ -458,7 +608,7 @@ async def get_subscription_usage(
     """Obtener uso actual de la suscripción"""
     try:
         service = SubscriptionService(db)
-        user_id = str(current_user.get("user_id", current_user.get("id")))
+        user_id = str(current_user.id)
         
         # Verificar que la suscripción pertenece al usuario
         subscription = service.get_subscription_by_id(subscription_id, user_id)
@@ -501,7 +651,7 @@ async def get_payment_history(
     """Obtener historial de pagos de la suscripción"""
     try:
         service = SubscriptionService(db)
-        user_id = str(current_user.get("user_id", current_user.get("id")))
+        user_id = str(current_user.id)
         
         # Verificar que la suscripción pertenece al usuario
         subscription = service.get_subscription_by_id(subscription_id, user_id)
@@ -544,3 +694,4 @@ async def get_payment_history(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting payment history: {str(e)}")
+

@@ -109,7 +109,7 @@ export default function SearchForm({ onSearch, className = '', isLoading = false
 						<option value="">Todos</option>
 						<option value="apartment">Departamento</option>
 						<option value="house">Casa</option>
-						<option value="TipoAirbnb">Airbnb</option>
+						<option value="TipoAirbnb">Tipo airbnb</option>
 						<option value="room">Habitación</option>
 						<option value="studio">Estudio</option>
 						<option value="office">Oficina</option>
@@ -355,7 +355,7 @@ export default function SearchForm({ onSearch, className = '', isLoading = false
 							>
 								<option value="">Todas</option>
 								<option value="traditional">Tradicional</option>
-								<option value="airbnb">Airbnb</option>
+								<option value="airbnb">Tipo airbnb</option>
 								<option value="shared">Compartido</option>
 								<option value="coliving">Coliving</option>
 							</select>

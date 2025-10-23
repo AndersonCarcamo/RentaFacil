@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Numeric, Integer, Boolean, DateTime, Text, ForeignKey, ARRAY, JSON
+from sqlalchemy import Column, String, Numeric, Integer, Boolean, DateTime, Text, ForeignKey, CHAR, JSON
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 import uuid
@@ -8,22 +8,39 @@ from app.core.database import Base
 
 class Plan(Base):
     """Modelo para planes de suscripción"""
-    __tablename__ = "subscription_plans"
+    __tablename__ = "plans"
     __table_args__ = {"schema": "core"}
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    name = Column(String(100), nullable=False, index=True)
+    code = Column(Text, nullable=False, unique=True)
+    name = Column(Text, nullable=False)
     description = Column(Text)
-    price_monthly = Column(Numeric(10, 2), nullable=False)
-    price_yearly = Column(Numeric(10, 2), nullable=False)
-    features = Column(ARRAY(String), default=list)  # Lista de características
-    limits = Column(JSON, default=dict)  # Límites del plan (max_listings, etc.)
-    active = Column(Boolean, default=True)
-    sort_order = Column(Integer, default=0)  # Para ordenar planes
+    tier = Column(String(50), nullable=False)  # free, basic, premium
+    period = Column(String(50), nullable=False)  # monthly, yearly
+    period_months = Column(Integer, nullable=False, default=1)
+    price_amount = Column(Numeric(10, 2), nullable=False, default=0)
+    price_currency = Column(CHAR(3), nullable=False, default='PEN')
+    
+    # Plan limits and features
+    max_active_listings = Column(Integer, nullable=False, default=1)
+    listing_active_days = Column(Integer, nullable=False, default=30)
+    max_images_per_listing = Column(Integer, nullable=False, default=5)
+    max_videos_per_listing = Column(Integer, nullable=False, default=0)
+    max_video_seconds = Column(Integer, nullable=False, default=60)
+    max_image_width = Column(Integer, nullable=False, default=1920)
+    max_image_height = Column(Integer, nullable=False, default=1080)
+    featured_listings = Column(Boolean, nullable=False, default=False)
+    priority_support = Column(Boolean, nullable=False, default=False)
+    analytics_access = Column(Boolean, nullable=False, default=False)
+    api_access = Column(Boolean, nullable=False, default=False)
+    
+    # System flags
+    is_active = Column(Boolean, nullable=False, default=True)
+    is_default = Column(Boolean, nullable=False, default=False)
     
     # Metadatos
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     
     # Relaciones
     subscriptions = relationship("Subscription", back_populates="plan")
@@ -31,42 +48,35 @@ class Plan(Base):
 
 class Subscription(Base):
     """Modelo para suscripciones de usuarios"""
-    __tablename__ = "user_subscriptions"
+    __tablename__ = "subscriptions"
     __table_args__ = {"schema": "core"}
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(UUID(as_uuid=True), ForeignKey("core.users.id"), nullable=False, index=True)
-    plan_id = Column(UUID(as_uuid=True), ForeignKey("core.subscription_plans.id"), nullable=False)
+    plan_id = Column(UUID(as_uuid=True), ForeignKey("core.plans.id"), nullable=False)
     
     # Estado de la suscripción
-    status = Column(String(50), default="active")  # active, paused, cancelled, expired
-    billing_cycle = Column(String(20), default="monthly")  # monthly, yearly
+    status = Column(String(50), default="active", nullable=False)  # active, paused, cancelled, expired
     
     # Fechas importantes
-    start_date = Column(DateTime, default=datetime.utcnow)
-    current_period_start = Column(DateTime, default=datetime.utcnow)
+    current_period_start = Column(DateTime, default=datetime.utcnow, nullable=False)
     current_period_end = Column(DateTime, nullable=False)
-    cancelled_at = Column(DateTime)
-    pause_until = Column(DateTime)
+    trial_start = Column(DateTime)
+    trial_end = Column(DateTime)
+    canceled_at = Column(DateTime)  # Nota: 'canceled' con una 'l' según tu esquema
     
-    # Información de pago
-    payment_method_id = Column(String(100))  # ID del método de pago externo
-    last_payment_date = Column(DateTime)
-    next_payment_date = Column(DateTime)
+    # Información externa
+    external_subscription_id = Column(Text)
     
     # Configuraciones
-    auto_renewal = Column(Boolean, default=True)
-    cancel_at_period_end = Column(Boolean, default=False)
-    cancellation_reason = Column(Text)
+    cancel_at_period_end = Column(Boolean, default=False, nullable=False)
     
     # Metadatos
-    extra_data = Column(JSON, default=dict)  # Información adicional (renombrado de metadata)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     
     # Relaciones
     plan = relationship("Plan", back_populates="subscriptions")
-    # user = relationship("User", back_populates="subscriptions")  # Será definido en el modelo User
 
 
 class SubscriptionUsage(Base):
@@ -75,7 +85,7 @@ class SubscriptionUsage(Base):
     __table_args__ = {"schema": "core"}
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    subscription_id = Column(UUID(as_uuid=True), ForeignKey("core.user_subscriptions.id"), nullable=False)
+    subscription_id = Column(UUID(as_uuid=True), ForeignKey("core.subscriptions.id"), nullable=False)
     
     # Métricas de uso
     period_start = Column(DateTime, nullable=False)
@@ -99,7 +109,7 @@ class PaymentHistory(Base):
     __table_args__ = {"schema": "core"}
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    subscription_id = Column(UUID(as_uuid=True), ForeignKey("core.user_subscriptions.id"), nullable=False)
+    subscription_id = Column(UUID(as_uuid=True), ForeignKey("core.subscriptions.id"), nullable=False)
     
     # Información del pago
     amount = Column(Numeric(10, 2), nullable=False)

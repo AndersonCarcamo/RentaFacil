@@ -45,6 +45,7 @@ interface FormErrors {
 
 const RegisterPage: React.FC = () => {
   const router = useRouter();
+  const { type } = router.query; // Obtener el tipo desde la URL
   const { register: apiRegister } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -69,6 +70,15 @@ const RegisterPage: React.FC = () => {
   const [success, setSuccess] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+
+  // Preseleccionar el rol basado en el query parameter
+  React.useEffect(() => {
+    if (type === 'landlord') {
+      setFormData(prev => ({ ...prev, role: 'LANDLORD' }));
+    } else if (type === 'agent') {
+      setFormData(prev => ({ ...prev, role: 'AGENT' }));
+    }
+  }, [type]);
 
   const validateEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -401,12 +411,37 @@ const RegisterPage: React.FC = () => {
       // Call the real registration API (with Firebase)
       await apiRegister(registrationData);
 
+      // Si hay una foto de perfil, guardarla temporalmente para subirla después del login
+      if (formData.profilePicture) {
+        try {
+          console.log('📸 Guardando foto de perfil para subir después del login...');
+          
+          // Convertir la imagen a base64 para guardarla en sessionStorage
+          const reader = new FileReader();
+          reader.onload = () => {
+            const base64Image = reader.result as string;
+            sessionStorage.setItem('pending_avatar_upload', base64Image);
+            sessionStorage.setItem('pending_avatar_filename', formData.profilePicture!.name);
+            console.log('✅ Foto guardada temporalmente');
+          };
+          reader.readAsDataURL(formData.profilePicture);
+        } catch (uploadError) {
+          console.error('⚠️ Error al guardar foto de perfil:', uploadError);
+        }
+      }
+
       // Show success
       setSuccess(true);
       
-      // Redirect after success
+      // Redirect after success based on role
       setTimeout(() => {
-        router.push('/login?registered=true');
+        if (formData.role === 'AGENT' || formData.role === 'LANDLORD') {
+          // Si es agente o propietario, llevar a la página de planes con el tipo de usuario
+          router.push(`/plans?newUser=true&userType=${formData.role}`);
+        } else {
+          // Para usuarios normales, llevar al login
+          router.push('/login?registered=true');
+        }
       }, 2000);
 
     } catch (error) {
@@ -452,7 +487,12 @@ const RegisterPage: React.FC = () => {
               </h2>
               
               <p className="text-gray-600 mb-6">
-                Tu cuenta ha sido creada correctamente. Serás redirigido al inicio de sesión en unos momentos.
+                {formData.role === 'AGENT' 
+                  ? 'Tu cuenta de inmobiliaria ha sido creada. Te mostraremos los planes disponibles en un momento.'
+                  : formData.role === 'LANDLORD'
+                  ? 'Tu cuenta de propietario ha sido creada. Te mostraremos los planes disponibles en un momento.'
+                  : 'Tu cuenta ha sido creada correctamente. Serás redirigido al inicio de sesión en unos momentos.'
+                }
               </p>
               
               <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full mx-auto"></div>

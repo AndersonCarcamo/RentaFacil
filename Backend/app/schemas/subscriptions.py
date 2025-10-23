@@ -7,12 +7,29 @@ from enum import Enum
 
 
 # Enums
+class PlanTier(str, Enum):
+    """Niveles de plan"""
+    FREE = "free"
+    BASIC = "basic"
+    PREMIUM = "premium"
+    ENTERPRISE = "enterprise"
+
+
+class PlanPeriod(str, Enum):
+    """Períodos de facturación"""
+    MONTHLY = "monthly"
+    QUARTERLY = "quarterly"
+    YEARLY = "yearly"
+    PERMANENT = "permanent"
+
+
 class SubscriptionStatus(str, Enum):
     """Estados de suscripción"""
     ACTIVE = "active"
+    TRIALING = "trialing"
+    PAST_DUE = "past_due"
+    CANCELED = "canceled"
     PAUSED = "paused"
-    CANCELLED = "cancelled"
-    EXPIRED = "expired"
 
 
 class BillingCycle(str, Enum):
@@ -29,48 +46,115 @@ class PaymentStatus(str, Enum):
     REFUNDED = "refunded"
 
 
+# =================== FRONTEND-COMPATIBLE SCHEMAS ===================
+# Estos schemas adaptan la estructura de la BD a lo que espera el frontend
+
+class FrontendPlanLimits(BaseModel):
+    """Límites del plan en formato frontend"""
+    max_listings: Optional[int] = None
+    max_images: Optional[int] = None
+    max_videos: Optional[int] = None
+
+
+class FrontendPlanResponse(BaseModel):
+    """Plan en formato esperado por el frontend"""
+    id: uuid.UUID
+    name: str
+    description: Optional[str]
+    price_monthly: Decimal
+    price_yearly: Decimal
+    features: List[str]
+    limits: FrontendPlanLimits
+    active: bool
+    sort_order: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class FrontendSubscriptionResponse(BaseModel):
+    """Suscripción en formato esperado por el frontend"""
+    id: uuid.UUID
+    user_id: uuid.UUID
+    plan_id: uuid.UUID
+    status: str
+    billing_cycle: str
+    start_date: datetime
+    current_period_start: datetime
+    current_period_end: datetime
+    cancelled_at: Optional[datetime] = None
+    pause_until: Optional[datetime] = None
+    auto_renewal: bool
+    cancel_at_period_end: bool
+    plan: FrontendPlanResponse
+    created_at: datetime
+    updated_at: datetime
+
+
 # =================== PLAN SCHEMAS ===================
 
-class PlanLimits(BaseModel):
-    """Límites del plan"""
-    max_listings: Optional[int] = Field(None, description="Máximo número de listings (-1 para ilimitado)")
-    max_images: Optional[int] = Field(None, description="Máximo número de imágenes por listing")
-    max_videos: Optional[int] = Field(None, description="Máximo número de videos por listing")
-    api_calls_per_day: Optional[int] = Field(None, description="Llamadas API por día")
-    featured_listings: Optional[int] = Field(None, description="Listings destacados permitidos")
-    
-    model_config = {
-        "json_schema_extra": {
-            "example": {
-                "max_listings": 50,
-                "max_images": 20,
-                "max_videos": 2,
-                "api_calls_per_day": 1000,
-                "featured_listings": 5
-            }
-        }
-    }
-
-
-class PlanBase(BaseModel):
-    """Schema base para planes"""
-    name: str = Field(..., min_length=1, max_length=100, description="Nombre del plan")
-    description: Optional[str] = Field(None, description="Descripción del plan")
-    price_monthly: Decimal = Field(..., ge=0, description="Precio mensual")
-    price_yearly: Decimal = Field(..., ge=0, description="Precio anual")
-    features: List[str] = Field(default_factory=list, description="Lista de características")
-    limits: PlanLimits = Field(default_factory=PlanLimits, description="Límites del plan")
-    active: bool = Field(True, description="Si el plan está activo")
-    sort_order: int = Field(0, description="Orden de visualización")
-
-
-class PlanResponse(PlanBase):
-    """Schema de respuesta para planes"""
+class PlanResponse(BaseModel):
+    """Schema de respuesta para planes - coincide con la tabla core.plans"""
     id: uuid.UUID
+    code: str
+    name: str
+    description: Optional[str]
+    tier: PlanTier
+    period: PlanPeriod
+    period_months: int
+    price_amount: Decimal
+    price_currency: str
+    
+    # Límites y características
+    max_active_listings: int
+    listing_active_days: int
+    max_images_per_listing: int
+    max_videos_per_listing: int
+    max_video_seconds: int
+    max_image_width: int
+    max_image_height: int
+    featured_listings: bool
+    priority_support: bool
+    analytics_access: bool
+    api_access: bool
+    
+    # Banderas del sistema
+    is_active: bool
+    is_default: bool
+    
+    # Metadatos
     created_at: datetime
     updated_at: datetime
     
     model_config = {"from_attributes": True}
+
+
+class PlanBase(BaseModel):
+    """Schema base para planes"""
+    code: str = Field(..., description="Código único del plan")
+    name: str = Field(..., min_length=1, max_length=100, description="Nombre del plan")
+    description: Optional[str] = Field(None, description="Descripción del plan")
+    tier: PlanTier = Field(..., description="Nivel del plan")
+    period: PlanPeriod = Field(..., description="Período de facturación")
+    period_months: int = Field(1, ge=1, description="Duración en meses")
+    price_amount: Decimal = Field(0, ge=0, description="Precio del plan")
+    price_currency: str = Field("PEN", max_length=3, description="Moneda")
+    
+    # Límites y características
+    max_active_listings: int = Field(1, ge=0, description="Máximo de listados activos")
+    listing_active_days: int = Field(30, ge=1, description="Días que permanece activo un listado")
+    max_images_per_listing: int = Field(5, ge=0, description="Máximo de imágenes por listado")
+    max_videos_per_listing: int = Field(0, ge=0, description="Máximo de videos por listado")
+    max_video_seconds: int = Field(60, ge=0, description="Duración máxima de video en segundos")
+    max_image_width: int = Field(1920, ge=0, description="Ancho máximo de imagen")
+    max_image_height: int = Field(1080, ge=0, description="Alto máximo de imagen")
+    featured_listings: bool = Field(False, description="Permite listados destacados")
+    priority_support: bool = Field(False, description="Soporte prioritario")
+    analytics_access: bool = Field(False, description="Acceso a analytics")
+    api_access: bool = Field(False, description="Acceso a API")
+    
+    # Banderas del sistema
+    is_active: bool = Field(True, description="Si el plan está activo")
+    is_default: bool = Field(False, description="Si es el plan por defecto")
 
 
 class CreatePlanRequest(PlanBase):
@@ -80,14 +164,27 @@ class CreatePlanRequest(PlanBase):
 
 class UpdatePlanRequest(BaseModel):
     """Schema para actualizar un plan"""
+    code: Optional[str] = None
     name: Optional[str] = Field(None, min_length=1, max_length=100)
     description: Optional[str] = None
-    price_monthly: Optional[Decimal] = Field(None, ge=0)
-    price_yearly: Optional[Decimal] = Field(None, ge=0)
-    features: Optional[List[str]] = None
-    limits: Optional[PlanLimits] = None
-    active: Optional[bool] = None
-    sort_order: Optional[int] = None
+    tier: Optional[PlanTier] = None
+    period: Optional[PlanPeriod] = None
+    period_months: Optional[int] = None
+    price_amount: Optional[Decimal] = Field(None, ge=0)
+    price_currency: Optional[str] = None
+    max_active_listings: Optional[int] = None
+    listing_active_days: Optional[int] = None
+    max_images_per_listing: Optional[int] = None
+    max_videos_per_listing: Optional[int] = None
+    max_video_seconds: Optional[int] = None
+    max_image_width: Optional[int] = None
+    max_image_height: Optional[int] = None
+    featured_listings: Optional[bool] = None
+    priority_support: Optional[bool] = None
+    analytics_access: Optional[bool] = None
+    api_access: Optional[bool] = None
+    is_active: Optional[bool] = None
+    is_default: Optional[bool] = None
 
 
 # =================== SUBSCRIPTION SCHEMAS ===================
@@ -95,8 +192,6 @@ class UpdatePlanRequest(BaseModel):
 class SubscriptionBase(BaseModel):
     """Schema base para suscripciones"""
     plan_id: uuid.UUID = Field(..., description="ID del plan")
-    billing_cycle: BillingCycle = Field(BillingCycle.MONTHLY, description="Ciclo de facturación")
-    payment_method_id: Optional[str] = Field(None, description="ID del método de pago")
 
 
 class SubscriptionResponse(BaseModel):
@@ -105,19 +200,19 @@ class SubscriptionResponse(BaseModel):
     user_id: uuid.UUID
     plan_id: uuid.UUID
     status: SubscriptionStatus
-    billing_cycle: BillingCycle
     
     # Fechas
-    start_date: datetime
     current_period_start: datetime
     current_period_end: datetime
-    cancelled_at: Optional[datetime] = None
-    pause_until: Optional[datetime] = None
+    trial_start: Optional[datetime] = None
+    trial_end: Optional[datetime] = None
+    canceled_at: Optional[datetime] = None
+    
+    # Información externa
+    external_subscription_id: Optional[str] = None
     
     # Configuraciones
-    auto_renewal: bool
     cancel_at_period_end: bool
-    cancellation_reason: Optional[str] = None
     
     # Información del plan
     plan: Optional[PlanResponse] = None
@@ -131,9 +226,6 @@ class SubscriptionResponse(BaseModel):
 
 class SubscriptionDetailResponse(SubscriptionResponse):
     """Schema detallado de suscripción con información adicional"""
-    payment_method_id: Optional[str] = None
-    last_payment_date: Optional[datetime] = None
-    next_payment_date: Optional[datetime] = None
     
     # Uso actual (será calculado)
     current_usage: Optional[Dict[str, int]] = None
@@ -142,19 +234,12 @@ class SubscriptionDetailResponse(SubscriptionResponse):
 
 class CreateSubscriptionRequest(SubscriptionBase):
     """Schema para crear suscripción"""
-    
-    @field_validator('billing_cycle')
-    @classmethod
-    def validate_billing_cycle(cls, v):
-        if v not in [BillingCycle.MONTHLY, BillingCycle.YEARLY]:
-            raise ValueError('Billing cycle must be monthly or yearly')
-        return v
+    pass
 
 
 class UpdateSubscriptionRequest(BaseModel):
     """Schema para actualizar suscripción"""
     plan_id: Optional[uuid.UUID] = None
-    billing_cycle: Optional[BillingCycle] = None
 
 
 class CancelSubscriptionRequest(BaseModel):

@@ -1,101 +1,93 @@
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field
 from typing import Optional, List
+from uuid import UUID
 from datetime import datetime
-import uuid
+from enum import Enum
 
-# Base schemas
-class MediaBase(BaseModel):
-    filename: str = Field(..., description="Nombre del archivo")
-    display_order: int = Field(0, description="Orden de visualización")
-    alt_text: Optional[str] = Field(None, description="Texto alternativo")
+class MediaType(str, Enum):
+    """Types of media supported"""
+    IMAGE = "image"
+    VIDEO = "video"
+    VIRTUAL_TOUR = "virtual_tour"
 
-class ImageBase(MediaBase):
-    width: Optional[int] = Field(None, description="Ancho en píxeles")
-    height: Optional[int] = Field(None, description="Alto en píxeles")
-    is_main: bool = Field(False, description="¿Es la imagen principal?")
-
-class VideoBase(MediaBase):
-    duration_seconds: Optional[int] = Field(None, description="Duración en segundos")
-    width: Optional[int] = Field(None, description="Ancho en píxeles")
-    height: Optional[int] = Field(None, description="Alto en píxeles")
-    is_main: bool = Field(False, description="¿Es el video principal?")
-
-# Request schemas
-class ImageCreate(ImageBase):
-    pass
-
-class ImageUpdate(BaseModel):
-    alt_text: Optional[str] = None
-    is_main: Optional[bool] = None
-    display_order: Optional[int] = None
-
-class VideoCreate(VideoBase):
-    pass
-
-class VideoUpdate(BaseModel):
-    alt_text: Optional[str] = None
-    display_order: Optional[int] = None
-
-# Response schemas
-class ImageResponse(ImageBase):
-    id: uuid.UUID
-    listing_id: uuid.UUID
-    original_url: str
+class MediaUploadResponse(BaseModel):
+    """Response after uploading a media file"""
+    id: UUID
+    url: str
     thumbnail_url: Optional[str] = None
-    medium_url: Optional[str] = None
-    file_size: Optional[int] = None
-    created_at: datetime
+    media_type: MediaType
+    display_order: int
+    is_primary: bool
+    file_size_bytes: Optional[int] = None
+    width: Optional[int] = None
+    height: Optional[int] = None
+    uploaded_at: datetime
 
     class Config:
         from_attributes = True
 
-class VideoResponse(VideoBase):
-    id: uuid.UUID
-    listing_id: uuid.UUID
-    original_url: str
+class ListingMediaResponse(BaseModel):
+    """Response model for listing media"""
+    id: UUID
+    listing_id: UUID
+    media_type: MediaType
+    url: str
     thumbnail_url: Optional[str] = None
-    file_size: Optional[int] = None
-    created_at: datetime
+    title: Optional[str] = None
+    description: Optional[str] = None
+    display_order: int
+    is_primary: bool
+    file_size_bytes: Optional[int] = None
+    width: Optional[int] = None
+    height: Optional[int] = None
+    duration_seconds: Optional[int] = None
+    mime_type: Optional[str] = None
+    uploaded_at: datetime
+    updated_at: datetime
 
     class Config:
         from_attributes = True
 
-# Upload schemas
+class UpdateMediaRequest(BaseModel):
+    """Request to update media metadata"""
+    title: Optional[str] = Field(None, max_length=200)
+    description: Optional[str] = Field(None, max_length=1000)
+    display_order: Optional[int] = Field(None, ge=0)
+    is_primary: Optional[bool] = None
+
+class MediaBatchUploadResponse(BaseModel):
+    """Response for batch upload operations"""
+    message: str
+    uploaded: List[MediaUploadResponse]
+    failed: List[dict]
+    total_uploaded: int
+    total_failed: int
+
+class ListingMediaSummary(BaseModel):
+    """Summary of media for a listing"""
+    listing_id: UUID
+    total_media: int
+    total_images: int
+    total_videos: int
+    total_virtual_tours: int
+    primary_media_url: Optional[str] = None
+    total_size_bytes: Optional[int] = None
+    image_urls: List[str] = []
+    video_urls: List[str] = []
+
+    class Config:
+        from_attributes = True
+
 class UploadUrlRequest(BaseModel):
-    filename: str = Field(..., description="Nombre del archivo")
-    content_type: str = Field(..., description="Tipo de contenido MIME")
-    size: Optional[int] = Field(None, description="Tamaño del archivo en bytes")
-
-    @validator('content_type')
-    def validate_content_type(cls, v):
-        allowed_image_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
-        allowed_video_types = ['video/mp4', 'video/avi', 'video/quicktime', 'video/webm']
-        allowed_types = allowed_image_types + allowed_video_types
-        
-        if v not in allowed_types:
-            raise ValueError(f'Content type not allowed. Allowed types: {", ".join(allowed_types)}')
-        return v
+    """Request to generate a presigned upload URL"""
+    filename: str
+    content_type: str
+    file_size: int = Field(..., gt=0)
+    listing_id: Optional[str] = None
 
 class UploadUrlResponse(BaseModel):
-    upload_url: str = Field(..., description="URL para subir el archivo")
-    file_url: str = Field(..., description="URL final donde estará el archivo")
-    expires_at: datetime = Field(..., description="Cuándo expira la URL de subida")
-    upload_id: str = Field(..., description="ID único para esta subida")
-
-# Collection responses
-class ImagesListResponse(BaseModel):
-    images: List[ImageResponse]
-    total: int
-
-class VideosListResponse(BaseModel):
-    videos: List[VideoResponse]
-    total: int
-
-# Bulk operations
-class BulkImageCreate(BaseModel):
-    images: List[dict] = Field(..., description="Lista de metadatos de imágenes")
-
-class BulkMediaResponse(BaseModel):
-    success: bool
-    created_count: int
-    errors: List[str] = Field(default_factory=list)
+    """Response with presigned upload URL"""
+    upload_url: str
+    file_url: str
+    expires_at: datetime
+    upload_id: str

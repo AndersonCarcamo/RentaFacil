@@ -1,0 +1,14 @@
+# Ignore all uploaded files
+*
+!.gitignore
+!README.md
+
+# But keep directory structure
+!avatars/
+!listings/
+!listings/images/
+!listings/videos/
+!listings/thumbs/
+
+# Keep .gitkeep files to preserve structure
+!**/.gitkeep

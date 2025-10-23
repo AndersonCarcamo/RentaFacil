@@ -9,6 +9,9 @@ import { AuthProvider } from '../lib/hooks/useAuth'
 // Estilos globales
 import '@/styles/globals.css'
 
+// Estilos de Leaflet para el mapa
+import 'leaflet/dist/leaflet.css'
+
 // Configuración del cliente de React Query
 const queryClientConfig = {
   defaultOptions: {

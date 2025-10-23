@@ -51,6 +51,12 @@ class UpdateUserRequest(BaseModel):
     first_name: Optional[str] = Field(None, min_length=1, max_length=100)
     last_name: Optional[str] = Field(None, min_length=1, max_length=100)
     phone: Optional[str] = Field(None, max_length=20)
+    bio: Optional[str] = Field(None, max_length=500)
+    # Role upgrade fields
+    role: Optional[UserRole] = Field(None, description="User role")
+    national_id: Optional[str] = Field(None, max_length=20, description="National ID number")
+    national_id_type: Optional[str] = Field(None, max_length=10, description="National ID type")
+    agency_name: Optional[str] = Field(None, max_length=100, description="Agency name for agents")
 
     @validator('first_name', 'last_name', pre=True)
     def validate_names(cls, v):

@@ -37,6 +37,7 @@ python-dateutil==2.8.2
 Pillow==10.0.1
 redis==5.0.1
 ffmpeg-python==0.2.0
+aiofiles==24.1.0
 
 # Image processing utilities (optional for advanced features)
 imagehash==4.3.1

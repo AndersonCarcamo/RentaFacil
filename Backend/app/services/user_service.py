@@ -125,12 +125,31 @@ class UserService:
         
         if update_data.phone is not None:
             user.phone = update_data.phone
+            
+        if update_data.bio is not None:
+            user.bio = sanitize_string(update_data.bio)
+
+        # Handle role upgrade
+        if update_data.role is not None:
+            logger.info(f"Upgrading user {user.id} role from {user.role} to {update_data.role}")
+            user.role = update_data.role
+            
+        # Handle national ID
+        if update_data.national_id is not None:
+            user.national_id = update_data.national_id
+            
+        if update_data.national_id_type is not None:
+            user.national_id_type = update_data.national_id_type
+
+        # Handle agency information (for agents)
+        if update_data.agency_name is not None:
+            user.agency_name = sanitize_string(update_data.agency_name)
 
         user.updated_at = utc_now()
         self.db.commit()
         self.db.refresh(user)
 
-        logger.info(f"User profile updated: {user.id}")
+        logger.info(f"User profile updated: {user.id}, role: {user.role}")
         return user
 
     def update_user_admin(self, user_id: uuid.UUID, update_data: UpdateUserRequest, 

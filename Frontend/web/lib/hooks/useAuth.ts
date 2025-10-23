@@ -18,6 +18,8 @@ interface AuthContextType {
   }) => Promise<void>
   logout: () => Promise<void>
   mockLogin: (email: string) => Promise<void>
+  refreshUser: () => Promise<void>
+  updateUser: (user: AuthUser) => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -150,6 +152,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  // Refresh user data from server
+  const refreshUser = async () => {
+    try {
+      console.log('🔄 refreshUser called, isAuthenticated:', isAuthenticated())
+      if (isAuthenticated()) {
+        console.log('🔄 Fetching current user from API...')
+        const currentUser = await getCurrentUser()
+        console.log('✅ User data received from API:', {
+          email: currentUser.email,
+          profile_picture_url: currentUser.profile_picture_url
+        })
+        setUser(currentUser)
+        console.log('✅ User state updated in context')
+      } else {
+        console.warn('⚠️ Cannot refresh user - not authenticated')
+      }
+    } catch (error) {
+      console.error('❌ Failed to refresh user:', error)
+      throw error
+    }
+  }
+
+  // Update user directly (for external updates)
+  const updateUser = (updatedUser: AuthUser) => {
+    console.log('🔄 Updating user in context:', updatedUser.email)
+    setUser(updatedUser)
+  }
+
   const value: AuthContextType = {
     user,
     loading,
@@ -158,7 +188,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loginWithFirebase,
     register,
     logout,
-    mockLogin
+    mockLogin,
+    refreshUser,
+    updateUser
   }
 
   return (

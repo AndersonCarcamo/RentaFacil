@@ -78,6 +78,18 @@ export interface PropertyResponse {
   created_at: string
   updated_at: string
   published_at?: string
+  // Nuevos campos
+  amenities?: string[]
+  age_years?: number
+  floor_number?: number
+  total_floors?: number
+  maintenance_fee?: number
+  hoa_fee?: number
+  utilities_included?: boolean
+  contact_whatsapp_phone_e164?: string
+  contact_phone_e164?: string
+  contact_email?: string
+  contact_name?: string
 }
 
 /**

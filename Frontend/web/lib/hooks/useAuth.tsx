@@ -9,7 +9,7 @@ import {
   User as FirebaseUser
 } from 'firebase/auth'
 import { auth } from '../firebase'
-import { AuthUser, login as apiLogin, register as apiRegister, logout as apiLogout, getCurrentUser, isAuthenticated, getStoredUser } from '../api/auth'
+import { AuthUser, login as apiLogin, register as apiRegister, logout as apiLogout, getCurrentUser, isAuthenticated, getStoredUser, updateUserRole as apiUpdateUserRole, UpdateRoleRequest } from '../api/auth'
 
 interface AuthContextType {
   user: AuthUser | null
@@ -29,6 +29,7 @@ interface AuthContextType {
     agency_name?: string
     agency_ruc?: string
   }) => Promise<void>
+  updateUserRole: (roleData: UpdateRoleRequest) => Promise<void>
   logout: () => Promise<void>
 }
 
@@ -154,11 +155,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       console.log('✅ Backend registration successful:', result.email)
       
-      // 3. Sign out after registration (user needs to login)
-      await signOut(auth)
+      // 3. Auto-login after successful registration
+      console.log('🔄 Auto-logging in after registration...')
+      
+      // Get Firebase ID token
+      const idToken = await firebaseUser.getIdToken()
+      console.log('🎫 Got Firebase ID token for auto-login')
+      
+      // Login to our backend with Firebase token
+      const loginResult = await apiLogin(idToken)
+      
+      // Set user state (Firebase user is already set by onAuthStateChanged)
+      setUser(loginResult.user)
+      console.log('✅ Auto-login successful after registration:', loginResult.user.email)
       
     } catch (error: any) {
       console.error('❌ Registration failed:', error)
+      
+      // If registration fails, make sure to sign out from Firebase
+      try {
+        await signOut(auth)
+      } catch (signOutError) {
+        console.error('⚠️ Error signing out after failed registration:', signOutError)
+      }
       
       // Handle Firebase-specific errors
       if (error.code) {
@@ -206,6 +225,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const updateUserRole = async (roleData: UpdateRoleRequest) => {
+    setLoading(true)
+    try {
+      console.log('🔄 Updating user role')
+      
+      const updatedUser = await apiUpdateUserRole(roleData)
+      setUser(updatedUser)
+      console.log('✅ User role updated successfully')
+    } catch (error) {
+      console.error('❌ Role update error:', error)
+      throw error
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const value: AuthContextType = {
     user,
     firebaseUser,
@@ -213,6 +248,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isLoggedIn: !!user && !!firebaseUser,
     login,
     register,
+    updateUserRole,
     logout
   }
 
