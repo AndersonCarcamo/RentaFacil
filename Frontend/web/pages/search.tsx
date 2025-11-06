@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import dynamic from 'next/dynamic';
 import PropertyCardHorizontal from '../components/PropertyCardHorizontal';
-import SearchFormCompact from '../components/SearchFormCompact';
+import SearchSidebar, { SearchFilters } from '../components/SearchSidebar';
 import PropertyModal from '../components/PropertyModal';
 import { Property, Currency, PropertyType } from '../types/index';
 import { fetchProperties, PropertyFilters, PropertyResponse } from '../lib/api/properties';
@@ -66,6 +66,48 @@ const convertToProperty = (apiProperty: PropertyResponse): Property => {
     isFavorite: false,
     views: apiProperty.views_count
   }
+}
+
+// Función para mapear SearchFilters a PropertyFilters
+const mapSearchFiltersToPropertyFilters = (filters: SearchFilters): PropertyFilters => {
+  const propertyFilters: PropertyFilters = {}
+  
+  if (filters.location) propertyFilters.location = filters.location
+  if (filters.propertyType) propertyFilters.property_type = filters.propertyType
+  if (filters.minPrice) propertyFilters.min_price = filters.minPrice
+  if (filters.maxPrice) propertyFilters.max_price = filters.maxPrice
+  if (filters.bedrooms) propertyFilters.min_bedrooms = filters.bedrooms
+  if (filters.bathrooms) propertyFilters.min_bathrooms = filters.bathrooms
+  if (filters.minArea) propertyFilters.min_area_built = filters.minArea
+  if (filters.maxArea) propertyFilters.max_area_built = filters.maxArea
+  if (filters.furnished !== undefined) propertyFilters.furnished = filters.furnished
+  if (filters.petFriendly !== undefined) propertyFilters.pet_friendly = filters.petFriendly
+  if (filters.verified !== undefined) propertyFilters.has_media = filters.verified
+  
+  if (filters.rentalMode) {
+    switch (filters.rentalMode) {
+      case 'traditional':
+        propertyFilters.rental_mode = 'full_property'
+        break
+      case 'shared':
+        propertyFilters.rental_mode = 'shared_room'
+        break
+      case 'coliving':
+      case 'private':
+        propertyFilters.rental_mode = 'private_room'
+        break
+      case 'airbnb':
+        propertyFilters.airbnb_eligible = true
+        break
+    }
+  }
+  
+  propertyFilters.page = 1
+  propertyFilters.limit = 50
+  propertyFilters.sort_by = 'published_at'
+  propertyFilters.sort_order = 'desc'
+  
+  return propertyFilters
 }
 
 // Función para mapear parámetros de SearchFormExtended a PropertyFilters
@@ -296,27 +338,22 @@ const mockProperties: Property[] = [
   }
 ];
 
-interface SearchParams {
-  [key: string]: string | string[] | undefined;
-  location?: string;
-  propertyType?: string;
-  bedrooms?: string;
-  bathrooms?: string;
-  minPrice?: string;
-  maxPrice?: string;
-  furnished?: string;
-  verified?: string;
-  petFriendly?: string;
-}
-
 const SearchPage = () => {
   const router = useRouter();
   const [properties, setProperties] = useState<Property[]>([]);
   const [apiProperties, setApiProperties] = useState<PropertyResponse[]>([]); // Para el mapa
   const [loading, setLoading] = useState(true);
-  const [searchParams, setSearchParams] = useState<SearchParams>({});
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [currentFilters, setCurrentFilters] = useState<SearchFilters>({});
+  
+  // Estados para hover sincronizado
+  const [hoveredPropertyId, setHoveredPropertyId] = useState<string | null>(null);
+  
+  // Estados para drag handle (redimensionar)
+  const [mapWidth, setMapWidth] = useState(50); // Porcentaje
+  const [isDragging, setIsDragging] = useState(false);
+  const dragRef = useRef<HTMLDivElement>(null);
 
   const openPropertyModal = (propertyId: string) => {
     setSelectedPropertyId(propertyId);
@@ -328,68 +365,97 @@ const SearchPage = () => {
     setSelectedPropertyId(null);
   };
 
-  useEffect(() => {
-    // Obtener parámetros de búsqueda de la URL
-    const params = router.query;
-    setSearchParams(params);
-    
-    // Cargar datos reales desde la API
-    const loadProperties = async () => {
-      try {
-        setLoading(true);
-        console.log('🔍 === INICIO DE CARGA DE PROPIEDADES ===');
-        console.log('🔍 Parámetros de URL recibidos:', params);
-        console.log('🔍 API_BASE_URL configurada:', process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000');
-        
-        // Convertir parámetros de URL a filtros de API
-        const filters = mapSearchParamsToFilters(params);
-        console.log('🔍 Filtros API convertidos:', filters);
-        console.log('🔍 Número de filtros aplicados:', Object.keys(filters).length);
-        
-        // Intentar llamar a la API
-        console.log('🚀 Iniciando llamada a fetchProperties...');
-        const apiPropertiesResponse = await fetchProperties(filters);
-        console.log('✅ API RESPONSE - Propiedades recibidas:', apiPropertiesResponse?.length || 0);
-        console.log('✅ API RESPONSE - Datos completos:', apiPropertiesResponse);
-        
-        if (!apiPropertiesResponse || apiPropertiesResponse.length === 0) {
-          console.warn('⚠️ API retornó datos vacíos');
-          setProperties([]);
-          setApiProperties([]);
-          return;
-        }
-        
-        // Guardar las propiedades originales de la API (para el mapa)
-        setApiProperties(apiPropertiesResponse);
-        
-        // Convertir a formato compatible
-        console.log('🔄 Convirtiendo propiedades...');
-        const convertedProperties = apiPropertiesResponse.map(convertToProperty);
-        console.log('✅ Propiedades convertidas exitosamente:', convertedProperties.length);
-        console.log('✅ Primera propiedad convertida:', convertedProperties[0]);
-        
-        setProperties(convertedProperties);
-        console.log('🎉 Propiedades cargadas y establecidas en el estado');
-      } catch (error) {
-        console.error('❌ ERROR COMPLETO:', error);
-        console.error('❌ Error tipo:', error?.constructor?.name);
-        console.error('❌ Error mensaje:', (error as Error)?.message || 'Sin mensaje');
-        console.error('❌ Error stack:', (error as Error)?.stack || 'Sin stack trace');
-        
-        // En caso de error, mostrar array vacío
-        console.log('🔄 ERROR: No se pudieron cargar las propiedades');
+  // Cargar propiedades desde la API
+  const loadProperties = async (filters: SearchFilters) => {
+    try {
+      setLoading(true);
+      console.log('🔍 Cargando propiedades con filtros:', filters);
+      
+      const propertyFilters = mapSearchFiltersToPropertyFilters(filters);
+      console.log('🔍 Filtros API:', propertyFilters);
+      
+      const apiPropertiesResponse = await fetchProperties(propertyFilters);
+      console.log('✅ Propiedades recibidas:', apiPropertiesResponse?.length || 0);
+      
+      if (!apiPropertiesResponse || apiPropertiesResponse.length === 0) {
         setProperties([]);
-      } finally {
-        setLoading(false);
-        console.log('🏁 === FIN DE CARGA DE PROPIEDADES ===');
+        setApiProperties([]);
+        return;
       }
+      
+      setApiProperties(apiPropertiesResponse);
+      const convertedProperties = apiPropertiesResponse.map(convertToProperty);
+      setProperties(convertedProperties);
+      console.log('✅ Propiedades cargadas exitosamente');
+    } catch (error) {
+      console.error('❌ Error cargando propiedades:', error);
+      setProperties([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Manejar cambios de filtros desde el sidebar
+  const handleFilterChange = (filters: SearchFilters) => {
+    setCurrentFilters(filters);
+    loadProperties(filters);
+  };
+
+  useEffect(() => {
+    // Cargar filtros iniciales desde URL
+    const params = router.query;
+    const initialFilters: SearchFilters = {
+      location: params.location as string,
+      propertyType: params.propertyType as string,
+      minPrice: params.minPrice ? Number(params.minPrice) : undefined,
+      maxPrice: params.maxPrice ? Number(params.maxPrice) : undefined,
+      bedrooms: params.bedrooms ? Number(params.bedrooms) : undefined,
+      bathrooms: params.bathrooms ? Number(params.bathrooms) : undefined,
     };
     
-    loadProperties();
+    setCurrentFilters(initialFilters);
+    loadProperties(initialFilters);
   }, [router.query]);
 
-  // Ya no necesitamos filtrado local porque la API retorna resultados filtrados
-  const filteredProperties = properties;
+  // Efecto para drag handle
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging) return;
+
+      const container = dragRef.current?.parentElement;
+      if (!container) return;
+
+      const containerRect = container.getBoundingClientRect();
+      const sidebarWidth = 56; // Ancho del sidebar colapsado (puede ser 56 o 320)
+      const dragHandleWidth = 8; // Ancho de la barra de drag
+      const availableWidth = containerRect.width - sidebarWidth - dragHandleWidth;
+      
+      const newWidth = ((e.clientX - containerRect.left - sidebarWidth) / availableWidth) * 100;
+
+      // Límites: mínimo 30%, máximo 70%
+      if (newWidth >= 30 && newWidth <= 70) {
+        setMapWidth(newWidth);
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isDragging]);
 
   return (
     <>
@@ -398,122 +464,133 @@ const SearchPage = () => {
         <meta name="description" content="Encuentra tu propiedad ideal en RENTA fácil" />
       </Head>
       
-      <div className="min-h-screen bg-[#F5C842] relative">
-        {/* Textura de fondo con iconos */}
-        <div className="absolute inset-0 opacity-5 pointer-events-none">
-          <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <pattern id="property-pattern" x="0" y="0" width="200" height="200" patternUnits="userSpaceOnUse">
-                {/* Casa */}
-                <path d="M50 80 L50 100 L30 100 L30 80 L40 70 L50 80 Z M35 85 L35 95 L38 95 L38 85 Z M42 85 L42 95 L45 95 L45 85 Z" fill="currentColor"/>
-                
-                {/* Llave */}
-                <path d="M120 30 C120 27 122 25 125 25 C128 25 130 27 130 30 C130 33 128 35 125 35 L125 50 L122 50 L122 35 C119 35 117 33 117 30 Z M125 40 L127 40 L127 42 L125 42 Z M125 44 L127 44 L127 46 L125 46 Z" fill="currentColor"/>
-                
-                {/* Edificio/Departamento */}
-                <path d="M160 60 L160 100 L140 100 L140 60 Z M145 65 L148 65 L148 70 L145 70 Z M152 65 L155 65 L155 70 L152 70 Z M145 75 L148 75 L148 80 L145 80 Z M152 75 L155 75 L155 80 L152 80 Z M145 85 L148 85 L148 90 L145 90 Z M152 85 L155 85 L155 90 L152 90 Z" fill="currentColor"/>
-                
-                {/* Casa 2 */}
-                <path d="M180 120 L180 140 L160 140 L160 120 L170 110 L180 120 Z M165 125 L165 135 L168 135 L168 125 Z M172 125 L172 135 L175 135 L175 125 Z" fill="currentColor"/>
-                
-                {/* Llave 2 */}
-                <path d="M40 160 C40 157 42 155 45 155 C48 155 50 157 50 160 C50 163 48 165 45 165 L45 180 L42 180 L42 165 C39 165 37 163 37 160 Z M45 170 L47 170 L47 172 L45 172 Z M45 174 L47 174 L47 176 L45 176 Z" fill="currentColor"/>
-                
-                {/* Edificio 2 */}
-                <path d="M90 140 L90 180 L70 180 L70 140 Z M75 145 L78 145 L78 150 L75 150 Z M82 145 L85 145 L85 150 L82 150 Z M75 155 L78 155 L78 160 L75 160 Z M82 155 L85 155 L85 160 L82 160 Z M75 165 L78 165 L78 170 L75 170 Z M82 165 L85 165 L85 170 L82 170 Z" fill="currentColor"/>
-              </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#property-pattern)"/>
-          </svg>
+      {/* Header Fixed */}
+      <Header />
+      
+      {/* Main Layout - Sin scroll general */}
+      <div 
+        className="flex overflow-hidden bg-gray-50"
+        style={{ height: 'calc(100vh - 96px)' }}
+      >
+        {/* Sidebar de Filtros - Colapsable */}
+        <SearchSidebar 
+          onFilterChange={handleFilterChange}
+          isLoading={loading}
+          initialFilters={currentFilters}
+        />
+
+        {/* Mapa - Lado Izquierdo (ancho dinámico) */}
+        <div 
+          className="bg-white border-r border-gray-200 relative transition-all duration-150"
+          style={{ width: `${mapWidth}%` }}
+        >
+          <MapView 
+            listings={apiProperties} 
+            onMarkerClick={openPropertyModal}
+            hoveredPropertyId={hoveredPropertyId}
+            onMarkerHover={setHoveredPropertyId}
+          />
         </div>
 
-        <Header />
-        
-        {/* Search Form Sticky */}
-        <div className="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-sm">
-          <div className="max-w-7xl mx-auto px-4 py-4">
-            <SearchFormCompact 
-              onSearch={(params) => {
-                // Construir nueva URL con parámetros de búsqueda
-                const searchParams = new URLSearchParams();
-                
-                Object.entries(params).forEach(([key, value]) => {
-                  if (value !== undefined && value !== null && value !== '') {
-                    searchParams.set(key, value.toString());
-                  }
-                });
-                
-                // Navegar a nueva URL con parámetros
-                router.push(`/search?${searchParams.toString()}`);
-              }}
-              isLoading={loading}
-            />
+        {/* Drag Handle - Barra divisoria */}
+        <div
+          ref={dragRef}
+          onMouseDown={() => setIsDragging(true)}
+          className={`
+            w-2 bg-gray-200 hover:bg-blue-100 cursor-col-resize 
+            transition-all duration-200 relative group flex-shrink-0
+            border-l border-r border-gray-300
+            ${isDragging ? 'bg-blue-200 w-3' : ''}
+          `}
+        >
+          {/* Indicador visual del drag handle - Siempre visible */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center">
+            {/* Ícono de flechas */}
+            <svg 
+              className={`w-4 h-4 transition-colors ${isDragging ? 'text-blue-600' : 'text-gray-400 group-hover:text-blue-500'}`}
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 9l4-4 4 4m0 6l-4 4-4-4" />
+            </svg>
+            {/* Puntos decorativos (grip dots) */}
+            <div className={`flex gap-0.5 mt-1 ${isDragging ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity`}>
+              <div className="w-1 h-1 rounded-full bg-gray-400"></div>
+              <div className="w-1 h-1 rounded-full bg-gray-400"></div>
+            </div>
           </div>
         </div>
 
-        {/* Main Content */}
-        <div className="max-w-7xl mx-auto px-4 py-6 relative z-10">
-          <div className="flex gap-6 h-[calc(100vh-200px)]">
-            {/* Mapa - Lado Izquierdo */}
-            <div className="w-2/5 bg-white/95 backdrop-blur-sm rounded-lg shadow-xl p-4">
-              <div className="h-full">
-                <MapView 
-                  listings={apiProperties} 
-                  onMarkerClick={openPropertyModal}
-                />
-              </div>
-            </div>
+        {/* Lista de Propiedades - Lado Derecho (ancho dinámico) */}
+        <div 
+          className="flex flex-col bg-white"
+          style={{ width: `${100 - mapWidth}%` }}
+        >
+          {/* Header de Resultados - Fixed */}
+          <div className="flex-shrink-0 px-6 py-4 border-b border-gray-200 bg-gray-50">
+            <h2 className="text-xl font-bold text-gray-900">
+              {loading ? 'Buscando propiedades...' : `${properties.length} propiedades encontradas`}
+            </h2>
+            {properties.length > 0 && (
+              <p className="text-sm text-gray-600 mt-1">
+                Ordenadas por más recientes
+              </p>
+            )}
+          </div>
 
-            {/* Resultados - Lado Derecho */}
-            <div className="w-3/5">
-              <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-xl p-6 h-full overflow-hidden flex flex-col">
-                {/* Header de Resultados */}
-                <div className="mb-6">
-                  <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                    Resultados de Búsqueda
-                  </h2>
-                  <p className="text-gray-600">
-                    {loading ? 'Cargando...' : `${filteredProperties.length} propiedades encontradas`}
+          {/* Lista Scrollable - ÚNICO SCROLL */}
+          <div className="flex-1 overflow-y-auto overflow-x-hidden px-6 py-4">
+            {loading ? (
+              <div className="space-y-4">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="animate-pulse">
+                    <div className="h-48 bg-gray-200 rounded-xl"></div>
+                  </div>
+                ))}
+              </div>
+            ) : properties.length > 0 ? (
+              <div className="space-y-4">
+                {properties
+                  .sort((a, b) => b.rating - a.rating)
+                  .map((property) => (
+                    <div 
+                      key={property.id} 
+                      className={`
+                        transform transition-all duration-200 rounded-xl
+                        hover:scale-[1.02] hover:shadow-xl
+                        ${hoveredPropertyId === property.id 
+                          ? 'scale-[1.02] shadow-xl outline outline-2 outline-blue-500 outline-offset-0' 
+                          : ''
+                        }
+                      `}
+                      onMouseEnter={() => setHoveredPropertyId(property.id)}
+                      onMouseLeave={() => setHoveredPropertyId(null)}
+                    >
+                      <PropertyCardHorizontal 
+                        property={property}
+                        onClick={openPropertyModal}
+                      />
+                    </div>
+                  ))}
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center py-12 px-4">
+                  <div className="w-20 h-20 mx-auto mb-6 bg-gray-100 rounded-full flex items-center justify-center">
+                    <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-700 mb-2">
+                    No se encontraron propiedades
+                  </h3>
+                  <p className="text-gray-500 text-sm max-w-md mx-auto">
+                    Intenta ajustar tus filtros de búsqueda o expandir tu área de búsqueda para ver más resultados
                   </p>
                 </div>
-
-                {/* Lista de Propiedades */}
-                <div className="flex-1 overflow-y-auto space-y-3 pr-2">
-                  {loading ? (
-                    <div className="space-y-3">
-                      {[1, 2, 3, 4].map((i) => (
-                        <div key={i} className="animate-pulse h-48 bg-gray-200 rounded-xl"></div>
-                      ))}
-                    </div>
-                  ) : filteredProperties.length > 0 ? (
-                    filteredProperties
-                      .sort((a, b) => b.rating - a.rating)
-                      .map((property) => (
-                        <div key={property.id} className="transform transition-transform hover:scale-[1.02]">
-                          <PropertyCardHorizontal 
-                            property={property}
-                            onClick={openPropertyModal}
-                          />
-                        </div>
-                      ))
-                  ) : (
-                    <div className="text-center py-12">
-                      <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
-                        <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
-                      </div>
-                      <h3 className="text-lg font-semibold text-gray-600 mb-2">
-                        No se encontraron propiedades
-                      </h3>
-                      <p className="text-gray-500 text-sm">
-                        Intenta ajustar tus filtros de búsqueda para ver más resultados
-                      </p>
-                    </div>
-                  )}
-                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
