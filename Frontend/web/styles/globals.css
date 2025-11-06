@@ -185,6 +185,16 @@ body {
 
 /* Utilidades personalizadas */
 @layer utilities {
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;  /* Chrome, Safari and Opera */
+  }
+  
   /* Aspect ratios */
   .aspect-golden {
     aspect-ratio: 1.618 / 1;

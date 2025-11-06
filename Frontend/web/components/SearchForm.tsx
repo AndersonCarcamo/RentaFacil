@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import Button from './ui/Button'
-import { MagnifyingGlassIcon, MapPinIcon, CurrencyDollarIcon, AdjustmentsHorizontalIcon, BuildingOffice2Icon, HomeIcon, KeyIcon, TagIcon } from '@heroicons/react/24/outline'
+import MobileSearchForm from './MobileSearchForm'
+import SearchAutocomplete from './SearchAutocomplete'
+import { MagnifyingGlassIcon, MapPinIcon, CurrencyDollarIcon, AdjustmentsHorizontalIcon, BuildingOffice2Icon, HomeIcon, KeyIcon, HomeModernIcon } from '@heroicons/react/24/outline'
 
-type Mode = 'alquiler' | 'comprar' | 'vender' | 'proyecto'
+type Mode = 'alquiler' | 'comprar' | 'proyecto' | 'tipo_Airbnb'
 
 interface SearchFormProps {
   onSearch?: (params: { 
@@ -19,11 +21,14 @@ interface SearchFormProps {
     verified?: boolean
     rentalMode?: string
     petFriendly?: boolean
+    radius?: number
   }) => void
   className?: string
   isLoading?: boolean
   placeholder?: string
-}export default function SearchForm({ onSearch, className = '', isLoading = false, placeholder }: SearchFormProps) {
+}
+
+export default function SearchForm({ onSearch, className = '', isLoading = false, placeholder }: SearchFormProps) {
 	const [mode, setMode] = useState<Mode>('alquiler')
 	const [location, setLocation] = useState('')
 	const [minPrice, setMinPrice] = useState('')
@@ -75,24 +80,37 @@ interface SearchFormProps {
 	)
 
 	return (
-		<form
-			onSubmit={submit}
-			className={`w-full rounded-2xl bg-white/80 p-4 backdrop-blur shadow-soft ring-1 ring-black/5 space-y-4 ${className}`}
-		>
-			<div className="flex flex-wrap items-center gap-2">
+		<>
+			{/* Versión móvil - visible solo en pantallas pequeñas */}
+			<div className="block md:hidden">
+				<MobileSearchForm 
+					onSearch={onSearch}
+					className={className}
+					isLoading={isLoading}
+					placeholder={placeholder}
+				/>
+			</div>
+
+			{/* Versión desktop - oculta en móvil */}
+			<form
+				onSubmit={submit}
+				className={`hidden md:block w-full rounded-2xl bg-white/80 p-3 sm:p-4 backdrop-blur shadow-soft ring-1 ring-black/5 space-y-3 sm:space-y-4 ${className}`}
+			>
+			{/* Tabs - Scroll horizontal en móvil */}
+			<div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
 				<Tab value="alquiler" label="Alquiler" icon={BuildingOffice2Icon} />
 				<Tab value="comprar" label="Comprar" icon={CurrencyDollarIcon} />
-				<Tab value="vender" label="Vender" icon={TagIcon} />
 				<Tab value="proyecto" label="Proyecto" icon={AdjustmentsHorizontalIcon} />
-				<Tab value="tipo_Airbnb" label="Tipo Airbnb" icon={AdjustmentsHorizontalIcon} />
+				<Tab value="tipo_Airbnb" label="Tipo Airbnb" icon={HomeModernIcon} />
 			</div>
-			{/* Tipo de Propiedad */}
-			<div className="flex items-center gap-3">
-				<span className="text-sm font-medium text-brand-navy whitespace-nowrap">Tipo de Propiedad</span>
+			
+			{/* Tipo de Propiedad - Stack en móvil, inline en desktop */}
+			<div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+				<span className="text-xs sm:text-sm font-medium text-brand-navy whitespace-nowrap">Tipo de Propiedad</span>
 				<select
 					value={propertyType}
 					onChange={(e) => setPropertyType(e.target.value)}
-					className="flex-1 max-w-xs rounded-lg border border-brand-navy/20 bg-white/70 py-2 px-3 text-sm text-brand-navy focus:border-brand-navy/40 focus:outline-none focus:ring-2 focus:ring-secondary-500/60"
+					className="w-full sm:flex-1 sm:max-w-xs rounded-lg border border-brand-navy/20 bg-white/70 py-2 px-3 text-sm text-brand-navy focus:border-brand-navy/40 focus:outline-none focus:ring-2 focus:ring-secondary-500/60"
 				>
 					<option value="">Todos</option>
 					<option value="apartment">Departamento</option>
@@ -109,14 +127,47 @@ interface SearchFormProps {
 				<div className="md:col-span-4">
 					<label className="flex flex-col gap-1 text-xs font-medium text-brand-navy">
 						Ubicación
-						<div className="relative">
-							<MapPinIcon className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-brand-navy/50" />
-							<input
-								value={location}
-								onChange={(e) => setLocation(e.target.value)}
-								placeholder={placeholder || "Distrito, ciudad o dirección"}
-								className="w-full rounded-lg border border-brand-navy/20 bg-white/70 py-2 pl-10 pr-3 text-sm text-brand-navy placeholder:text-brand-navy/40 focus:border-brand-navy/40 focus:outline-none focus:ring-2 focus:ring-secondary-500/60"
-							/>
+						<div className="relative flex gap-2">
+							<div className="relative flex-1">
+								<MapPinIcon className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-brand-navy/50 z-10" />
+								<SearchAutocomplete
+									value={location}
+									onChange={setLocation}
+									placeholder={placeholder || "Distrito, ciudad o dirección"}
+								/>
+							</div>
+							<button
+								type="button"
+								onClick={() => {
+									if (navigator.geolocation) {
+										navigator.geolocation.getCurrentPosition(
+											(position) => {
+												const { latitude, longitude } = position.coords
+												// Llamar a onSearch con las coordenadas
+												onSearch?.({
+													mode,
+													location: `${latitude},${longitude}`,
+													radius: 10000, // 10km en metros
+												} as any)
+											},
+											(error) => {
+												console.error('Error obteniendo ubicación:', error)
+												alert('No se pudo obtener tu ubicación. Por favor, verifica los permisos del navegador.')
+											}
+										)
+									} else {
+										alert('Tu navegador no soporta geolocalización')
+									}
+								}}
+								className="flex items-center gap-1 rounded-lg border border-secondary-500/60 bg-white/70 px-3 py-2 text-xs font-medium text-brand-navy hover:bg-secondary-500/20 transition whitespace-nowrap"
+								title="Usar mi ubicación actual"
+							>
+								<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+								</svg>
+								Mi ubicación
+							</button>
 						</div>
 					</label>
 				</div>
@@ -151,27 +202,31 @@ interface SearchFormProps {
 								</select>
 							</label>
 						</div>
-						<div>
-							<label className="flex flex-col gap-1 text-xs font-medium text-brand-navy">
-								Precio mín.
-								<input
-									value={minPrice}
-									onChange={(e) => setMinPrice(e.target.value.replace(/[^0-9]/g, ''))}
-									placeholder="0"
-									className="w-full rounded-lg border border-brand-navy/20 bg-white/70 py-2 px-3 text-sm text-brand-navy placeholder:text-brand-navy/40 focus:border-brand-navy/40 focus:outline-none focus:ring-2 focus:ring-secondary-500/60"
-								/>
-							</label>
-						</div>
-						<div>
-							<label className="flex flex-col gap-1 text-xs font-medium text-brand-navy">
-								Precio máx.
-								<input
-									value={maxPrice}
-									onChange={(e) => setMaxPrice(e.target.value.replace(/[^0-9]/g, ''))}
-									placeholder="5000"
-									className="w-full rounded-lg border border-brand-navy/20 bg-white/70 py-2 px-3 text-sm text-brand-navy placeholder:text-brand-navy/40 focus:border-brand-navy/40 focus:outline-none focus:ring-2 focus:ring-secondary-500/60"
-								/>
-							</label>
+						
+						{/* Precios - Grid de 2 columnas en móvil */}
+						<div className="grid grid-cols-2 gap-3 md:col-span-2 md:grid-cols-2">
+							<div>
+								<label className="flex flex-col gap-1 text-xs font-medium text-brand-navy">
+									Precio mín.
+									<input
+										value={minPrice}
+										onChange={(e) => setMinPrice(e.target.value.replace(/[^0-9]/g, ''))}
+										placeholder="0"
+										className="w-full rounded-lg border border-brand-navy/20 bg-white/70 py-2 px-3 text-sm text-brand-navy placeholder:text-brand-navy/40 focus:border-brand-navy/40 focus:outline-none focus:ring-2 focus:ring-secondary-500/60"
+									/>
+								</label>
+							</div>
+							<div>
+								<label className="flex flex-col gap-1 text-xs font-medium text-brand-navy">
+									Precio máx.
+									<input
+										value={maxPrice}
+										onChange={(e) => setMaxPrice(e.target.value.replace(/[^0-9]/g, ''))}
+										placeholder="5000"
+										className="w-full rounded-lg border border-brand-navy/20 bg-white/70 py-2 px-3 text-sm text-brand-navy placeholder:text-brand-navy/40 focus:border-brand-navy/40 focus:outline-none focus:ring-2 focus:ring-secondary-500/60"
+									/>
+								</label>
+							</div>
 						</div>
 
 						{/* Baños */}
@@ -277,19 +332,29 @@ interface SearchFormProps {
 					</div>
 				</div>
 			</div>
-			<div className="flex items-center justify-between gap-4">
+			<div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
 				<button
 					type="button"
 					onClick={() => setAdvanced(a => !a)}
-					className="flex items-center gap-2 text-xs font-semibold text-brand-navy hover:underline transition-all duration-200 hover:text-secondary-600"
+					className="flex items-center justify-center gap-2 text-xs font-semibold text-brand-navy hover:underline transition-all duration-200 hover:text-secondary-600 py-2 sm:py-0"
 				>
 					<span>{advanced ? 'Ocultar filtros' : 'Más filtros'}</span>
 					<AdjustmentsHorizontalIcon className={`h-4 w-4 transition-transform duration-300 ${
 						advanced ? 'rotate-180' : 'rotate-0'
 					}`} />
 				</button>
-				        <Button type="submit" variant="primary" size="md" loading={isLoading} rightIcon={<MagnifyingGlassIcon className="h-5 w-5" />}>Buscar</Button>
+				<Button 
+					type="submit" 
+					variant="primary" 
+					size="md" 
+					loading={isLoading} 
+					rightIcon={<MagnifyingGlassIcon className="h-5 w-5" />}
+					className="w-full sm:w-auto"
+				>
+					Buscar
+				</Button>
 			</div>
 		</form>
+		</>
 	)
 }

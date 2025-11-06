@@ -1,0 +1,5 @@
+{
+  "name": "opencv.js",
+  "version": "4.10.0",
+  "description": "OpenCV.js para detección de documentos"
+}

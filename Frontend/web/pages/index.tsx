@@ -599,15 +599,18 @@ const HomePage: NextPage = () => {
                       navigator.geolocation.getCurrentPosition(
                         (position) => {
                           const { latitude, longitude } = position.coords
-                          window.location.href = `/search?lat=${latitude}&lng=${longitude}&radius=5`
+                          // Redirigir con coordenadas y radio de 10km
+                          window.location.href = `/search?lat=${latitude}&lng=${longitude}&radius=10&mode=alquiler`
                         },
                         (error) => {
                           console.error('Error obteniendo ubicación:', error)
+                          alert('No se pudo obtener tu ubicación. Por favor, verifica los permisos del navegador.')
                           // Fallback: buscar en Lima centro
-                          window.location.href = '/search?location=Lima%20Centro'
+                          window.location.href = '/search?location=Lima%20Centro&mode=alquiler'
                         }
                       )
                     } else {
+                      alert('Tu navegador no soporta geolocalización')
                       // Fallback si no hay geolocalización
                       window.location.href = '/search?location=Lima&mode=alquiler'
                     }
