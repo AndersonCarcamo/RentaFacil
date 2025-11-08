@@ -1,5 +1,7 @@
 import Image from 'next/image'
-import { HeartIcon, CheckBadgeIcon, StarIcon, EyeIcon } from '@heroicons/react/24/solid'
+import { CheckBadgeIcon, StarIcon, EyeIcon } from '@heroicons/react/24/solid'
+import { HeartIcon as HeartIconOutline } from '@heroicons/react/24/outline'
+import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid'
 import { Property } from '@/types'
 import { useState } from 'react'
 
@@ -64,7 +66,11 @@ export default function PropertyCard({ property, className = '', onFavoriteToggl
 					onClick={toggleFav}
 					className="absolute top-2 right-2 inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-gray-600 backdrop-blur hover:text-red-500 hover:bg-white transition"
 				>
-					<HeartIcon className={`h-5 w-5 ${favorite ? 'fill-red-500 text-red-500' : 'fill-none'}`} />
+					{favorite ? (
+						<HeartIconSolid className="h-5 w-5 text-red-500" />
+					) : (
+						<HeartIconOutline className="h-5 w-5" />
+					)}
 					<span className="sr-only">Favorito</span>
 				</button>
 			</div>

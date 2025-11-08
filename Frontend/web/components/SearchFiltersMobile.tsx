@@ -28,6 +28,13 @@ const SearchFiltersMobile: React.FC<SearchFiltersMobileProps> = ({
   const [filters, setFilters] = useState<SearchFilters>(initialFilters)
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['price']))
 
+  // Sincronizar con initialFilters cuando cambien (ej: desde URL params)
+  useEffect(() => {
+    if (initialFilters && Object.keys(initialFilters).length > 0) {
+      setFilters(initialFilters)
+    }
+  }, [initialFilters])
+
   const toggleSection = (section: string) => {
     const newExpanded = new Set(expandedSections)
     if (newExpanded.has(section)) {

@@ -346,7 +346,25 @@ const SearchPage = () => {
   const [loading, setLoading] = useState(true);
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [currentFilters, setCurrentFilters] = useState<SearchFilters>({});
+  
+  // Inicializar filtros desde URL params
+  const [currentFilters, setCurrentFilters] = useState<SearchFilters>(() => {
+    const params = router.query;
+    return {
+      location: params.location as string,
+      propertyType: params.propertyType as string,
+      minPrice: params.minPrice ? Number(params.minPrice) : undefined,
+      maxPrice: params.maxPrice ? Number(params.maxPrice) : undefined,
+      bedrooms: params.bedrooms ? Number(params.bedrooms) : undefined,
+      bathrooms: params.bathrooms ? Number(params.bathrooms) : undefined,
+      minArea: params.minArea ? Number(params.minArea) : undefined,
+      maxArea: params.maxArea ? Number(params.maxArea) : undefined,
+      furnished: params.furnished === 'true' ? true : params.furnished === 'false' ? false : undefined,
+      verified: params.verified === 'true' ? true : params.verified === 'false' ? false : undefined,
+      rentalMode: params.rentalMode as string,
+      petFriendly: params.petFriendly === 'true' ? true : params.petFriendly === 'false' ? false : undefined,
+    };
+  });
   
   // Estados para hover sincronizado
   const [hoveredPropertyId, setHoveredPropertyId] = useState<string | null>(null);
@@ -417,20 +435,28 @@ const SearchPage = () => {
   };
 
   useEffect(() => {
-    // Cargar filtros iniciales desde URL
+    // Actualizar filtros cuando cambian los parámetros de URL
+    if (!router.isReady) return; // Esperar a que router esté listo
+    
     const params = router.query;
-    const initialFilters: SearchFilters = {
+    const urlFilters: SearchFilters = {
       location: params.location as string,
       propertyType: params.propertyType as string,
       minPrice: params.minPrice ? Number(params.minPrice) : undefined,
       maxPrice: params.maxPrice ? Number(params.maxPrice) : undefined,
       bedrooms: params.bedrooms ? Number(params.bedrooms) : undefined,
       bathrooms: params.bathrooms ? Number(params.bathrooms) : undefined,
+      minArea: params.minArea ? Number(params.minArea) : undefined,
+      maxArea: params.maxArea ? Number(params.maxArea) : undefined,
+      furnished: params.furnished === 'true' ? true : params.furnished === 'false' ? false : undefined,
+      verified: params.verified === 'true' ? true : params.verified === 'false' ? false : undefined,
+      rentalMode: params.rentalMode as string,
+      petFriendly: params.petFriendly === 'true' ? true : params.petFriendly === 'false' ? false : undefined,
     };
     
-    setCurrentFilters(initialFilters);
-    loadProperties(initialFilters);
-  }, [router.query]);
+    setCurrentFilters(urlFilters);
+    loadProperties(urlFilters);
+  }, [router.isReady, router.query]);
 
   // Efecto para drag handle
   useEffect(() => {

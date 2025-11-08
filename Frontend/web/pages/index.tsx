@@ -803,7 +803,28 @@ const HomePage: NextPage = () => {
             ) : featuredProperties.length > 0 ? (
               // Properties loaded
               <>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {/* Vista móvil - Carrusel horizontal */}
+                <div className="md:hidden relative -mx-4 px-4">
+                  <div className="overflow-x-auto scrollbar-hide">
+                    <div className="flex gap-6 pb-4" style={{ scrollSnapType: 'x mandatory' }}>
+                      {featuredProperties.map((property) => (
+                        <div
+                          key={property.id}
+                          className="flex-none w-[280px]"
+                          style={{ scrollSnapAlign: 'start' }}
+                        >
+                          <PropertyCard
+                            property={property}
+                            className="card-hover h-full"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Vista desktop - Grid */}
+                <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-8">
                   {featuredProperties.map((property) => (
                     <PropertyCard
                       key={property.id}

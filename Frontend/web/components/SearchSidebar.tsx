@@ -82,6 +82,16 @@ const SearchSidebar: React.FC<SearchSidebarProps> = ({
     onFilterChange(newFilters)
   }
 
+  // Sincronizar con initialFilters cuando cambien (ej: desde URL params)
+  useEffect(() => {
+    if (initialFilters && Object.keys(initialFilters).length > 0) {
+      setFilters(prevFilters => {
+        // Merge con filtros previos, dando prioridad a initialFilters
+        return { ...prevFilters, ...initialFilters }
+      })
+    }
+  }, [initialFilters])
+
   const clearFilters = () => {
     setFilters({})
     
