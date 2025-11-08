@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { Header } from '../components/Header';
+import RegisterMobile from '../components/RegisterMobile';
 import Button from '../components/ui/Button';
 import { useAuth } from '../lib/hooks/useAuth';
 import { validateDocument, formatDocument, getDocumentMaxLength, getRUCType } from '../lib/utils/documentValidation';
@@ -50,6 +51,7 @@ const RegisterPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const [formData, setFormData] = useState<FormData>({
     email: '',
     password: '',
@@ -70,6 +72,18 @@ const RegisterPage: React.FC = () => {
   const [success, setSuccess] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+
+  // Detect mobile viewport
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Preseleccionar el rol basado en el query parameter
   React.useEffect(() => {
@@ -380,29 +394,33 @@ const RegisterPage: React.FC = () => {
       return;
     }
 
+    await handleRegistration(formData);
+  };
+
+  const handleRegistration = async (data: FormData) => {
     setIsLoading(true);
 
     try {
       // Use real API registration
       const registrationData: any = {
-        email: formData.email.toLowerCase().trim(),
-        password: formData.password,
-        first_name: formData.firstName.trim(),
-        last_name: formData.lastName.trim(),
-        phone: formData.phone || undefined,
-        role: formData.role.toLowerCase() as 'user' | 'landlord' | 'agent'
+        email: data.email.toLowerCase().trim(),
+        password: data.password,
+        first_name: data.firstName.trim(),
+        last_name: data.lastName.trim(),
+        phone: data.phone || undefined,
+        role: data.role.toLowerCase() as 'user' | 'landlord' | 'agent'
       };
 
       // Para usuarios y propietarios, enviar documento de identidad
-      if (formData.role !== 'AGENT') {
-        registrationData.national_id = formData.nationalId || undefined;
-        registrationData.national_id_type = formData.nationalIdType;
+      if (data.role !== 'AGENT') {
+        registrationData.national_id = data.nationalId || undefined;
+        registrationData.national_id_type = data.nationalIdType;
       } else {
         // Para inmobiliarias, enviar información de la agencia
-        registrationData.agency_name = formData.agencyName?.trim();
-        registrationData.agency_ruc = formData.agencyRuc?.trim();
+        registrationData.agency_name = data.agencyName?.trim();
+        registrationData.agency_ruc = data.agencyRuc?.trim();
         // El RUC de la agencia se usa como identificador
-        registrationData.national_id = formData.agencyRuc?.trim();
+        registrationData.national_id = data.agencyRuc?.trim();
         registrationData.national_id_type = 'RUC';
       }
 
@@ -412,7 +430,7 @@ const RegisterPage: React.FC = () => {
       await apiRegister(registrationData);
 
       // Si hay una foto de perfil, guardarla temporalmente para subirla después del login
-      if (formData.profilePicture) {
+      if (data.profilePicture) {
         try {
           console.log('📸 Guardando foto de perfil para subir después del login...');
           
@@ -421,10 +439,10 @@ const RegisterPage: React.FC = () => {
           reader.onload = () => {
             const base64Image = reader.result as string;
             sessionStorage.setItem('pending_avatar_upload', base64Image);
-            sessionStorage.setItem('pending_avatar_filename', formData.profilePicture!.name);
+            sessionStorage.setItem('pending_avatar_filename', data.profilePicture!.name);
             console.log('✅ Foto guardada temporalmente');
           };
-          reader.readAsDataURL(formData.profilePicture);
+          reader.readAsDataURL(data.profilePicture);
         } catch (uploadError) {
           console.error('⚠️ Error al guardar foto de perfil:', uploadError);
         }
@@ -435,9 +453,9 @@ const RegisterPage: React.FC = () => {
       
       // Redirect after success based on role
       setTimeout(() => {
-        if (formData.role === 'AGENT' || formData.role === 'LANDLORD') {
+        if (data.role === 'AGENT' || data.role === 'LANDLORD') {
           // Si es agente o propietario, llevar a la página de planes con el tipo de usuario
-          router.push(`/plans?newUser=true&userType=${formData.role}`);
+          router.push(`/plans?newUser=true&userType=${data.role}`);
         } else {
           // Para usuarios normales, llevar al login
           router.push('/login?registered=true');
@@ -474,9 +492,11 @@ const RegisterPage: React.FC = () => {
         </Head>
         
         <div className="min-h-screen bg-gray-50">
-          <Header />
+          {!isMobile && <Header />}
           
-          <div className="flex items-center justify-center min-h-[calc(100vh-96px)] px-4">
+          <div className={`flex items-center justify-center px-4 ${
+            isMobile ? 'min-h-screen' : 'min-h-[calc(100vh-96px)]'
+          }`}>
             <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 text-center">
               <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <CheckCircleIcon className="w-8 h-8 text-green-600" />
@@ -503,6 +523,26 @@ const RegisterPage: React.FC = () => {
     );
   }
 
+  // Mobile view - Wizard
+  if (isMobile) {
+    return (
+      <>
+        <Head>
+          <title>Crear Cuenta - RENTA fácil</title>
+          <meta name="description" content="Crea tu cuenta en RENTA fácil y encuentra tu hogar ideal" />
+        </Head>
+        
+        {/* RegisterMobile ya incluye el Header */}
+        <RegisterMobile 
+          onSubmit={handleRegistration}
+          isLoading={isLoading}
+          generalError={errors.general}
+        />
+      </>
+    );
+  }
+
+  // Desktop view - Full form
   return (
     <>
       <Head>
