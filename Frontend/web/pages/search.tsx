@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import PropertyCardHorizontal from '../components/PropertyCardHorizontal';
 import SearchSidebar, { SearchFilters } from '../components/SearchSidebar';
 import PropertyModal from '../components/PropertyModal';
+import SearchMobileView from '../components/SearchMobileView';
 import { Property, Currency, PropertyType } from '../types/index';
 import { fetchProperties, PropertyFilters, PropertyResponse } from '../lib/api/properties';
 
@@ -355,6 +356,20 @@ const SearchPage = () => {
   const [isDragging, setIsDragging] = useState(false);
   const dragRef = useRef<HTMLDivElement>(null);
 
+  // Detectar si es móvil
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768) // Tablets y móviles
+    }
+    
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
+
   const openPropertyModal = (propertyId: string) => {
     setSelectedPropertyId(propertyId);
     setIsModalOpen(true);
@@ -464,14 +479,28 @@ const SearchPage = () => {
         <meta name="description" content="Encuentra tu propiedad ideal en RENTA fácil" />
       </Head>
       
-      {/* Header Fixed */}
-      <Header />
-      
-      {/* Main Layout - Sin scroll general */}
-      <div 
-        className="flex overflow-hidden bg-gray-50"
-        style={{ height: 'calc(100vh - 96px)' }}
-      >
+      {/* Renderizado condicional: Vista móvil o desktop */}
+      {isMobile ? (
+        // Vista Móvil con Bottom Sheet
+        <SearchMobileView
+          properties={properties}
+          apiProperties={apiProperties}
+          loading={loading}
+          onPropertyClick={openPropertyModal}
+          onFilterChange={handleFilterChange}
+          currentFilters={currentFilters}
+        />
+      ) : (
+        // Vista Desktop (existente)
+        <>
+          {/* Header Fixed */}
+          <Header />
+          
+          {/* Main Layout - Sin scroll general */}
+          <div 
+            className="flex overflow-hidden bg-gray-50"
+            style={{ height: 'calc(100vh - 96px)' }}
+          >
         {/* Sidebar de Filtros - Colapsable */}
         <SearchSidebar 
           onFilterChange={handleFilterChange}
@@ -594,8 +623,10 @@ const SearchPage = () => {
           </div>
         </div>
       </div>
+        </>
+      )}
 
-      {/* Property Modal */}
+      {/* Property Modal - Compartido entre ambas vistas */}
       {selectedPropertyId && (
         <PropertyModal
           propertyId={selectedPropertyId}

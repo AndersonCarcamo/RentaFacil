@@ -1,17 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { 
-  XMarkIcon, 
-  MapPinIcon, 
-  HomeIcon, 
-  CurrencyDollarIcon, 
-  ChevronLeftIcon, 
-  ChevronRightIcon,
-  PhoneIcon,
-  EnvelopeIcon,
-  DevicePhoneMobileIcon,
-  CheckCircleIcon,
-  SparklesIcon
-} from '@heroicons/react/24/outline';
+import { XMarkIcon, MapPinIcon, HomeIcon, CurrencyDollarIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { fetchProperty, PropertyResponse } from '../lib/api/properties';
 import dynamic from 'next/dynamic';
 import ImageViewer from './ImageViewer';
@@ -28,22 +16,6 @@ interface PropertyModalProps {
   onClose: () => void;
 }
 
-interface ContactSettings {
-  whatsapp?: {
-    enabled: boolean;
-    number?: string;
-  };
-  phone?: {
-    enabled: boolean;
-    number?: string;
-  };
-  email?: {
-    enabled: boolean;
-    address?: string;
-  };
-  contactName?: string;
-}
-
 const PropertyModal: React.FC<PropertyModalProps> = ({ propertyId, isOpen, onClose }) => {
   const [property, setProperty] = useState<PropertyResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -51,26 +23,13 @@ const PropertyModal: React.FC<PropertyModalProps> = ({ propertyId, isOpen, onClo
   const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [carouselIndex, setCarouselIndex] = useState(0);
-  const [contactSettings, setContactSettings] = useState<ContactSettings | null>(null);
 
   useEffect(() => {
     if (isOpen && propertyId) {
       loadProperty();
-      loadContactSettings();
       setCarouselIndex(0); // Reset carousel when opening
     }
   }, [isOpen, propertyId]);
-
-  const loadContactSettings = () => {
-    try {
-      const stored = localStorage.getItem('contactSettings');
-      if (stored) {
-        setContactSettings(JSON.parse(stored));
-      }
-    } catch (error) {
-      console.error('Error loading contact settings:', error);
-    }
-  };
 
   // Auto-advance carousel
   useEffect(() => {
@@ -152,14 +111,14 @@ const PropertyModal: React.FC<PropertyModalProps> = ({ propertyId, isOpen, onClo
 
   return (
     <>
-      {/* Overlay */}
+      {/* Overlay - z-index muy alto para estar sobre bottom sheet y filtros */}
       <div 
-        className="fixed inset-0 bg-black/50 z-[100] transition-opacity"
+        className="fixed inset-0 bg-black/50 z-[9998] transition-opacity"
         onClick={onClose}
       />
       
       {/* Modal */}
-      <div className="fixed inset-0 z-[100] overflow-y-auto">
+      <div className="fixed inset-0 z-[9999] overflow-y-auto">
         <div className="flex min-h-full items-center justify-center p-4">
           <div 
             className="relative bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden"
@@ -331,36 +290,13 @@ const PropertyModal: React.FC<PropertyModalProps> = ({ propertyId, isOpen, onClo
                     </div>
                     <div className="text-center p-4 bg-gray-50 rounded-lg">
                       <p className="text-2xl font-bold text-gray-900">{property.area_built || property.area_total || 0}</p>
-                      <p className="text-sm text-gray-600">m² {property.area_built ? 'construidos' : 'totales'}</p>
+                      <p className="text-sm text-gray-600">m² construidos</p>
                     </div>
-                    {property.area_total && property.area_built && property.area_total !== property.area_built ? (
-                      <div className="text-center p-4 bg-gray-50 rounded-lg">
-                        <p className="text-2xl font-bold text-gray-900">{property.area_total}</p>
-                        <p className="text-sm text-gray-600">m² totales</p>
-                      </div>
-                    ) : (
-                      <div className="text-center p-4 bg-gray-50 rounded-lg">
-                        <p className="text-2xl font-bold text-gray-900">{property.parking_spots || 0}</p>
-                        <p className="text-sm text-gray-600">Estacionamiento</p>
-                      </div>
-                    )}
+                    <div className="text-center p-4 bg-gray-50 rounded-lg">
+                      <p className="text-2xl font-bold text-gray-900">{property.parking_spots || 0}</p>
+                      <p className="text-sm text-gray-600">Estacionamiento</p>
+                    </div>
                   </div>
-                  
-                  {/* Segunda fila de detalles si hay área total diferente */}
-                  {property.area_total && property.area_built && property.area_total !== property.area_built && (
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
-                      <div className="text-center p-4 bg-gray-50 rounded-lg">
-                        <p className="text-2xl font-bold text-gray-900">{property.parking_spots || 0}</p>
-                        <p className="text-sm text-gray-600">Estacionamiento</p>
-                      </div>
-                      {property.total_floors && (
-                        <div className="text-center p-4 bg-gray-50 rounded-lg">
-                          <p className="text-2xl font-bold text-gray-900">{property.total_floors}</p>
-                          <p className="text-sm text-gray-600">Pisos totales</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
 
                   {/* Description */}
                   {property.description && (
@@ -372,7 +308,7 @@ const PropertyModal: React.FC<PropertyModalProps> = ({ propertyId, isOpen, onClo
                     </div>
                   )}
 
-                  {/* Características Principales */}
+                  {/* Characteristics */}
                   <div className="mb-8">
                     <h2 className="text-xl font-bold text-gray-900 mb-4">Características</h2>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -402,78 +338,13 @@ const PropertyModal: React.FC<PropertyModalProps> = ({ propertyId, isOpen, onClo
                           </span>
                         </div>
                       )}
-                      {property.age_years !== null && property.age_years !== undefined && (
+                      {property.airbnb_score && (
                         <div className="flex items-center gap-2">
-                          <HomeIcon className="w-4 h-4 text-gray-500" />
-                          <span className="text-gray-700">
-                            {property.age_years === 0 ? 'Nueva construcción' : `${property.age_years} años`}
-                          </span>
-                        </div>
-                      )}
-                      {property.floor_number && (
-                        <div className="flex items-center gap-2">
-                          <span className="text-gray-700">Piso {property.floor_number}</span>
+                          <span className="text-gray-700">Score Airbnb: {property.airbnb_score}</span>
                         </div>
                       )}
                     </div>
                   </div>
-
-                  {/* Amenidades */}
-                  {property.amenities && property.amenities.length > 0 && (
-                    <div className="mb-8">
-                      <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                        <SparklesIcon className="w-6 h-6 text-blue-600" />
-                        Amenidades
-                      </h2>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                        {property.amenities.map((amenity, index) => (
-                          <div key={index} className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg">
-                            <CheckCircleIcon className="w-5 h-5 text-blue-600 flex-shrink-0" />
-                            <span className="text-gray-700">{amenity}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Costos Adicionales */}
-                  {(property.maintenance_fee || property.hoa_fee || property.utilities_included !== null) && (
-                    <div className="mb-8">
-                      <h2 className="text-xl font-bold text-gray-900 mb-4">Costos Adicionales</h2>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {property.maintenance_fee && (
-                          <div className="p-4 bg-gray-50 rounded-lg">
-                            <p className="text-sm text-gray-600 mb-1">Mantenimiento</p>
-                            <p className="text-xl font-bold text-gray-900">
-                              {property.currency} {property.maintenance_fee.toLocaleString()}
-                            </p>
-                          </div>
-                        )}
-                        {property.hoa_fee && (
-                          <div className="p-4 bg-gray-50 rounded-lg">
-                            <p className="text-sm text-gray-600 mb-1">Cuota HOA</p>
-                            <p className="text-xl font-bold text-gray-900">
-                              {property.currency} {property.hoa_fee.toLocaleString()}
-                            </p>
-                          </div>
-                        )}
-                        {property.utilities_included !== null && (
-                          <div className="p-4 bg-gray-50 rounded-lg">
-                            <p className="text-sm text-gray-600 mb-1">Servicios</p>
-                            <p className="text-lg font-semibold text-gray-900">
-                              {property.utilities_included ? '✓ Incluidos' : '✗ No incluidos'}
-                            </p>
-                          </div>
-                        )}
-                        {property.airbnb_score && (
-                          <div className="p-4 bg-orange-50 rounded-lg">
-                            <p className="text-sm text-gray-600 mb-1">Score Airbnb</p>
-                            <p className="text-xl font-bold text-orange-600">{property.airbnb_score}</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
 
                   {/* Location Details */}
                   {(property.address || property.latitude) && (
@@ -504,79 +375,20 @@ const PropertyModal: React.FC<PropertyModalProps> = ({ propertyId, isOpen, onClo
                   {/* Contact Information */}
                   <div className="border-t pt-6">
                     <h2 className="text-xl font-bold text-gray-900 mb-4">Información de contacto</h2>
-                    
-                    {/* Nombre de contacto */}
-                    {(property.contact_name || contactSettings?.contactName) && (
-                      <div className="mb-4 p-4 bg-gray-50 rounded-lg">
-                        <p className="text-sm text-gray-600 mb-1">Contacto</p>
-                        <p className="text-lg font-semibold text-gray-900">
-                          {property.contact_name || contactSettings?.contactName}
-                        </p>
-                      </div>
-                    )}
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* WhatsApp */}
-                      {(() => {
-                        const whatsappNumber = property.contact_whatsapp_phone_e164 || contactSettings?.whatsapp?.number;
-                        const hasWhatsApp = contactSettings?.whatsapp?.enabled && whatsappNumber;
-                        
-                        return hasWhatsApp ? (
-                          <a
-                            href={`https://wa.me/${whatsappNumber.replace(/\+/g, '')}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="px-6 py-3 bg-[#25D366] text-white font-medium rounded-lg hover:bg-[#20BA5A] transition-colors flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
-                          >
-                            <DevicePhoneMobileIcon className="w-5 h-5" />
-                            WhatsApp
-                          </a>
-                        ) : null;
-                      })()}
-
-                      {/* Teléfono */}
-                      {(() => {
-                        const phoneNumber = property.contact_phone_e164 || contactSettings?.phone?.number;
-                        const hasPhone = contactSettings?.phone?.enabled && phoneNumber;
-                        
-                        return hasPhone ? (
-                          <a
-                            href={`tel:${phoneNumber}`}
-                            className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
-                          >
-                            <PhoneIcon className="w-5 h-5" />
-                            Llamar
-                          </a>
-                        ) : null;
-                      })()}
-
-                      {/* Email */}
-                      {(() => {
-                        const emailAddress = property.contact_email || contactSettings?.email?.address;
-                        const hasEmail = contactSettings?.email?.enabled && emailAddress;
-                        
-                        return hasEmail ? (
-                          <a
-                            href={`mailto:${emailAddress}`}
-                            className="px-6 py-3 bg-gray-700 text-white font-medium rounded-lg hover:bg-gray-800 transition-colors flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
-                          >
-                            <EnvelopeIcon className="w-5 h-5" />
-                            Email
-                          </a>
-                        ) : null;
-                      })()}
+                    <div className="flex gap-4">
+                      <button className="flex-1 px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                        Contactar
+                      </button>
+                      <button className="px-6 py-3 bg-[#25D366] text-white font-medium rounded-lg hover:bg-[#20BA5A] transition-colors flex items-center justify-center gap-2 shadow-md hover:shadow-lg">
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+                        </svg>
+                        WhatsApp
+                      </button>
                     </div>
-
-                    {/* Mensaje si no hay métodos de contacto */}
-                    {!((contactSettings?.whatsapp?.enabled && (property.contact_whatsapp_phone_e164 || contactSettings?.whatsapp?.number)) ||
-                       (contactSettings?.phone?.enabled && (property.contact_phone_e164 || contactSettings?.phone?.number)) ||
-                       (contactSettings?.email?.enabled && (property.contact_email || contactSettings?.email?.address))) && (
-                      <div className="p-6 bg-gray-50 rounded-lg text-center">
-                        <p className="text-gray-500">
-                          El propietario no ha configurado métodos de contacto para esta propiedad.
-                        </p>
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>

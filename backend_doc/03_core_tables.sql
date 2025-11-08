@@ -5,6 +5,7 @@
 CREATE TABLE IF NOT EXISTS core.users (
     id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     firebase_uid            TEXT UNIQUE,
+    bio                     TEXT,
     email                   CITEXT UNIQUE NOT NULL,
     phone                   TEXT,
     first_name              TEXT,
