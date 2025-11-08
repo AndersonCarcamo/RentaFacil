@@ -107,10 +107,10 @@ export function Header() {
 			return
 		}
 
-		// Si es landlord o agent, ir directo a publicar
+		// Si es landlord o agent, ir directo a crear propiedad
 		if (user.role === 'landlord' || user.role === 'agent') {
-			console.log('✅ Usuario autorizado - Redirigiendo a /publish')
-			router.push('/publish')
+			console.log('✅ Usuario autorizado - Redirigiendo a /dashboard/create-listing')
+			router.push('/dashboard/create-listing')
 			return
 		}
 

@@ -22,9 +22,11 @@ const PublishPage: React.FC = () => {
         // Si no está autenticado, redirigir al home (que mostrará el modal)
         router.push('/');
       } else if (user.role === 'user') {
-        // Si es usuario normal, mostrar que necesita actualizar
-        // Por ahora redirigir al home
+        // Si es usuario normal, redirigir al home con modal de upgrade
         router.push('/?showUpgrade=true');
+      } else if (user.role === 'landlord' || user.role === 'agent') {
+        // Si es propietario o agente, redirigir al formulario de creación
+        router.push('/dashboard/create-listing');
       }
     }
   }, [user, loading, router]);

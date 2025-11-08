@@ -113,10 +113,10 @@ const HomePage: NextPage = () => {
       return
     }
 
-    // Si ya es LANDLORD o AGENT, redirigir a publicar
+    // Si ya es LANDLORD o AGENT, redirigir a crear propiedad
     if (user.role === 'landlord' || user.role === 'agent') {
-      console.log('✅ Propietario/Agente - Redirigiendo a /publish');
-      router.push('/publish')
+      console.log('✅ Propietario/Agente - Redirigiendo a /dashboard/create-listing');
+      router.push('/dashboard/create-listing')
       return
     }
 
