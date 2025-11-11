@@ -7,6 +7,7 @@ import RegisterMobile from '../components/RegisterMobile';
 import Button from '../components/ui/Button';
 import { useAuth } from '../lib/hooks/useAuth';
 import { validateDocument, formatDocument, getDocumentMaxLength, getRUCType } from '../lib/utils/documentValidation';
+import { checkEmailExists } from '../lib/api/auth';
 import { 
   EyeIcon, 
   EyeSlashIcon, 
@@ -52,6 +53,8 @@ const RegisterPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [isCheckingEmail, setIsCheckingEmail] = useState(false);
+  const [emailAvailable, setEmailAvailable] = useState<boolean | null>(null);
   const [formData, setFormData] = useState<FormData>({
     email: '',
     password: '',
@@ -103,6 +106,47 @@ const RegisterPage: React.FC = () => {
     if (!phone) return true; // Optional field
     const phoneRegex = /^\+[1-9]\d{1,14}$/;
     return phoneRegex.test(phone);
+  };
+
+  // Verificar disponibilidad del email en tiempo real
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (formData.email && validateEmail(formData.email)) {
+        checkEmail(formData.email);
+      } else {
+        setEmailAvailable(null);
+        setIsCheckingEmail(false);
+      }
+    }, 800);
+
+    return () => clearTimeout(timeoutId);
+  }, [formData.email]);
+
+  const checkEmail = async (email: string) => {
+    setIsCheckingEmail(true);
+    try {
+      const exists = await checkEmailExists(email);
+      setEmailAvailable(!exists);
+      
+      if (exists) {
+        setErrors(prev => ({ 
+          ...prev, 
+          email: 'Este email ya está registrado. Intenta iniciar sesión o usa otro email.' 
+        }));
+      } else if (errors.email === 'Este email ya está registrado. Intenta iniciar sesión o usa otro email.') {
+        // Limpiar el error si el email está disponible
+        setErrors(prev => {
+          const newErrors = { ...prev };
+          delete newErrors.email;
+          return newErrors;
+        });
+      }
+    } catch (error) {
+      console.error('Error checking email:', error);
+      setEmailAvailable(null);
+    } finally {
+      setIsCheckingEmail(false);
+    }
   };
 
   const validateForm = (): boolean => {
@@ -469,12 +513,19 @@ const RegisterPage: React.FC = () => {
       let errorMessage = 'Error al crear la cuenta. Por favor, inténtalo de nuevo.';
       
       if (error instanceof Error) {
-        if (error.message.includes('409') || error.message.includes('already')) {
+        // Primero verificar si el mensaje ya es descriptivo (viene de useAuth)
+        if (error.message.includes('El email ya está registrado') || 
+            error.message.includes('email-already-in-use')) {
+          errorMessage = 'El email ya está registrado. Intenta iniciar sesión o usa otro email.';
+        } else if (error.message.includes('409') || error.message.includes('already')) {
           errorMessage = 'El email ya está registrado. Intenta con otro email.';
         } else if (error.message.includes('400')) {
           errorMessage = 'Los datos proporcionados no son válidos. Revisa la información.';
         } else if (error.message.includes('Firebase UID already registered')) {
           errorMessage = 'Esta cuenta ya está registrada. Intenta iniciar sesión.';
+        } else if (error.message.length > 0 && error.message.length < 200) {
+          // Si el mensaje es razonable, mostrarlo directamente
+          errorMessage = error.message;
         }
       }
       
@@ -743,14 +794,35 @@ const RegisterPage: React.FC = () => {
                       type="email"
                       value={formData.email}
                       onChange={(e) => handleInputChange('email', e.target.value)}
-                      className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
-                        errors.email ? 'border-red-300' : 'border-gray-300'
+                      className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
+                        errors.email 
+                          ? 'border-red-300' 
+                          : emailAvailable === false 
+                            ? 'border-red-300'
+                            : emailAvailable === true 
+                              ? 'border-green-300'
+                              : 'border-gray-300'
                       }`}
                       placeholder="tu@email.com"
                     />
+                    {/* Indicador de verificación */}
+                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                      {isCheckingEmail && (
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                      )}
+                      {!isCheckingEmail && emailAvailable === true && (
+                        <CheckCircleIcon className="h-5 w-5 text-green-600" />
+                      )}
+                      {!isCheckingEmail && emailAvailable === false && (
+                        <ExclamationCircleIcon className="h-5 w-5 text-red-600" />
+                      )}
+                    </div>
                   </div>
                   {errors.email && (
                     <p className="mt-1 text-sm text-red-600">{errors.email}</p>
+                  )}
+                  {!errors.email && emailAvailable === true && (
+                    <p className="mt-1 text-sm text-green-600">✓ Email disponible</p>
                   )}
                 </div>
 

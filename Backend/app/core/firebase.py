@@ -139,6 +139,39 @@ class FirebaseService:
             logger.error(f"Error getting Firebase user: {e}")
             return None
     
+    async def get_user_by_email(self, email: str) -> Optional[Dict[str, Any]]:
+        """
+        Get user information from Firebase by email.
+        
+        Args:
+            email: User email address
+            
+        Returns:
+            Dict with user information if found, None if not found
+        """
+        if self._mock_mode:
+            return self._mock_get_user_by_email(email)
+        
+        try:
+            user_record = auth.get_user_by_email(email)
+            return {
+                'uid': user_record.uid,
+                'email': user_record.email,
+                'email_verified': user_record.email_verified,
+                'display_name': user_record.display_name,
+                'photo_url': user_record.photo_url,
+                'phone_number': user_record.phone_number,
+                'disabled': user_record.disabled,
+                'creation_timestamp': user_record.user_metadata.creation_timestamp,
+                'last_sign_in_timestamp': user_record.user_metadata.last_sign_in_timestamp
+            }
+        except auth.UserNotFoundError:
+            logger.info(f"Firebase user not found with email: {email}")
+            return None
+        except Exception as e:
+            logger.error(f"Error getting Firebase user by email: {e}")
+            return None
+    
     async def create_custom_token(self, uid: str, additional_claims: Optional[Dict] = None) -> Optional[str]:
         """
         Create a custom token for a user.
@@ -188,6 +221,11 @@ class FirebaseService:
             'creation_timestamp': 1640995200000,  # Mock timestamp
             'last_sign_in_timestamp': 1640995200000
         }
+    
+    def _mock_get_user_by_email(self, email: str) -> Optional[Dict[str, Any]]:
+        """Mock Firebase user lookup by email for development."""
+        # In mock mode, assume email doesn't exist to allow testing
+        return None
     
     def _mock_create_custom_token(self, uid: str, additional_claims: Optional[Dict] = None) -> str:
         """Mock custom token creation for development."""

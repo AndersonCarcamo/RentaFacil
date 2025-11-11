@@ -3,10 +3,12 @@ import Head from 'next/head'
 import { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
+import { useRouter } from 'next/router'
 
 // Componentes
 import Layout from '@/components/Layout'
 import { Button } from '@/components/ui/Button'
+import { useAuth } from '@/lib/hooks/useAuth'
 
 // Types y Services
 import { Property } from '@/types'
@@ -22,6 +24,28 @@ interface PropertyDetailPageProps {
 
 const PropertyDetailPage: NextPage<PropertyDetailPageProps> = ({ property, error }) => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
+  const { user } = useAuth()
+  const router = useRouter()
+
+  const handleContact = (type: 'call' | 'whatsapp' | 'email') => {
+    if (!user) {
+      // Si no hay usuario, redirigir a registro con tipo USER preseleccionado
+      router.push('/register?type=user&redirectTo=' + encodeURIComponent(router.asPath))
+    } else {
+      // Si hay usuario, proceder con el contacto (implementar después)
+      switch (type) {
+        case 'call':
+          alert('Llamar al propietario')
+          break
+        case 'whatsapp':
+          alert('Abrir WhatsApp')
+          break
+        case 'email':
+          alert('Enviar email')
+          break
+      }
+    }
+  }
 
   if (error || !property) {
     return (
@@ -181,25 +205,37 @@ const PropertyDetailPage: NextPage<PropertyDetailPageProps> = ({ property, error
               <div className="lg:col-span-1">
                 <div className="bg-white rounded-xl p-6 sticky top-4">
                   <h3 className="text-lg font-bold text-gray-900 mb-4">
-                    Contactar
+                    {user ? 'Contactar' : 'Regístrate para Contactar'}
                   </h3>
                   
                   <div className="space-y-4">
-                    <Button variant="primary" className="w-full">
+                    <Button 
+                      variant="primary" 
+                      className="w-full"
+                      onClick={() => handleContact('call')}
+                    >
                       <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                       </svg>
-                      Llamar
+                      {user ? 'Llamar' : 'Regístrate para Llamar'}
                     </Button>
                     
-                    <Button variant="outline" className="w-full">
+                    <Button 
+                      variant="outline" 
+                      className="w-full"
+                      onClick={() => handleContact('whatsapp')}
+                    >
                       <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                       </svg>
                       WhatsApp
                     </Button>
                     
-                    <Button variant="outline" className="w-full">
+                    <Button 
+                      variant="outline" 
+                      className="w-full"
+                      onClick={() => handleContact('email')}
+                    >
                       <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                       </svg>

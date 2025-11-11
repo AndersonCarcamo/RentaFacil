@@ -208,3 +208,41 @@ async def get_current_user_info(
         created_at=current_user.created_at,
         updated_at=current_user.updated_at
     )
+
+
+@router.post("/check-email",
+             summary="Verificar disponibilidad de email",
+             description="Verifica si un email ya está registrado en Firebase")
+async def check_email(
+    request: dict,
+    db: Session = Depends(get_db)
+):
+    """Check if email already exists in Firebase."""
+    try:
+        email = request.get("email", "").strip().lower()
+        
+        if not email:
+            raise http_400_bad_request("Email is required")
+        
+        logger.info(f"Checking if email exists: {email}")
+        
+        # Check in Firebase first
+        try:
+            firebase_user = await firebase_service.get_user_by_email(email)
+            exists = firebase_user is not None
+            logger.info(f"Email {email} exists in Firebase: {exists}")
+        except Exception as firebase_error:
+            logger.warning(f"Firebase check error: {firebase_error}")
+            # If Firebase check fails, check in database as fallback
+            auth_service = AuthService(db)
+            db_user = auth_service.get_user_by_email(email)
+            exists = db_user is not None
+            logger.info(f"Email {email} exists in database: {exists}")
+        
+        return {"exists": exists, "email": email}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error checking email: {str(e)}")
+        raise http_500_internal_error(f"Error checking email: {str(e)}")

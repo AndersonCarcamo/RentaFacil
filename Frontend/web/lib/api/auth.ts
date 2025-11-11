@@ -369,6 +369,38 @@ export async function authenticatedRequest(url: string, options: RequestInit = {
 }
 
 /**
+ * Check if email already exists in Firebase
+ */
+export async function checkEmailExists(email: string): Promise<boolean> {
+  try {
+    console.log('🔍 Checking if email exists:', email)
+    
+    const response = await fetch(`${API_BASE_URL}/v1/auth/check-email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify({ email: email.toLowerCase().trim() }),
+    })
+
+    if (!response.ok) {
+      console.warn('⚠️ Email check endpoint returned error:', response.status)
+      return false
+    }
+    
+    const data = await response.json()
+    console.log('✅ Email check result:', data.exists ? 'EXISTS' : 'AVAILABLE')
+    return data.exists
+    
+  } catch (error) {
+    console.error('💥 Email check error:', error)
+    // En caso de error, retornamos false para no bloquear el registro
+    return false
+  }
+}
+
+/**
  * Update user role and national ID
  */
 export interface UpdateRoleRequest {

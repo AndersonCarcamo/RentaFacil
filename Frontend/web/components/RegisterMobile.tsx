@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import { Header } from './Header';
 import Button from './ui/Button';
@@ -19,6 +19,7 @@ import {
   ChevronRightIcon
 } from '@heroicons/react/24/outline';
 import { validateDocument, formatDocument, getDocumentMaxLength, getRUCType } from '../lib/utils/documentValidation';
+import { checkEmailExists } from '../lib/api/auth';
 
 interface FormData {
   email: string;
@@ -54,6 +55,15 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 5;
   
+  // Determinar el rol basado en el parámetro type (soporta tanto mayúsculas como minúsculas)
+  const getInitialRole = (): 'USER' | 'LANDLORD' | 'AGENT' => {
+    if (!type) return 'USER';
+    const typeStr = String(type).toLowerCase();
+    if (typeStr === 'landlord') return 'LANDLORD';
+    if (typeStr === 'agent') return 'AGENT';
+    return 'USER';
+  };
+  
   const [formData, setFormData] = useState<FormData>({
     email: '',
     password: '',
@@ -63,7 +73,7 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
     phone: '',
     nationalId: '',
     nationalIdType: 'DNI',
-    role: (type === 'landlord' ? 'LANDLORD' : type === 'agent' ? 'AGENT' : 'USER') as 'USER' | 'LANDLORD' | 'AGENT',
+    role: getInitialRole(),
     acceptTerms: false,
     acceptPrivacy: false,
     profilePicture: null,
@@ -76,6 +86,48 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [isCheckingEmail, setIsCheckingEmail] = useState(false);
+  const [emailAvailable, setEmailAvailable] = useState<boolean | null>(null);
+
+  // Debounce para verificar email
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (formData.email && validateEmail(formData.email)) {
+        checkEmail(formData.email);
+      } else {
+        setEmailAvailable(null);
+      }
+    }, 800); // Esperar 800ms después de que el usuario deje de escribir
+
+    return () => clearTimeout(timeoutId);
+  }, [formData.email]);
+
+  const checkEmail = async (email: string) => {
+    try {
+      setIsCheckingEmail(true);
+      const exists = await checkEmailExists(email);
+      setEmailAvailable(!exists);
+      
+      if (exists) {
+        setErrors(prev => ({
+          ...prev,
+          email: 'Este email ya está registrado. Intenta iniciar sesión.'
+        }));
+      } else if (errors.email === 'Este email ya está registrado. Intenta iniciar sesión.') {
+        // Limpiar el error si el email está disponible
+        setErrors(prev => {
+          const newErrors = { ...prev };
+          delete newErrors.email;
+          return newErrors;
+        });
+      }
+    } catch (error) {
+      console.error('Error al verificar email:', error);
+      setEmailAvailable(null);
+    } finally {
+      setIsCheckingEmail(false);
+    }
+  };
 
   const validateEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -361,52 +413,56 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
                   value: 'USER', 
                   label: 'Usuario', 
                   icon: UserIcon,
-                  desc: 'Buscar propiedades y contactar propietarios',
-                  color: 'blue'
+                  desc: 'Buscar propiedades y contactar propietarios'
                 },
                 { 
                   value: 'LANDLORD', 
                   label: 'Propietario', 
                   icon: IdentificationIcon,
-                  desc: 'Publicar y gestionar tus propiedades',
-                  color: 'green'
+                  desc: 'Publicar y gestionar tus propiedades'
                 },
                 { 
                   value: 'AGENT', 
                   label: 'Inmobiliaria', 
                   icon: BuildingOfficeIcon,
-                  desc: 'Gestionar múltiples propiedades como agente',
-                  color: 'purple'
+                  desc: 'Gestionar múltiples propiedades como agente'
                 }
               ].map((option) => {
                 const Icon = option.icon;
+                const isSelected = formData.role === option.value;
                 return (
                   <label
                     key={option.value}
-                    className={`relative cursor-pointer rounded-lg border-2 p-4 transition-all ${
-                      formData.role === option.value
-                        ? `border-${option.color}-500 bg-${option.color}-50 ring-2 ring-${option.color}-500`
-                        : 'border-gray-300 hover:border-gray-400'
+                    className={`relative cursor-pointer rounded-xl border-2 p-5 transition-all block ${
+                      isSelected
+                        ? 'border-blue-500 bg-blue-50 shadow-md'
+                        : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-sm'
                     }`}
                   >
                     <input
                       type="radio"
                       name="role"
                       value={option.value}
-                      checked={formData.role === option.value}
+                      checked={isSelected}
                       onChange={(e) => handleInputChange('role', e.target.value as any)}
                       className="sr-only"
                     />
-                    <div className="flex items-start gap-3">
-                      <div className={`flex-shrink-0 w-10 h-10 rounded-full bg-${option.color}-100 flex items-center justify-center`}>
-                        <Icon className={`w-5 h-5 text-${option.color}-600`} />
+                    <div className="flex items-center gap-4">
+                      <div className={`flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center ${
+                        isSelected ? 'bg-blue-500' : 'bg-gray-100'
+                      }`}>
+                        <Icon className={`w-6 h-6 ${isSelected ? 'text-white' : 'text-gray-600'}`} />
                       </div>
                       <div className="flex-1">
-                        <div className="font-semibold text-gray-900 mb-1">{option.label}</div>
-                        <div className="text-sm text-gray-600">{option.desc}</div>
+                        <div className={`font-semibold mb-1 ${isSelected ? 'text-blue-900' : 'text-gray-900'}`}>
+                          {option.label}
+                        </div>
+                        <div className={`text-sm ${isSelected ? 'text-blue-700' : 'text-gray-600'}`}>
+                          {option.desc}
+                        </div>
                       </div>
-                      {formData.role === option.value && (
-                        <CheckCircleIcon className={`w-6 h-6 text-${option.color}-600 flex-shrink-0`} />
+                      {isSelected && (
+                        <CheckCircleIcon className="w-7 h-7 text-blue-600 flex-shrink-0" />
                       )}
                     </div>
                   </label>
@@ -531,14 +587,35 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
                     type="email"
                     value={formData.email}
                     onChange={(e) => handleInputChange('email', e.target.value)}
-                    className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                      errors.email ? 'border-red-300' : 'border-gray-300'
+                    className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                      errors.email 
+                        ? 'border-red-300' 
+                        : emailAvailable === false 
+                          ? 'border-red-300'
+                          : emailAvailable === true 
+                            ? 'border-green-300'
+                            : 'border-gray-300'
                     }`}
                     placeholder="tu@email.com"
                   />
+                  {/* Indicador de verificación */}
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                    {isCheckingEmail && (
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                    )}
+                    {!isCheckingEmail && emailAvailable === true && (
+                      <CheckCircleIcon className="h-5 w-5 text-green-600" />
+                    )}
+                    {!isCheckingEmail && emailAvailable === false && (
+                      <ExclamationCircleIcon className="h-5 w-5 text-red-600" />
+                    )}
+                  </div>
                 </div>
                 {errors.email && (
                   <p className="mt-1 text-sm text-red-600">{errors.email}</p>
+                )}
+                {!errors.email && emailAvailable === true && formData.email && (
+                  <p className="mt-1 text-sm text-green-600">✓ Email disponible</p>
                 )}
               </div>
 
