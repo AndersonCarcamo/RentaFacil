@@ -148,7 +148,7 @@ async def get_current_subscription(
         query = text("""
             SELECT 
                 user_id, subscription_id, plan_id, plan_code, plan_name,
-                tier, period_months, max_active_listings, listing_active_days,
+                plan_tier as tier, max_active_listings, listing_active_days,
                 max_images_per_listing, max_videos_per_listing, 
                 featured_listings, priority_support, analytics_access, api_access,
                 current_period_start, current_period_end, status

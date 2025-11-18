@@ -140,7 +140,11 @@ export async function getSubscriptionUsage(): Promise<SubscriptionUsage | null> 
 /**
  * Create a new subscription for the user
  */
-export async function createSubscription(planId: string, billingCycle: 'monthly' | 'yearly'): Promise<UserSubscription> {
+export async function createSubscription(
+  planId: string, 
+  billingCycle: 'monthly' | 'yearly',
+  metadata?: Record<string, any>
+): Promise<UserSubscription> {
   try {
     const response = await authenticatedRequest(`${API_BASE_URL}/v1/subscriptions`, {
       method: 'POST',
@@ -151,6 +155,7 @@ export async function createSubscription(planId: string, billingCycle: 'monthly'
       body: JSON.stringify({
         plan_id: planId,
         billing_cycle: billingCycle,
+        ...(metadata && { metadata }),
       }),
     });
 

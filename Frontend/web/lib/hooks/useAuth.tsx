@@ -16,6 +16,7 @@ interface AuthContextType {
   firebaseUser: FirebaseUser | null
   loading: boolean
   isLoggedIn: boolean
+  isAdmin: boolean
   login: (email: string, password: string) => Promise<void>
   register: (userData: {
     email: string
@@ -40,6 +41,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null)
   const [loading, setLoading] = useState(true)
 
+  // Computed property: check if user is admin based on role from backend
+  const isAdmin = user?.role === 'admin'
+
   // Listen to Firebase auth state changes
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -53,10 +57,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const storedUser = getStoredUser()
           if (storedUser) {
             setUser(storedUser)
+            if (storedUser.role === 'admin') {
+              console.log('👑 Admin user detected:', storedUser.email)
+            }
           } else {
             // Try to get from server
             const currentUser = await getCurrentUser()
             setUser(currentUser)
+            if (currentUser.role === 'admin') {
+              console.log('👑 Admin user detected:', currentUser.email)
+            }
           }
         } catch (error) {
           console.error('Error loading user data:', error)
@@ -93,6 +103,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       setUser(result.user)
       console.log('✅ Backend login successful')
+      console.log('👤 User data:', result.user)
+      console.log('👤 User role:', result.user.role)
+      
+      if (result.user.role === 'admin') {
+        console.log('👑 Admin user detected:', result.user.email)
+      }
     } catch (error: any) {
       console.error('❌ Login failed:', error)
       
@@ -246,6 +262,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     firebaseUser,
     loading,
     isLoggedIn: !!user && !!firebaseUser,
+    isAdmin,
     login,
     register,
     updateUserRole,
@@ -255,7 +272,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider value={value}>
       {children}
-    </AuthContext.Provider>
+    </AuthContext.Provider> 
   )
 }
 

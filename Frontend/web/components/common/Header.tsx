@@ -21,7 +21,8 @@ import {
 	IdentificationIcon,
 	CheckIcon,
 	ExclamationTriangleIcon,
-	CalendarDaysIcon
+	CalendarDaysIcon,
+	ShieldCheckIcon
 } from '@heroicons/react/24/outline'
 import { ChevronDownIcon } from '@heroicons/react/20/solid'
 import { createPortal } from 'react-dom'
@@ -85,6 +86,24 @@ export function Header() {
 	const [isMounted, setIsMounted] = useState(false)
 	const { user, isLoggedIn, logout, updateUserRole } = useAuth()
 	const router = useRouter()
+	
+	// Log inmediato al obtener user del hook
+	console.log('🎯 Header render - user from useAuth:', user)
+	console.log('🎯 Header render - isLoggedIn:', isLoggedIn)
+
+	// Debug: Log user role
+	useEffect(() => {
+		console.log('🔍 Header - useAuth hook data:', { user, isLoggedIn })
+		if (user) {
+			console.log('🔍 Header - User data:', user)
+			console.log('🔍 Header - User role:', user.role)
+			console.log('🔍 Header - Is admin?:', user.role === 'admin')
+			console.log('🔍 Header - Should show Dashboard?:', user?.role === 'landlord' || user?.role === 'agent' || user?.role === 'admin')
+			console.log('🔍 Header - Should show Admin Panel?:', user?.role === 'admin')
+		} else {
+			console.log('🔍 Header - User is null/undefined')
+		}
+	}, [user, isLoggedIn])
 
 	useEffect(() => {
 		// ensure document is available for portals (client-side only)
@@ -593,7 +612,7 @@ export function Header() {
 														)}
 													</Menu.Item>
 
-													{(user?.role === 'landlord' || user?.role === 'agent') && (
+													{(user?.role === 'landlord' || user?.role === 'agent' || user?.role === 'admin') && (
 														<Menu.Item>
 															{({ active }) => (
 																<Link
@@ -605,6 +624,23 @@ export function Header() {
 																>
 																	<ChartBarIcon className="h-5 w-5 text-gray-400" />
 																	Dashboard
+																</Link>
+															)}
+														</Menu.Item>
+													)}
+
+													{user?.role === 'admin' && (
+														<Menu.Item>
+															{({ active }) => (
+																<Link
+																	href="/admin"
+																	className={classNames(
+																		active ? 'bg-gray-50' : '',
+																		'flex items-center gap-x-3 px-4 py-2.5 text-sm text-gray-700'
+																	)}
+																>
+																	<ShieldCheckIcon className="h-5 w-5 text-purple-600" />
+																	<span className="text-purple-600 font-semibold">Panel de Admin</span>
 																</Link>
 															)}
 														</Menu.Item>
@@ -829,7 +865,7 @@ export function Header() {
 													Mi Perfil
 												</Link>
 
-												{(user?.role === 'landlord' || user?.role === 'agent') && (
+												{(user?.role === 'landlord' || user?.role === 'agent' || user?.role === 'admin') && (
 													<Link
 														href="/dashboard"
 														onClick={() => setMobileMenuOpen(false)}
@@ -837,6 +873,17 @@ export function Header() {
 													>
 														<ChartBarIcon className="h-5 w-5 text-gray-400" />
 														Dashboard
+													</Link>
+												)}
+
+												{user?.role === 'admin' && (
+													<Link
+														href="/admin"
+														onClick={() => setMobileMenuOpen(false)}
+														className="-mx-3 flex items-center gap-x-3 rounded-lg px-3 py-3 text-base font-semibold leading-7 text-purple-600 hover:bg-purple-50 transition-colors"
+													>
+														<ShieldCheckIcon className="h-5 w-5 text-purple-600" />
+														Panel de Admin
 													</Link>
 												)}
 

@@ -15,16 +15,23 @@ import {
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolidIcon } from '@heroicons/react/24/solid';
 import { getSubscriptionPlans, getCurrentSubscription, createSubscription, SubscriptionPlan, UserSubscription } from '../../lib/api/subscriptions';
+import CulqiCheckout from '../../components/dashboard/CulqiCheckout';
+import MobilePlanesView from '../../components/mobile/MobilePlanesView';
+import { PAYMENT_SETTINGS } from '../../lib/config/culqi';
+import { useMediaQuery } from '../../lib/hooks/useMediaQuery';
 
 export default function PlanesPage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
+  const isMobile = useMediaQuery('(max-width: 768px)');
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [currentSubscription, setCurrentSubscription] = useState<UserSubscription | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
   const [processingPlanId, setProcessingPlanId] = useState<string | null>(null);
+  const [showCheckout, setShowCheckout] = useState<string | null>(null); // planId being checked out
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -68,27 +75,71 @@ export default function PlanesPage() {
     }
   };
 
-  const handleSelectPlan = async (planId: string) => {
+  const handleSelectPlan = async (planId: string, plan: SubscriptionPlan) => {
+    if (!user) return;
+
+    const planPrice = billingCycle === 'monthly' ? plan.price_monthly : plan.price_yearly;
+
+    // Si el plan es gratis, crear suscripción directamente
+    if (planPrice === 0) {
+      try {
+        setProcessingPlanId(planId);
+        const newSubscription = await createSubscription(planId, billingCycle);
+        setCurrentSubscription(newSubscription);
+        setSuccessMessage('¡Suscripción activada exitosamente!');
+        
+        setTimeout(() => {
+          router.push('/dashboard');
+        }, 2000);
+      } catch (err) {
+        console.error('Error creating subscription:', err);
+        alert('Error al activar la suscripción. Por favor intenta nuevamente.');
+      } finally {
+        setProcessingPlanId(null);
+      }
+      return;
+    }
+
+    // Para planes de pago, mostrar checkout de Culqi
+    setShowCheckout(planId);
+  };
+
+  const handlePaymentSuccess = async (chargeId: string, planId: string) => {
     if (!user) return;
 
     try {
       setProcessingPlanId(planId);
       
-      // Crear la suscripción
-      const newSubscription = await createSubscription(planId, billingCycle);
+      // Crear la suscripción después del pago exitoso
+      const newSubscription = await createSubscription(planId, billingCycle, {
+        payment_method: 'culqi',
+        charge_id: chargeId,
+      });
       
-      // Actualizar el estado local
       setCurrentSubscription(newSubscription);
+      setSuccessMessage('¡Pago procesado y suscripción activada exitosamente!');
+      setShowCheckout(null);
       
-      // Mostrar mensaje de éxito y redirigir
-      alert('¡Suscripción actualizada exitosamente!');
-      router.push('/dashboard');
+      // Redirigir después de 3 segundos
+      setTimeout(() => {
+        router.push('/dashboard');
+      }, 3000);
     } catch (err) {
-      console.error('Error creating subscription:', err);
-      alert('Error al procesar la suscripción. Por favor intenta nuevamente.');
+      console.error('Error creating subscription after payment:', err);
+      alert('El pago fue exitoso pero hubo un error al activar la suscripción. Por favor contacta a soporte.');
     } finally {
       setProcessingPlanId(null);
     }
+  };
+
+  const handlePaymentError = (error: any) => {
+    console.error('Payment error:', error);
+    setShowCheckout(null);
+    // El error ya se muestra en el componente CulqiCheckout
+  };
+
+  const handleCancelCheckout = () => {
+    setShowCheckout(null);
   };
 
   const getPlanIcon = (planName: string) => {
@@ -188,6 +239,17 @@ export default function PlanesPage() {
             </div>
           </div>
 
+          {/* Success Message */}
+          {successMessage && (
+            <div className="mb-8 p-4 bg-green-50 border-2 border-green-500 rounded-lg flex items-center gap-3 animate-pulse">
+              <CheckIcon className="w-6 h-6 text-green-600" />
+              <div className="flex-1">
+                <p className="text-green-800 font-medium">{successMessage}</p>
+                <p className="text-sm text-green-700 mt-1">Serás redirigido al dashboard...</p>
+              </div>
+            </div>
+          )}
+
           {/* Toggle de ciclo de facturación */}
           <div className="flex justify-center mb-12">
             <div className="bg-white rounded-xl shadow-md p-2 inline-flex gap-2">
@@ -225,9 +287,23 @@ export default function PlanesPage() {
             </div>
           )}
 
-          {/* Planes */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
-            {plans.map((plan) => {
+          {/* Planes - Mobile or Desktop View */}
+          {isMobile ? (
+            <MobilePlanesView
+              plans={plans}
+              currentSubscription={currentSubscription}
+              billingCycle={billingCycle}
+              onSelectPlan={handleSelectPlan}
+              onPaymentSuccess={handlePaymentSuccess}
+              onPaymentError={handlePaymentError}
+              processingPlanId={processingPlanId}
+              showCheckout={showCheckout}
+              onCancelCheckout={handleCancelCheckout}
+              userEmail={user?.email || ''}
+            />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
+              {plans.map((plan) => {
               const Icon = getPlanIcon(plan.name);
               const colors = getPlanColor(plan.name);
               const price = billingCycle === 'monthly' ? plan.price_monthly : plan.price_yearly;
@@ -333,29 +409,52 @@ export default function PlanesPage() {
                       </div>
                     )}
 
-                    {/* Botón de acción */}
-                    <button
-                      onClick={() => !isCurrent && handleSelectPlan(plan.id)}
-                      disabled={isCurrent || processingPlanId === plan.id}
-                      className={`w-full py-3 px-6 rounded-lg font-medium transition-all ${
-                        isCurrent
-                          ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                    {/* Botón de acción o Checkout */}
+                    {showCheckout === plan.id ? (
+                      <div className="space-y-3">
+                        <CulqiCheckout
+                          planName={plan.name}
+                          amount={price * 100} // Convertir a centavos
+                          billingCycle={billingCycle}
+                          onSuccess={(chargeId) => handlePaymentSuccess(chargeId, plan.id)}
+                          onError={handlePaymentError}
+                          userEmail={user?.email || ''}
+                          disabled={processingPlanId === plan.id}
+                        />
+                        <button
+                          onClick={handleCancelCheckout}
+                          className="w-full py-2 px-4 text-gray-600 hover:text-gray-800 text-sm font-medium transition-colors"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => !isCurrent && handleSelectPlan(plan.id, plan)}
+                        disabled={isCurrent || processingPlanId === plan.id}
+                        className={`w-full py-3 px-6 rounded-lg font-medium transition-all ${
+                          isCurrent
+                            ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                            : processingPlanId === plan.id
+                            ? 'bg-gray-400 text-white cursor-wait'
+                            : `${colors.button} text-white shadow-md hover:shadow-lg transform hover:-translate-y-0.5`
+                        }`}
+                      >
+                        {isCurrent
+                          ? 'Plan Actual'
                           : processingPlanId === plan.id
-                          ? 'bg-gray-400 text-white cursor-wait'
-                          : `${colors.button} text-white shadow-md hover:shadow-lg transform hover:-translate-y-0.5`
-                      }`}
-                    >
-                      {isCurrent
-                        ? 'Plan Actual'
-                        : processingPlanId === plan.id
-                        ? 'Procesando...'
-                        : 'Seleccionar Plan'}
-                    </button>
+                          ? 'Procesando...'
+                          : price === 0
+                          ? 'Seleccionar Plan'
+                          : 'Suscribirse'}
+                      </button>
+                    )}
                   </div>
                 </div>
               );
             })}
-          </div>
+            </div>
+          )}
 
           {/* Información adicional */}
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 text-center">

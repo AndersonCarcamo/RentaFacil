@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { useAuth } from '../../lib/hooks/useAuth';
+import { useIsMobile } from '../../lib/hooks/useIsMobile';
 import { Header } from '../../components/Header';
 import Button from '../../components/ui/Button';
+import { MobileContactPage } from '../../components/dashboard/mobile/contact';
 import {
   ArrowLeftIcon,
   PhoneIcon,
@@ -58,6 +60,7 @@ type ContactTab = 'whatsapp' | 'email' | 'telefono';
 export default function ContactoConfiguracion() {
   const { user } = useAuth();
   const router = useRouter();
+  const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState<ContactTab>('whatsapp');
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -805,6 +808,20 @@ export default function ContactoConfiguracion() {
     }
   };
 
+  // Mobile view
+  if (isMobile) {
+    return (
+      <>
+        <Head>
+          <title>Configuración de Contacto - RentaFácil</title>
+        </Head>
+        <Header />
+        <MobileContactPage />
+      </>
+    );
+  }
+
+  // Desktop view
   return (
     <>
       <Head>

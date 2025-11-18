@@ -100,7 +100,7 @@ module.exports = {
       },
       animation: {
         'fade-in': 'fadeIn 0.5s ease-in-out',
-        'fade-out': 'fadeOut 0.5s ease-in-out',
+        'fade-out': 'fadeOut 0.5s ease-out',
         'slide-up': 'slideUp 0.3s ease-out',
         'slide-down': 'slideDown 0.3s ease-out',
         'slide-in-right': 'slideInRight 0.3s ease-out',
@@ -108,6 +108,12 @@ module.exports = {
         'bounce-slow': 'bounce 2s infinite',
         'pulse-slow': 'pulse 3s infinite',
         'spin-slow': 'spin 3s linear infinite',
+        'scale-in': 'scaleIn 0.2s ease-out',
+        'scale-out': 'scaleOut 0.2s ease-in',
+        'zoom-in': 'zoomIn 0.3s ease-out',
+        'zoom-in-95': 'zoomIn95 0.3s ease-out',
+        'slide-in-from-bottom-4': 'slideInFromBottom4 0.3s ease-out',
+        'progressBar': 'progressBar 3s linear forwards',
       },
       keyframes: {
         fadeIn: {
@@ -133,6 +139,30 @@ module.exports = {
         slideInLeft: {
           '0%': { transform: 'translateX(-100%)', opacity: '0' },
           '100%': { transform: 'translateX(0)', opacity: '1' },
+        },
+        scaleIn: {
+          '0%': { transform: 'scale(0.95)', opacity: '0' },
+          '100%': { transform: 'scale(1)', opacity: '1' },
+        },
+        scaleOut: {
+          '0%': { transform: 'scale(1)', opacity: '1' },
+          '100%': { transform: 'scale(0.95)', opacity: '0' },
+        },
+        zoomIn: {
+          '0%': { transform: 'scale(0.9)', opacity: '0' },
+          '100%': { transform: 'scale(1)', opacity: '1' },
+        },
+        zoomIn95: {
+          '0%': { transform: 'scale(0.95)', opacity: '0' },
+          '100%': { transform: 'scale(1)', opacity: '1' },
+        },
+        slideInFromBottom4: {
+          '0%': { transform: 'translateY(1rem)', opacity: '0' },
+          '100%': { transform: 'translateY(0)', opacity: '1' },
+        },
+        progressBar: {
+          '0%': { width: '100%' },
+          '100%': { width: '0%' },
         },
       },
       boxShadow: {
@@ -177,6 +207,12 @@ module.exports = {
         '.safe-area-inset-right': {
           paddingRight: 'env(safe-area-inset-right)',
         },
+        '.pb-safe': {
+          paddingBottom: 'env(safe-area-inset-bottom)',
+        },
+        '.pt-safe': {
+          paddingTop: 'env(safe-area-inset-top)',
+        },
         '.text-shadow': {
           textShadow: '0 2px 4px rgba(0,0,0,0.10)',
         },
@@ -188,6 +224,47 @@ module.exports = {
         },
         '.text-shadow-none': {
           textShadow: 'none',
+        },
+        '.scrollbar-hide': {
+          /* IE and Edge */
+          '-ms-overflow-style': 'none',
+          /* Firefox */
+          'scrollbar-width': 'none',
+          /* Safari and Chrome */
+          '&::-webkit-scrollbar': {
+            display: 'none'
+          }
+        },
+        '.scrollbar-default': {
+          '-ms-overflow-style': 'auto',
+          'scrollbar-width': 'auto',
+          '&::-webkit-scrollbar': {
+            display: 'block'
+          }
+        },
+        '.active\\:scale-98:active': {
+          transform: 'scale(0.98)',
+        },
+        '.active\\:scale-95:active': {
+          transform: 'scale(0.95)',
+        },
+        '.line-clamp-1': {
+          overflow: 'hidden',
+          display: '-webkit-box',
+          '-webkit-box-orient': 'vertical',
+          '-webkit-line-clamp': '1',
+        },
+        '.line-clamp-2': {
+          overflow: 'hidden',
+          display: '-webkit-box',
+          '-webkit-box-orient': 'vertical',
+          '-webkit-line-clamp': '2',
+        },
+        '.line-clamp-3': {
+          overflow: 'hidden',
+          display: '-webkit-box',
+          '-webkit-box-orient': 'vertical',
+          '-webkit-line-clamp': '3',
         },
       }
       addUtilities(newUtilities)

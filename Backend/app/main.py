@@ -13,12 +13,12 @@ from app.api.endpoints.search import router as search_router
 from app.api.endpoints.media import router as media_router
 from app.api.endpoints.images import router as images_router
 from app.api.endpoints.subscriptions import router as subscriptions_router
+from app.api.endpoints.admin import router as admin_router
 # Temporarily disabled routers that depend on non-existent database tables:
 # from app.api.endpoints.interactions import router as interactions_router
 # from app.api.endpoints.analytics import router as analytics_router
 # from app.api.endpoints.verifications import router as verifications_router
 # from app.api.endpoints.notifications import router as notifications_router
-# from app.api.endpoints.admin import router as admin_router
 # from app.api.endpoints.integrations import router as integrations_router
 # from app.api.endpoints.webhooks import router as webhooks_router
 # from app.api.endpoints.api_keys import router as api_keys_router
@@ -171,6 +171,12 @@ app.include_router(
     subscriptions_router,
     prefix="/v1/subscriptions",
     tags=["Subscriptions"]
+)
+
+app.include_router(
+    admin_router,
+    prefix="/v1/admin",
+    tags=["Admin"]
 )
 
 app.include_router(

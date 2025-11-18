@@ -6,6 +6,7 @@ import { getCurrentSubscription, getDefaultPlan, SubscriptionPlan, UserSubscript
 import { getMyListings, Listing, publishListing, unpublishListing, deleteListing } from '../lib/api/listings';
 import { Header } from '../components/Header';
 import Button from '../components/ui/Button';
+import AdminPanel from '../components/admin/AdminPanel';
 import {
   PlusIcon,
   PencilIcon,
@@ -54,7 +55,9 @@ interface FilterState {
 
 const DashboardPage: React.FC = () => {
   const router = useRouter();
-  const { user, loading, logout } = useAuth();
+  const auth = useAuth();
+  const { user, loading, logout } = auth;
+  const isAdmin = (auth as any).isAdmin as boolean;
 
   // Estados para suscripción
   const [currentSubscription, setCurrentSubscription] = useState<UserSubscription | null>(null);
@@ -870,55 +873,60 @@ const DashboardPage: React.FC = () => {
 
           {/* Navegación por Tabs */}
           <div className="mb-6">
-            <div className="border-b border-gray-200">
-              <nav className="-mb-px flex space-x-8">
+            <div className="border-b border-gray-200 overflow-x-auto overflow-y-visible -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide">
+              <nav className="flex space-x-6 sm:space-x-8 min-w-max pb-px">
                 <button
                   onClick={() => setActiveTab('overview')}
-                  className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
+                  className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors ${
                     activeTab === 'overview'
                       ? 'border-blue-500 text-blue-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                 >
-                  <HomeIcon className="w-4 h-4" />
-                  Resumen
+                  <HomeIcon className="w-4 h-4 flex-shrink-0" />
+                  <span>Resumen</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('properties')}
-                  className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
+                  className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors ${
                     activeTab === 'properties'
                       ? 'border-blue-500 text-blue-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                 >
-                  <BuildingOfficeIcon className="w-4 h-4" />
-                  Mis Propiedades
+                  <BuildingOfficeIcon className="w-4 h-4 flex-shrink-0" />
+                  <span>Mis Propiedades</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('analytics')}
-                  className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
+                  className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors ${
                     activeTab === 'analytics'
                       ? 'border-blue-500 text-blue-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                 >
-                  <PresentationChartBarIcon className="w-4 h-4" />
-                  Analíticas
+                  <PresentationChartBarIcon className="w-4 h-4 flex-shrink-0" />
+                  <span>Analíticas</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('verification')}
-                  className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
+                  className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors ${
                     activeTab === 'verification'
                       ? 'border-blue-500 text-blue-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                 >
-                  <ShieldCheckIcon className="w-4 h-4" />
-                  Verificación
+                  <ShieldCheckIcon className="w-4 h-4 flex-shrink-0" />
+                  <span>Verificación</span>
                 </button>
               </nav>
             </div>
           </div>
+
+          {/* Admin Panel - Only visible for admin users */}
+          {isAdmin && user?.email && (
+            <AdminPanel userEmail={user.email} />
+          )}
 
           {/* Filtros y Búsqueda */}
           <div className="bg-white rounded-xl shadow-md p-6 mb-6 border border-gray-100">

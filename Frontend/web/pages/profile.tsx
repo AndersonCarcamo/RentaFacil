@@ -22,6 +22,8 @@ import {
   CheckIcon,
   XMarkIcon,
   CameraIcon,
+  Bars3Icon,
+  ChevronDownIcon,
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 
@@ -36,6 +38,7 @@ const ProfilePage = () => {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState<UpdateUserProfileRequest>({});
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Función local para refrescar el usuario en el contexto
   const localRefreshUser = async () => {
@@ -242,7 +245,8 @@ const ProfilePage = () => {
           
           <div className="max-w-7xl mx-auto px-4 py-8 relative z-[5]">
             <div className="flex flex-col md:flex-row gap-6">
-              <div className="w-full md:w-64 flex-shrink-0">
+              {/* Sidebar - Oculto en móvil */}
+              <div className="hidden md:block w-full md:w-64 flex-shrink-0">
                 <ProfileSidebar />
               </div>
               <div className="flex-1">
@@ -323,7 +327,8 @@ const ProfilePage = () => {
           
           <div className="max-w-7xl mx-auto px-4 py-8 relative z-10">
             <div className="flex flex-col md:flex-row gap-6">
-              <div className="w-full md:w-64 flex-shrink-0">
+              {/* Sidebar - Oculto en móvil */}
+              <div className="hidden md:block w-full md:w-64 flex-shrink-0">
                 <ProfileSidebar />
               </div>
               <div className="flex-1">
@@ -398,19 +403,41 @@ const ProfilePage = () => {
           <Header />
         </div>
 
-        <div className="max-w-7xl mx-auto px-4 py-8 relative z-[5]">
-          <div className="flex flex-col md:flex-row gap-6">
-            {/* Sidebar */}
-            <div className="w-full md:w-64 flex-shrink-0">
+        {/* Menú de Navegación Móvil */}
+        <div className="lg:hidden max-w-7xl mx-auto px-4 py-4 relative z-40">
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="w-full bg-white rounded-lg shadow-md px-4 py-3 flex items-center justify-between text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <Bars3Icon className="w-5 h-5 text-[#5AB0DB]" />
+              <span className="font-medium">Menú de Perfil</span>
+            </div>
+            <ChevronDownIcon 
+              className={`w-5 h-5 transition-transform ${mobileMenuOpen ? 'rotate-180' : ''}`} 
+            />
+          </button>
+          
+          {mobileMenuOpen && (
+            <div className="mt-2 bg-white rounded-lg shadow-lg overflow-hidden">
+              <ProfileSidebar />
+            </div>
+          )}
+        </div>
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 relative z-[5]">
+          <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
+            {/* Sidebar - Oculto en móvil, visible en tablet+ */}
+            <div className="hidden lg:block w-64 flex-shrink-0">
               <ProfileSidebar />
             </div>
 
             {/* Contenido Principal */}
-            <div className="flex-1">
+            <div className="flex-1 w-full">
               {/* Header del Perfil */}
-              <div className="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
+              <div className="bg-white rounded-lg shadow-lg overflow-hidden mb-4 sm:mb-6">
             {/* Banner */}
-            <div className="h-32 bg-gradient-to-r from-[#F5C842] to-[#F5D96F] relative overflow-hidden">
+            <div className="h-24 sm:h-32 bg-gradient-to-r from-[#F5C842] to-[#F5D96F] relative overflow-hidden">
               {/* Patrón decorativo en el banner */}
               <div className="absolute inset-0 opacity-10">
                 <svg width="100%" height="100%">
@@ -426,11 +453,11 @@ const ProfilePage = () => {
             </div>
 
             {/* Información Principal */}
-            <div className="px-6 pb-6">
-              <div className="flex items-end justify-between -mt-16">
+            <div className="px-4 sm:px-6 pb-4 sm:pb-6">
+              <div className="flex flex-col sm:flex-row items-center sm:items-end justify-between gap-4 -mt-12 sm:-mt-16">
                 {/* Avatar */}
-                <div className="relative">
-                  <div className="w-32 h-32 rounded-full border-4 border-white bg-gray-200 flex items-center justify-center overflow-hidden">
+                <div className="relative flex-shrink-0">
+                  <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full border-4 border-white bg-gray-200 flex items-center justify-center overflow-hidden shadow-lg">
                     {getAvatarUrl(profile.avatar_url) ? (
                       <img
                         src={getAvatarUrl(profile.avatar_url)!}
@@ -442,7 +469,7 @@ const ProfilePage = () => {
                         }}
                       />
                     ) : (
-                      <UserCircleIcon className="w-20 h-20 text-gray-400" />
+                      <UserCircleIcon className="w-16 h-16 sm:w-20 sm:h-20 text-gray-400" />
                     )}
                   </div>
                   <input
@@ -454,15 +481,15 @@ const ProfilePage = () => {
                   />
                   <label
                     htmlFor="avatar-upload"
-                    className={`absolute bottom-0 right-0 w-10 h-10 bg-[#5AB0DB] rounded-full flex items-center justify-center text-white hover:bg-[#4A9DC8] transition-colors shadow-lg cursor-pointer ${
+                    className={`absolute bottom-0 right-0 w-9 h-9 sm:w-10 sm:h-10 bg-[#5AB0DB] rounded-full flex items-center justify-center text-white hover:bg-[#4A9DC8] transition-colors shadow-lg cursor-pointer ${
                       uploading ? 'opacity-50 cursor-not-allowed' : ''
                     }`}
                     title={uploading ? 'Subiendo...' : 'Cambiar foto'}
                   >
                     {uploading ? (
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                     ) : (
-                      <CameraIcon className="w-5 h-5" />
+                      <CameraIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                     )}
                   </label>
                 </div>
@@ -471,35 +498,38 @@ const ProfilePage = () => {
                 {!editing ? (
                   <button
                     onClick={() => setEditing(true)}
-                    className="px-4 py-2 bg-[#5AB0DB] text-white rounded-lg hover:bg-[#4A9DC8] transition-colors flex items-center gap-2"
+                    className="w-full sm:w-auto px-4 sm:px-4 py-2.5 sm:py-2 bg-[#5AB0DB] text-white rounded-lg hover:bg-[#4A9DC8] transition-colors flex items-center justify-center gap-2 font-medium text-sm sm:text-base"
                   >
                     <PencilIcon className="w-5 h-5" />
                     Editar Perfil
                   </button>
                 ) : (
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 w-full sm:w-auto">
                     <button
                       onClick={handleCancel}
                       disabled={saving}
-                      className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors flex items-center gap-2 disabled:opacity-50"
+                      className="flex-1 sm:flex-none px-4 py-2.5 sm:py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 font-medium text-sm sm:text-base"
                     >
                       <XMarkIcon className="w-5 h-5" />
-                      Cancelar
+                      <span className="hidden sm:inline">Cancelar</span>
+                      <span className="sm:hidden">Cancelar</span>
                     </button>
                     <button
                       onClick={handleSave}
                       disabled={saving}
-                      className="px-4 py-2 bg-[#5AB0DB] text-white rounded-lg hover:bg-[#4A9DC8] transition-colors flex items-center gap-2 disabled:opacity-50"
+                      className="flex-1 sm:flex-none px-4 py-2.5 sm:py-2 bg-[#5AB0DB] text-white rounded-lg hover:bg-[#4A9DC8] transition-colors flex items-center justify-center gap-2 disabled:opacity-50 font-medium text-sm sm:text-base"
                     >
                       {saving ? (
                         <>
                           <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                          Guardando...
+                          <span className="hidden sm:inline">Guardando...</span>
+                          <span className="sm:hidden">Guardando...</span>
                         </>
                       ) : (
                         <>
                           <CheckIcon className="w-5 h-5" />
-                          Guardar
+                          <span className="hidden sm:inline">Guardar</span>
+                          <span className="sm:hidden">Guardar</span>
                         </>
                       )}
                     </button>
@@ -508,7 +538,7 @@ const ProfilePage = () => {
               </div>
 
               {/* Nombre y Rol */}
-              <div className="mt-4">
+              <div className="mt-4 text-center sm:text-left">
                 {editing ? (
                   <div className="space-y-2">
                     <input
@@ -517,7 +547,7 @@ const ProfilePage = () => {
                       onChange={(e) =>
                         setFormData({ ...formData, first_name: e.target.value })
                       }
-                      className="text-2xl font-bold text-gray-900 border-b-2 border-[#5AB0DB] focus:outline-none w-full"
+                      className="text-xl sm:text-2xl font-bold text-gray-900 border-b-2 border-[#5AB0DB] focus:outline-none w-full text-center sm:text-left"
                       placeholder="Nombre"
                     />
                     <input
@@ -526,14 +556,14 @@ const ProfilePage = () => {
                       onChange={(e) =>
                         setFormData({ ...formData, last_name: e.target.value })
                       }
-                      className="text-xl text-gray-900 border-b-2 border-[#5AB0DB] focus:outline-none w-full"
+                      className="text-lg sm:text-xl text-gray-900 border-b-2 border-[#5AB0DB] focus:outline-none w-full text-center sm:text-left"
                       placeholder="Apellido"
                     />
                   </div>
                 ) : (
-                  <h1 className="text-2xl font-bold text-gray-900">{getFullName(profile)}</h1>
+                  <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{getFullName(profile)}</h1>
                 )}
-                <div className="flex items-center gap-3 mt-2">
+                <div className="flex items-center justify-center sm:justify-start gap-3 mt-2 flex-wrap">
                   <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-[#5AB0DB] bg-opacity-20 text-[#2D7DA8]">
                     {getRoleName(profile.role)}
                   </span>
@@ -548,26 +578,26 @@ const ProfilePage = () => {
           </div>
 
           {/* Información de Contacto */}
-          <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Información de Contacto</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6 mb-4 sm:mb-6">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4">Información de Contacto</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
               {/* Email */}
-              <div className="flex items-start gap-3">
-                <EnvelopeIcon className="w-6 h-6 text-gray-400 mt-1" />
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+              <div className="flex items-start gap-3 p-3 sm:p-0 bg-gray-50 sm:bg-transparent rounded-lg">
+                <EnvelopeIcon className="w-5 h-5 sm:w-6 sm:h-6 text-gray-400 mt-1 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                     Correo Electrónico
                   </label>
-                  <p className="text-gray-900">{profile.email}</p>
+                  <p className="text-sm sm:text-base text-gray-900 break-all">{profile.email}</p>
                   <p className="text-xs text-gray-500 mt-1">No se puede modificar</p>
                 </div>
               </div>
 
               {/* Teléfono */}
-              <div className="flex items-start gap-3">
-                <PhoneIcon className="w-6 h-6 text-gray-400 mt-1" />
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+              <div className="flex items-start gap-3 p-3 sm:p-0 bg-gray-50 sm:bg-transparent rounded-lg">
+                <PhoneIcon className="w-5 h-5 sm:w-6 sm:h-6 text-gray-400 mt-1 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                     Teléfono
                   </label>
                   {editing ? (
@@ -575,11 +605,11 @@ const ProfilePage = () => {
                       type="tel"
                       value={formData.phone}
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5AB0DB] focus:border-[#5AB0DB]"
+                      className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5AB0DB] focus:border-[#5AB0DB]"
                       placeholder="+51 999 999 999"
                     />
                   ) : (
-                    <p className="text-gray-900">{profile.phone || 'No especificado'}</p>
+                    <p className="text-sm sm:text-base text-gray-900">{profile.phone || 'No especificado'}</p>
                   )}
                 </div>
               </div>
@@ -587,14 +617,14 @@ const ProfilePage = () => {
           </div>
 
           {/* Información de la Cuenta */}
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Información de la Cuenta</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+          <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4">Información de la Cuenta</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+              <div className="p-3 sm:p-0 bg-gray-50 sm:bg-transparent rounded-lg">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                   Fecha de Registro
                 </label>
-                <p className="text-gray-900">
+                <p className="text-sm sm:text-base text-gray-900">
                   {new Date(profile.created_at).toLocaleDateString('es-PE', {
                     year: 'numeric',
                     month: 'long',
@@ -602,11 +632,11 @@ const ProfilePage = () => {
                   })}
                 </p>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+              <div className="p-3 sm:p-0 bg-gray-50 sm:bg-transparent rounded-lg">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                   Último Acceso
                 </label>
-                <p className="text-gray-900">
+                <p className="text-sm sm:text-base text-gray-900">
                   {profile.last_login_at
                     ? new Date(profile.last_login_at).toLocaleDateString('es-PE', {
                         year: 'numeric',

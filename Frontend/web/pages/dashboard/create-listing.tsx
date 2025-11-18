@@ -3,12 +3,14 @@ import Head from 'next/head';
 import { useRouter } from 'next/router';
 import dynamic from 'next/dynamic';
 import { useAuth } from '../../lib/hooks/useAuth';
+import { useIsMobile } from '../../lib/hooks/useIsMobile';
 import { useGeocoding } from '../../lib/hooks/useGeocoding';
 import { createListing, getListing, updateListing } from '../../lib/api/listings';
 import { Header } from '../../components/Header';
 import Button from '../../components/ui/Button';
 import AutocompleteInput from '../../components/AutocompleteInput';
 import ImageUploader from '../../components/ImageUploader';
+import { MobileListingPage } from '../../components/dashboard/mobile/listing';
 import {
   getDepartments,
   getProvinces,
@@ -599,6 +601,22 @@ const CreateListingPage: React.FC = () => {
     );
   }
 
+  const isMobile = useIsMobile(768);
+
+  // Mobile view
+  if (isMobile) {
+    return (
+      <>
+        <Head>
+          <title>{isEditMode ? 'Editar Propiedad' : 'Crear Propiedad'} - EasyRent</title>
+        </Head>
+        <Header />
+        <MobileListingPage />
+      </>
+    );
+  }
+
+  // Desktop view
   return (
     <>
       <Head>

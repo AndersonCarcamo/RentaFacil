@@ -195,6 +195,15 @@ body {
     display: none;  /* Chrome, Safari and Opera */
   }
   
+  /* Active states for mobile touch */
+  .active\:scale-98:active {
+    transform: scale(0.98);
+  }
+  
+  .active\:scale-95:active {
+    transform: scale(0.95);
+  }
+  
   /* Aspect ratios */
   .aspect-golden {
     aspect-ratio: 1.618 / 1;
@@ -203,6 +212,28 @@ body {
   /* Text utilities */
   .text-pretty {
     text-wrap: pretty;
+  }
+  
+  /* Line clamp utilities */
+  .line-clamp-1 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+  }
+  
+  .line-clamp-2 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+  
+  .line-clamp-3 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
   }
   
   /* Layout utilities */
@@ -233,7 +264,7 @@ body {
     transform: translate3d(0, 0, 0);
   }
   
-  /* Safe area utilities */
+  /* Safe area utilities for mobile */
   .safe-top {
     padding-top: env(safe-area-inset-top);
   }
@@ -242,9 +273,32 @@ body {
     padding-bottom: env(safe-area-inset-bottom);
   }
   
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+  
   /* Accessibility utilities */
   .sr-only-focusable {
     @apply sr-only focus:not-sr-only focus:absolute focus:top-0 focus:left-0 focus:z-50 focus:p-4 focus:bg-white focus:text-black;
+  }
+  
+  /* Mobile-specific utilities */
+  .touch-manipulation {
+    touch-action: manipulation;
+  }
+  
+  .tap-highlight-transparent {
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  /* Smooth scrolling for mobile */
+  .scroll-smooth-mobile {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
   }
 }
 

@@ -1,7 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Path, Request
 from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, update
 from typing import List, Optional
 from uuid import UUID
+from datetime import datetime
 
 from app.api.deps import get_db, get_current_admin_user
 from app.services.admin_service import AdminService
@@ -12,10 +15,26 @@ from app.schemas.admin import (
     SystemHealthResponse, SystemMetricsResponse, AuditLogListResponse,
     UserFilters, ListingFilters, AuditLogFilters
 )
+from app.schemas.admin_plans import (
+    SubscriptionPlanUpdate,
+    SubscriptionPlanResponse,
+    AdminUserCreate,
+    AdminUserResponse as AdminUserResponsePlans,
+    AdminActionLog,
+    AdminOverviewStats
+)
 from app.schemas.auth import UserResponse
 from app.core.exceptions import NotFoundError, ValidationError
+from app.models.subscription import Plan as SubscriptionPlan
+from app.models.auth import User
 
 router = APIRouter()
+
+# Lista de administradores del sistema
+SYSTEM_ADMIN_EMAILS = [
+    'admin@easyrent.pe',
+    'administrador@easyrent.pe'
+]
 
 
 @router.get("/dashboard", response_model=AdminDashboardResponse)
@@ -495,4 +514,368 @@ def get_audit_log(
         pages=(total + size - 1) // size,
         has_next=page * size < total,
         has_prev=page > 1
+    )
+
+
+# ==================== ENDPOINTS DE GESTIÓN DE PLANES ====================
+
+@router.get("/plans", response_model=List[SubscriptionPlanResponse])
+async def get_subscription_plans_admin(
+    include_inactive: bool = Query(False, description="Incluir planes inactivos"),
+    db: Session = Depends(get_db),
+    current_user: UserResponse = Depends(get_current_admin_user)
+):
+    """
+    Obtener todos los planes de suscripción (solo admins).
+    
+    - **include_inactive**: Si es True, incluye planes inactivos
+    """
+    query = select(SubscriptionPlan)
+    
+    if not include_inactive:
+        query = query.where(SubscriptionPlan.active == True)
+    
+    query = query.order_by(SubscriptionPlan.sort_order)
+    
+    result = db.execute(query)
+    plans = result.scalars().all()
+    
+    return plans
+
+
+@router.get("/plans/{plan_id}", response_model=SubscriptionPlanResponse)
+async def get_plan_details_admin(
+    plan_id: str = Path(..., description="ID del plan"),
+    db: Session = Depends(get_db),
+    current_user: UserResponse = Depends(get_current_admin_user)
+):
+    """
+    Obtener detalles de un plan específico (solo admins).
+    """
+    result = db.execute(
+        select(SubscriptionPlan).where(SubscriptionPlan.id == plan_id)
+    )
+    plan = result.scalar_one_or_none()
+    
+    if not plan:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Plan '{plan_id}' no encontrado"
+        )
+    
+    return plan
+
+
+@router.put("/plans/{plan_id}", response_model=SubscriptionPlanResponse)
+async def update_subscription_plan_admin(
+    plan_id: str = Path(..., description="ID del plan"),
+    plan_update: SubscriptionPlanUpdate = ...,
+    db: Session = Depends(get_db),
+    current_user: UserResponse = Depends(get_current_admin_user)
+):
+    """
+    Actualizar un plan de suscripción existente (solo admins).
+    
+    Permite modificar:
+    - Nombre y descripción
+    - Precios (mensual y anual)
+    - Límites (propiedades, imágenes, videos, etc.)
+    - Características/features
+    - Estado activo/inactivo
+    """
+    # Verificar que el plan existe
+    result = db.execute(
+        select(SubscriptionPlan).where(SubscriptionPlan.id == plan_id)
+    )
+    plan = result.scalar_one_or_none()
+    
+    if not plan:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Plan '{plan_id}' no encontrado"
+        )
+    
+    # Actualizar solo los campos proporcionados
+    update_data = plan_update.dict(exclude_unset=True)
+    
+    # Validaciones
+    if 'price_monthly' in update_data and update_data['price_monthly'] < 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El precio mensual no puede ser negativo"
+        )
+    
+    if 'price_yearly' in update_data and update_data['price_yearly'] < 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El precio anual no puede ser negativo"
+        )
+    
+    # Actualizar campos del plan
+    for field, value in update_data.items():
+        setattr(plan, field, value)
+    
+    plan.updated_at = datetime.utcnow()
+    
+    db.commit()
+    db.refresh(plan)
+    
+    # Log de auditoría
+    print(f"📝 Admin {current_user.email} actualizó el plan {plan_id}: {update_data}")
+    
+    return plan
+
+
+@router.post("/plans", response_model=SubscriptionPlanResponse)
+async def create_subscription_plan_admin(
+    plan_data: SubscriptionPlanUpdate = ...,
+    db: Session = Depends(get_db),
+    current_user: UserResponse = Depends(get_current_admin_user)
+):
+    """
+    Crear un nuevo plan de suscripción (solo admins).
+    """
+    if not plan_data.name:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El nombre del plan es requerido"
+        )
+    
+    # Generar ID único basado en el nombre
+    plan_id = plan_data.name.lower().replace(' ', '_').replace('á', 'a').replace('é', 'e').replace('í', 'i').replace('ó', 'o').replace('ú', 'u')
+    
+    # Verificar que no existe un plan con ese ID
+    result = db.execute(
+        select(SubscriptionPlan).where(SubscriptionPlan.id == plan_id)
+    )
+    existing = result.scalar_one_or_none()
+    
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Ya existe un plan con ID '{plan_id}'"
+        )
+    
+    # Crear nuevo plan
+    new_plan = SubscriptionPlan(
+        id=plan_id,
+        **plan_data.dict(exclude_unset=True, exclude={'name'}),
+        name=plan_data.name,
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow()
+    )
+    
+    db.add(new_plan)
+    db.commit()
+    db.refresh(new_plan)
+    
+    print(f"📝 Admin {current_user.email} creó el plan {plan_id}")
+    
+    return new_plan
+
+
+@router.delete("/plans/{plan_id}")
+async def delete_subscription_plan_admin(
+    plan_id: str = Path(..., description="ID del plan"),
+    db: Session = Depends(get_db),
+    current_user: UserResponse = Depends(get_current_admin_user)
+):
+    """
+    Eliminar (desactivar) un plan de suscripción (solo admins).
+    
+    En lugar de eliminar físicamente, se marca como inactivo.
+    """
+    result = db.execute(
+        select(SubscriptionPlan).where(SubscriptionPlan.id == plan_id)
+    )
+    plan = result.scalar_one_or_none()
+    
+    if not plan:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Plan '{plan_id}' no encontrado"
+        )
+    
+    # Marcar como inactivo en lugar de eliminar
+    plan.active = False
+    plan.updated_at = datetime.utcnow()
+    
+    db.commit()
+    
+    print(f"📝 Admin {current_user.email} desactivó el plan {plan_id}")
+    
+    return {"message": f"Plan '{plan_id}' desactivado correctamente"}
+
+
+# ==================== ENDPOINTS DE GESTIÓN DE ADMINISTRADORES ====================
+
+@router.get("/admins", response_model=List[AdminUserResponsePlans])
+async def get_admin_users_list(
+    db: Session = Depends(get_db),
+    current_user: UserResponse = Depends(get_current_admin_user)
+):
+    """
+    Listar todos los usuarios administradores (solo admins).
+    """
+    # Obtener administradores de la base de datos
+    result = db.execute(
+        select(User).where(User.role == UserRole.ADMIN)
+    )
+    db_admins = result.scalars().all()
+    
+    # Convertir a respuesta
+    admins = []
+    for db_admin in db_admins:
+        admins.append(AdminUserResponsePlans(
+            email=db_admin.email,
+            addedDate=db_admin.created_at.isoformat() if db_admin.created_at else datetime.utcnow().isoformat(),
+            addedBy="Sistema",
+            isSystemAdmin=db_admin.email.lower() in SYSTEM_ADMIN_EMAILS
+        ))
+    
+    # Agregar administradores del sistema si no están en la BD
+    for system_email in SYSTEM_ADMIN_EMAILS:
+        if not any(a.email.lower() == system_email.lower() for a in admins):
+            admins.append(AdminUserResponsePlans(
+                email=system_email,
+                addedDate=datetime(2024, 1, 1).isoformat(),
+                addedBy="Sistema",
+                isSystemAdmin=True
+            ))
+    
+    return admins
+
+
+@router.post("/admins", response_model=AdminUserResponsePlans)
+async def add_admin_user_new(
+    admin_data: AdminUserCreate = ...,
+    db: Session = Depends(get_db),
+    current_user: UserResponse = Depends(get_current_admin_user)
+):
+    """
+    Agregar un nuevo usuario administrador (solo admins).
+    
+    - **email**: Email del usuario a convertir en administrador
+    """
+    email = admin_data.email.lower().strip()
+    
+    # Buscar el usuario en la base de datos
+    result = db.execute(
+        select(User).where(User.email == email)
+    )
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No se encontró un usuario con el email '{email}'"
+        )
+    
+    # Verificar si ya es administrador
+    if user.role == UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"El usuario '{email}' ya es administrador"
+        )
+    
+    # Marcar como administrador
+    user.role = UserRole.ADMIN
+    user.updated_at = datetime.utcnow()
+    
+    db.commit()
+    db.refresh(user)
+    
+    print(f"📝 Admin {current_user.email} agregó a {email} como administrador")
+    
+    return AdminUserResponsePlans(
+        email=user.email,
+        addedDate=datetime.utcnow().isoformat(),
+        addedBy=current_user.email,
+        isSystemAdmin=False
+    )
+
+
+@router.delete("/admins/{email}")
+async def remove_admin_user_delete(
+    email: str = Path(..., description="Email del administrador a eliminar"),
+    db: Session = Depends(get_db),
+    current_user: UserResponse = Depends(get_current_admin_user)
+):
+    """
+    Eliminar privilegios de administrador de un usuario (solo admins).
+    
+    No se pueden eliminar administradores del sistema.
+    """
+    email = email.lower().strip()
+    
+    # Verificar que no es un administrador del sistema
+    if email in SYSTEM_ADMIN_EMAILS:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No se pueden eliminar administradores del sistema"
+        )
+    
+    # Buscar el usuario
+    result = db.execute(
+        select(User).where(User.email == email)
+    )
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No se encontró un usuario con el email '{email}'"
+        )
+    
+    if user.role != UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"El usuario '{email}' no es administrador"
+        )
+    
+    # Verificar que no es el último administrador
+    result = db.execute(
+        select(User).where(User.role == UserRole.ADMIN)
+    )
+    admin_count = len(result.scalars().all())
+    
+    if admin_count <= 1:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No se puede eliminar el último administrador del sistema"
+        )
+    
+    # Remover privilegios de administrador
+    user.role = UserRole.USER
+    user.updated_at = datetime.utcnow()
+    
+    db.commit()
+    
+    print(f"📝 Admin {current_user.email} removió a {email} como administrador")
+    
+    return {"message": f"Privilegios de administrador removidos de '{email}'"}
+
+
+# ==================== ENDPOINTS DE ESTADÍSTICAS ====================
+
+@router.get("/stats/overview", response_model=AdminOverviewStats)
+async def get_admin_overview_statistics(
+    db: Session = Depends(get_db),
+    current_user: UserResponse = Depends(get_current_admin_user)
+):
+    """
+    Obtener estadísticas generales para el panel de administrador.
+    """
+    # Contar usuarios totales
+    result = db.execute(select(User))
+    total_users = len(result.scalars().all())
+    
+    # TODO: Agregar más estadísticas cuando las tablas estén disponibles
+    
+    return AdminOverviewStats(
+        totalUsers=total_users,
+        activeListings=0,
+        premiumSubscriptions=0,
+        monthlyRevenue=0.0,
+        lastUpdated=datetime.utcnow().isoformat()
     )

@@ -20,7 +20,8 @@ import {
 	ChartBarIcon,
 	IdentificationIcon,
 	CheckIcon,
-	ExclamationTriangleIcon
+	ExclamationTriangleIcon,
+	ShieldCheckIcon
 } from '@heroicons/react/24/outline'
 import { ChevronDownIcon } from '@heroicons/react/20/solid'
 import { createPortal } from 'react-dom'
@@ -592,30 +593,46 @@ export function Header() {
 															Mi Perfil
 														</Link>
 													)}
-												</Menu.Item>
+											</Menu.Item>
 
-												{/* Dashboard - Solo para LANDLORD y AGENT */}
-												{(user?.role === 'landlord' || user?.role === 'agent') && (
-													<Menu.Item>
-														{({ active }) => (
-															<Link
-																href="/dashboard"
-																className={classNames(
-																	active ? 'bg-gray-100' : '',
-																	'flex items-center gap-3 px-4 py-2 text-sm text-gray-700'
-																)}
-															>
-																<ChartBarIcon className="h-5 w-5 text-gray-400" />
-																Dashboard
-															</Link>
-														)}
-													</Menu.Item>
-												)}
-
+											{/* Dashboard - Para LANDLORD, AGENT y ADMIN */}
+											{(user?.role === 'landlord' || user?.role === 'agent' || user?.role === 'admin') && (
 												<Menu.Item>
 													{({ active }) => (
 														<Link
-															href="/perfil"
+															href="/dashboard"
+															className={classNames(
+																active ? 'bg-gray-100' : '',
+																'flex items-center gap-3 px-4 py-2 text-sm text-gray-700'
+															)}
+														>
+															<ChartBarIcon className="h-5 w-5 text-gray-400" />
+															Dashboard
+														</Link>
+													)}
+												</Menu.Item>
+											)}											{/* Panel de Admin - Solo para ADMIN */}
+											{user?.role === 'admin' && (
+												<Menu.Item>
+													{({ active }) => (
+														<Link
+															href="/admin"
+															className={classNames(
+																active ? 'bg-gray-100' : '',
+																'flex items-center gap-3 px-4 py-2 text-sm text-gray-700'
+															)}
+														>
+															<ShieldCheckIcon className="h-5 w-5 text-purple-600" />
+															<span className="text-purple-600 font-medium">Panel de Admin</span>
+														</Link>
+													)}
+												</Menu.Item>
+											)}
+
+											<Menu.Item>
+													{({ active }) => (
+														<Link
+															href="/profile"
 															className={classNames(
 																active ? 'bg-gray-100' : '',
 																'flex items-center gap-3 px-4 py-2 text-sm text-gray-700'
@@ -800,15 +817,15 @@ export function Header() {
 											</div>
 											
 											<Link
-												href="/perfil"
+												href="/profile"
 												className="-mx-3 mt-4 flex items-center gap-3 rounded-lg px-3 py-2.5 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50"
 											>
 												<UserIcon className="h-5 w-5 text-gray-400" />
 												Mi Perfil
 											</Link>
 											
-											{/* Dashboard - Solo para LANDLORD y AGENT */}
-											{(user?.role === 'landlord' || user?.role === 'agent') && (
+											{/* Dashboard - Para LANDLORD, AGENT y ADMIN */}
+											{(user?.role === 'landlord' || user?.role === 'agent' || user?.role === 'admin') && (
 												<Link
 													href="/dashboard"
 													className="-mx-3 flex items-center gap-3 rounded-lg px-3 py-2.5 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50"
@@ -818,8 +835,19 @@ export function Header() {
 												</Link>
 											)}
 											
+											{/* Panel de Admin - Solo para ADMIN */}
+											{user?.role === 'admin' && (
+												<Link
+													href="/admin"
+													className="-mx-3 flex items-center gap-3 rounded-lg px-3 py-2.5 text-base font-semibold leading-7 text-purple-600 hover:bg-gray-50"
+												>
+													<ShieldCheckIcon className="h-5 w-5 text-purple-600" />
+													Panel de Admin
+												</Link>
+											)}
+											
 											<Link
-												href="/perfil"
+												href="/profile"
 												className="-mx-3 flex items-center gap-3 rounded-lg px-3 py-2.5 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50"
 											>
 												<HeartIcon className="h-5 w-5 text-gray-400" />
