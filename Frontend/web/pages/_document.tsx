@@ -35,6 +35,9 @@ export default function Document() {
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="RentaFacil" />
         
+        {/* Permisos de características del navegador */}
+        <meta httpEquiv="Permissions-Policy" content="microphone=(self), geolocation=(self)" />
+        
   {/* Microsoft Meta Tags - usar amarillo principal para tiles */}
   <meta name="msapplication-TileColor" content="#F5C842" />
         <meta name="msapplication-config" content="/browserconfig.xml" />

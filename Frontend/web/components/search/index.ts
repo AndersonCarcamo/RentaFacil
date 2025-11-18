@@ -2,3 +2,8 @@
 export { default as SearchSidebar } from './SearchSidebar';
 export { default as SearchFiltersSheet } from './SearchFiltersSheet';
 export { default as MobileFiltersModal } from './MobileFiltersModal';
+
+// Voice Search components
+export { VoiceSearchButton } from './VoiceSearchButton';
+export { VoiceSearchModal } from './VoiceSearchModal';
+export { VoiceWaveAnimation } from './VoiceWaveAnimation';

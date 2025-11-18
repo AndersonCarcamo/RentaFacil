@@ -2,6 +2,7 @@ import { useState } from 'react'
 import Button from './ui/Button'
 import MobileSearchForm from './MobileSearchForm'
 import SearchAutocomplete from './SearchAutocomplete'
+import { VoiceSearchButton } from './search/VoiceSearchButton'
 import { MagnifyingGlassIcon, MapPinIcon, CurrencyDollarIcon, AdjustmentsHorizontalIcon, BuildingOffice2Icon, HomeIcon, KeyIcon, HomeModernIcon } from '@heroicons/react/24/outline'
 
 type Mode = 'alquiler' | 'comprar' | 'proyecto' | 'tipo_Airbnb'
@@ -127,7 +128,7 @@ export default function SearchForm({ onSearch, className = '', isLoading = false
 				<div className="md:col-span-4">
 					<label className="flex flex-col gap-1 text-xs font-medium text-brand-navy">
 						Ubicación
-						<div className="relative flex gap-2">
+							<div className="relative flex gap-2">
 							<div className="relative flex-1">
 								<MapPinIcon className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-brand-navy/50 z-10" />
 								<SearchAutocomplete
@@ -136,6 +137,10 @@ export default function SearchForm({ onSearch, className = '', isLoading = false
 									placeholder={placeholder || "Distrito, ciudad o dirección"}
 								/>
 							</div>
+							
+							{/* Botón de búsqueda por voz */}
+							<VoiceSearchButton variant="icon" />
+							
 							<button
 								type="button"
 								onClick={() => {
