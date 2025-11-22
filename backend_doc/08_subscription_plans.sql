@@ -89,6 +89,10 @@ CREATE TABLE IF NOT EXISTS core.coupons (
 -- Drop existing view to recreate with new structure
 DROP VIEW IF EXISTS core.v_user_current_plan CASCADE;
 
+-- NOTA: Esta es la estructura de la vista regular.
+-- En producción se usa una MATERIALIZED VIEW con las columnas:
+-- plan_tier (en lugar de tier), y sin period_months
+-- El backend hace alias: plan_tier as tier en el query
 CREATE VIEW core.v_user_current_plan AS
 SELECT s.user_id,
        s.id AS subscription_id,

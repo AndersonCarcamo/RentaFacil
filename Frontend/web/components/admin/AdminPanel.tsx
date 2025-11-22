@@ -1,6 +1,7 @@
 /**
  * AdminPanel Component
  * Panel de administración para usuarios administradores
+ * Con diseño responsive mobile-first
  */
 
 'use client';
@@ -15,9 +16,11 @@ import {
   DocumentTextIcon,
   ExclamationTriangleIcon,
   CreditCardIcon,
+  Bars3Icon,
 } from '@heroicons/react/24/outline';
 import AdminPlansManager from './AdminPlansManager';
 import AdminManagement from './AdminManagement';
+import AdminAnalytics from './AdminAnalytics';
 
 interface AdminPanelProps {
   userEmail: string;
@@ -27,6 +30,7 @@ type AdminTab = 'overview' | 'users' | 'listings' | 'subscriptions' | 'analytics
 
 export default function AdminPanel({ userEmail }: AdminPanelProps) {
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
 
   const tabs = [
     { id: 'overview' as AdminTab, name: 'Vista General', icon: ChartBarIcon },
@@ -37,28 +41,72 @@ export default function AdminPanel({ userEmail }: AdminPanelProps) {
     { id: 'settings' as AdminTab, name: 'Configuración', icon: Cog6ToothIcon },
   ];
 
+  const activeTabData = tabs.find(tab => tab.id === activeTab);
+
+  const handleTabChange = (tabId: AdminTab) => {
+    setActiveTab(tabId);
+    setShowMobileMenu(false);
+  };
+
   return (
-    <div className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl shadow-xl p-6 mb-8">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center">
-            <ShieldCheckIcon className="w-7 h-7 text-purple-600" />
+    <div className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl shadow-xl p-4 sm:p-6 mb-8">
+      {/* Header - Mobile Optimized */}
+      <div className="flex items-center justify-between mb-6 gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white rounded-full flex items-center justify-center flex-shrink-0">
+            <ShieldCheckIcon className="w-6 h-6 sm:w-7 sm:h-7 text-purple-600" />
           </div>
-          <div>
-            <h2 className="text-2xl font-bold text-white">Panel de Administrador</h2>
-            <p className="text-purple-100 text-sm">{userEmail}</p>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-lg sm:text-2xl font-bold text-white truncate">Panel Admin</h2>
+            <p className="text-purple-100 text-xs sm:text-sm truncate">{userEmail}</p>
           </div>
         </div>
-        <div className="px-4 py-2 bg-yellow-400 text-purple-900 rounded-lg font-semibold text-sm flex items-center gap-2">
-          <ExclamationTriangleIcon className="w-5 h-5" />
-          Modo Admin Activo
+        <div className="px-2 py-1 sm:px-4 sm:py-2 bg-yellow-400 text-purple-900 rounded-lg font-semibold text-xs sm:text-sm flex items-center gap-1 sm:gap-2 flex-shrink-0">
+          <ExclamationTriangleIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+          <span className="hidden sm:inline">Modo Admin</span>
+          <span className="sm:hidden">Admin</span>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="bg-white/10 backdrop-blur-sm rounded-lg p-2 mb-6">
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+      {/* Mobile: Dropdown Menu */}
+      <div className="lg:hidden mb-6">
+        <button
+          onClick={() => setShowMobileMenu(!showMobileMenu)}
+          className="w-full bg-white/10 backdrop-blur-sm rounded-lg p-3 flex items-center justify-between text-white font-medium"
+        >
+          <div className="flex items-center gap-2">
+            {activeTabData && <activeTabData.icon className="w-5 h-5" />}
+            <span>{activeTabData?.name}</span>
+          </div>
+          <Bars3Icon className="w-5 h-5" />
+        </button>
+
+        {showMobileMenu && (
+          <div className="mt-2 bg-white/95 backdrop-blur-sm rounded-lg overflow-hidden shadow-lg">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => handleTabChange(tab.id)}
+                  className={`w-full flex items-center gap-3 px-4 py-3 font-medium transition-all border-b border-gray-100 last:border-b-0 ${
+                    activeTab === tab.id
+                      ? 'bg-purple-50 text-purple-600'
+                      : 'text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <Icon className="w-5 h-5" />
+                  <span>{tab.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Desktop: Tabs Grid */}
+      <div className="hidden lg:block bg-white/10 backdrop-blur-sm rounded-lg p-2 mb-6">
+        <div className="grid grid-cols-6 gap-2">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (
@@ -72,7 +120,7 @@ export default function AdminPanel({ userEmail }: AdminPanelProps) {
                 }`}
               >
                 <Icon className="w-5 h-5" />
-                <span className="hidden md:inline">{tab.name}</span>
+                <span>{tab.name}</span>
               </button>
             );
           })}
@@ -102,33 +150,36 @@ function OverviewTab() {
 
   return (
     <div>
-      <h3 className="text-xl font-bold text-gray-900 mb-4">Resumen General</h3>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-4">Resumen General</h3>
+      
+      {/* Stats Grid - Mobile Optimized */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {stats.map((stat, index) => (
           <div
             key={index}
             className={`p-4 rounded-lg border-2 border-${stat.color}-200 bg-${stat.color}-50`}
           >
-            <p className="text-sm text-gray-600 mb-1">{stat.label}</p>
-            <p className={`text-2xl font-bold text-${stat.color}-600`}>{stat.value}</p>
-            <p className="text-sm text-green-600 mt-1">{stat.change} vs mes anterior</p>
+            <p className="text-xs sm:text-sm text-gray-600 mb-1">{stat.label}</p>
+            <p className={`text-xl sm:text-2xl font-bold text-${stat.color}-600`}>{stat.value}</p>
+            <p className="text-xs sm:text-sm text-green-600 mt-1">{stat.change} vs mes anterior</p>
           </div>
         ))}
       </div>
 
+      {/* Quick Actions - Mobile Optimized */}
       <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-        <h4 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
+        <h4 className="font-semibold text-blue-900 mb-3 flex items-center gap-2 text-sm sm:text-base">
           <DocumentTextIcon className="w-5 h-5" />
-          Acciones Rápidas de Administrador
+          Acciones Rápidas
         </h4>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
-          <button className="px-4 py-2 bg-white border border-blue-300 text-blue-700 rounded-lg hover:bg-blue-50 transition-colors">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
+          <button className="px-3 py-2 sm:px-4 bg-white border border-blue-300 text-blue-700 rounded-lg hover:bg-blue-50 transition-colors text-sm font-medium">
             Ver Reportes
           </button>
-          <button className="px-4 py-2 bg-white border border-blue-300 text-blue-700 rounded-lg hover:bg-blue-50 transition-colors">
+          <button className="px-3 py-2 sm:px-4 bg-white border border-blue-300 text-blue-700 rounded-lg hover:bg-blue-50 transition-colors text-sm font-medium">
             Gestionar Usuarios
           </button>
-          <button className="px-4 py-2 bg-white border border-blue-300 text-blue-700 rounded-lg hover:bg-blue-50 transition-colors">
+          <button className="px-3 py-2 sm:px-4 bg-white border border-blue-300 text-blue-700 rounded-lg hover:bg-blue-50 transition-colors text-sm font-medium sm:col-span-2 lg:col-span-1">
             Revisar Propiedades
           </button>
         </div>
@@ -178,21 +229,7 @@ function SubscriptionsTab() {
 }
 
 function AnalyticsTab() {
-  return (
-    <div>
-      <h3 className="text-xl font-bold text-gray-900 mb-4">Analíticas del Sistema</h3>
-      <p className="text-gray-600">Funcionalidad de analíticas en desarrollo...</p>
-      <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-        <ul className="space-y-2 text-sm text-gray-700">
-          <li>• Gráficos de crecimiento de usuarios</li>
-          <li>• Análisis de búsquedas populares</li>
-          <li>• Tasa de conversión de suscripciones</li>
-          <li>• Propiedades más vistas</li>
-          <li>• Reportes personalizados</li>
-        </ul>
-      </div>
-    </div>
-  );
+  return <AdminAnalytics />;
 }
 
 function SettingsTab() {

@@ -5,6 +5,7 @@ import { Toaster } from 'react-hot-toast'
 import { useState } from 'react'
 import Head from 'next/head'
 import { AuthProvider } from '../lib/hooks/useAuth'
+import { FloatingVoiceButton } from '@/components/search'
 
 // Estilos globales
 import '@/styles/globals.css'
@@ -70,6 +71,9 @@ export default function App({ Component, pageProps }: AppProps) {
           <AuthProvider>
             {/* Componente principal de la aplicación */}
             <Component {...pageProps} />
+            
+            {/* Botón flotante de búsqueda por voz - Disponible globalmente */}
+            <FloatingVoiceButton />
           </AuthProvider>
           
           {/* Toast notifications globales */}

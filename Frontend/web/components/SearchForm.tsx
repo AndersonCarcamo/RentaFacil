@@ -2,7 +2,6 @@ import { useState } from 'react'
 import Button from './ui/Button'
 import MobileSearchForm from './MobileSearchForm'
 import SearchAutocomplete from './SearchAutocomplete'
-import { VoiceSearchButton } from './search/VoiceSearchButton'
 import { MagnifyingGlassIcon, MapPinIcon, CurrencyDollarIcon, AdjustmentsHorizontalIcon, BuildingOffice2Icon, HomeIcon, KeyIcon, HomeModernIcon } from '@heroicons/react/24/outline'
 
 type Mode = 'alquiler' | 'comprar' | 'proyecto' | 'tipo_Airbnb'
@@ -137,9 +136,6 @@ export default function SearchForm({ onSearch, className = '', isLoading = false
 									placeholder={placeholder || "Distrito, ciudad o dirección"}
 								/>
 							</div>
-							
-							{/* Botón de búsqueda por voz */}
-							<VoiceSearchButton variant="icon" />
 							
 							<button
 								type="button"

@@ -5,5 +5,6 @@ export { default as MobileFiltersModal } from './MobileFiltersModal';
 
 // Voice Search components
 export { VoiceSearchButton } from './VoiceSearchButton';
+export { FloatingVoiceButton } from './FloatingVoiceButton';
 export { VoiceSearchModal } from './VoiceSearchModal';
 export { VoiceWaveAnimation } from './VoiceWaveAnimation';
