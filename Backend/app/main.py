@@ -15,6 +15,7 @@ from app.api.endpoints.images import router as images_router
 from app.api.endpoints.subscriptions import router as subscriptions_router
 from app.api.endpoints.admin import router as admin_router
 from app.api.endpoints.subscription_plans import router as subscription_plans_router
+from app.api.endpoints.plans import router as plans_router
 # Temporarily disabled routers that depend on non-existent database tables:
 # from app.api.endpoints.interactions import router as interactions_router
 # from app.api.endpoints.analytics import router as analytics_router
@@ -182,8 +183,14 @@ app.include_router(
 
 app.include_router(
     subscription_plans_router,
-    prefix="/v1/plans",  # Sin autenticación para pruebas
+    prefix="/v1/subscription-plans",
     tags=["Subscription Plans"]
+)
+
+app.include_router(
+    plans_router,
+    prefix="/v1/plans",
+    tags=["Plans"]
 )
 
 app.include_router(

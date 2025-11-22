@@ -1,6 +1,6 @@
 /**
  * AdminPlansManager Component
- * Gestión de planes de suscripción (precios, límites, características)
+ * Gestión de planes del sistema (core.plans)
  */
 
 'use client';
@@ -11,30 +11,43 @@ import {
   PlusIcon,
   CheckIcon,
   XMarkIcon,
-  CurrencyDollarIcon,
-  SparklesIcon,
+  TrashIcon,
+  StarIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../lib/hooks/useAuth';
 
-interface PlanLimits {
-  max_listings?: number;
-  max_images?: number;
-  max_videos?: number;
-  featured_listings?: number;
-  analytics_access?: boolean;
-  priority_support?: boolean;
-}
+type PlanTier = 'free' | 'basic' | 'premium' | 'enterprise';
+type PlanPeriod = 'monthly' | 'quarterly' | 'yearly' | 'permanent';
 
 interface Plan {
   id: string;
+  code: string;
   name: string;
   description: string;
-  price_monthly: number;
-  price_yearly: number;
-  features: string[];
-  limits: PlanLimits;
-  active: boolean;
-  sort_order: number;
+  tier: PlanTier;
+  period: PlanPeriod;
+  period_months: number;
+  price_amount: number;
+  price_currency: string;
+  
+  // Límites
+  max_active_listings: number;
+  listing_active_days: number;
+  max_images_per_listing: number;
+  max_videos_per_listing: number;
+  max_video_seconds: number;
+  max_image_width: number;
+  max_image_height: number;
+  
+  // Características
+  featured_listings: boolean;
+  priority_support: boolean;
+  analytics_access: boolean;
+  api_access: boolean;
+  
+  // Flags
+  is_active: boolean;
+  is_default: boolean;
 }
 
 export default function AdminPlansManager() {
@@ -46,9 +59,34 @@ export default function AdminPlansManager() {
 
   const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
 
   // Cargar planes desde el backend
   useEffect(() => {
+    fetchPlans();
+  }, []);
+
+  const fetchPlans = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await fetch('http://localhost:8000/v1/plans/?include_inactive=true');
+      
+      if (!response.ok) {
+        throw new Error('Error al cargar los planes');
+      }
+      
+      const data = await response.json();
+      setPlans(data.plans || []);
+    } catch (err) {
+      console.error('Error fetching plans:', err);
+      setError('Error al cargar los planes del sistema.');
+      setPlans([]);
+    } finally {
+      setLoading(false);
+    }
+  };
     fetchPlans();
   }, []);
 
@@ -110,6 +148,30 @@ export default function AdminPlansManager() {
     }
   };
 
+  const handleCreatePlan = () => {
+    // Plan vacío para crear uno nuevo
+    const newPlan: Plan = {
+      id: 'new',
+      name: '',
+      description: '',
+      price_monthly: 0,
+      price_yearly: 0,
+      features: [''],
+      limits: {
+        max_listings: 3,
+        max_images: 5,
+        max_videos: 0,
+        featured_listings: 0,
+        analytics_access: false,
+        priority_support: false,
+      },
+      active: true,
+      sort_order: plans.length + 1,
+    };
+    setEditingPlan(newPlan);
+    setShowEditModal(true);
+  };
+
   const handleEditPlan = (plan: Plan) => {
     setEditingPlan({ ...plan });
     setShowEditModal(true);
@@ -118,25 +180,46 @@ export default function AdminPlansManager() {
   const handleSavePlan = async () => {
     if (!editingPlan) return;
 
+    // Validaciones básicas
+    if (!editingPlan.name.trim()) {
+      setError('El nombre del plan es obligatorio');
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
       
-      const response = await fetch(`http://localhost:8000/v1/plans/${editingPlan.id}`, {
-        method: 'PATCH',
+      const isNew = editingPlan.id === 'new';
+      const url = isNew 
+        ? 'http://localhost:8000/v1/plans/'
+        : `http://localhost:8000/v1/plans/${editingPlan.id}`;
+      
+      const method = isNew ? 'POST' : 'PATCH';
+      
+      const payload: any = {
+        name: editingPlan.name,
+        description: editingPlan.description,
+        price_monthly: editingPlan.price_monthly,
+        price_yearly: editingPlan.price_yearly,
+        limits: editingPlan.limits,
+        features: editingPlan.features.filter(f => f.trim() !== ''),
+        is_active: editingPlan.active,
+        sort_order: editingPlan.sort_order,
+      };
+      
+      // Para crear, necesitamos plan_code
+      if (isNew) {
+        payload.plan_code = editingPlan.name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+      }
+      
+      const response = await fetch(url, {
+        method,
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          name: editingPlan.name,
-          description: editingPlan.description,
-          price_monthly: editingPlan.price_monthly,
-          price_yearly: editingPlan.price_yearly,
-          limits: editingPlan.limits,
-          features: editingPlan.features.filter(f => f.trim() !== ''),
-          is_active: editingPlan.active,
-          sort_order: editingPlan.sort_order,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
@@ -144,12 +227,17 @@ export default function AdminPlansManager() {
         throw new Error(errorData.detail || 'Error al guardar el plan');
       }
 
-      const updatedPlan = await response.json();
+      const savedPlan = await response.json();
       
       // Actualizar en el estado local
-      setPlans(plans.map(p => p.id === updatedPlan.id ? updatedPlan : p));
+      if (isNew) {
+        setPlans([...plans, savedPlan]);
+        setSuccess(`✓ Plan "${editingPlan.name}" creado correctamente`);
+      } else {
+        setPlans(plans.map(p => p.id === savedPlan.id ? savedPlan : p));
+        setSuccess(`✓ Plan "${editingPlan.name}" actualizado correctamente`);
+      }
       
-      setSuccess(`✓ Plan "${editingPlan.name}" actualizado correctamente`);
       setShowEditModal(false);
       setEditingPlan(null);
       
@@ -206,8 +294,17 @@ export default function AdminPlansManager() {
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
-        <h3 className="text-lg sm:text-xl font-bold text-gray-900">Gestión de Planes</h3>
-        <p className="text-xs sm:text-sm text-gray-600">Modifica precios, límites y características de los planes</p>
+        <div className="flex-1">
+          <h3 className="text-lg sm:text-xl font-bold text-gray-900">Gestión de Planes</h3>
+          <p className="text-xs sm:text-sm text-gray-600">Modifica precios, límites y características de los planes</p>
+        </div>
+        <button
+          onClick={handleCreatePlan}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+        >
+          <PlusIcon className="w-5 h-5" />
+          <span>Nuevo Plan</span>
+        </button>
       </div>
 
       {/* Mensajes de Error y Éxito */}

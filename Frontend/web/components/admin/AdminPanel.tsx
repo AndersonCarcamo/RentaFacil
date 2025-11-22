@@ -18,9 +18,11 @@ import {
   CreditCardIcon,
   Bars3Icon,
 } from '@heroicons/react/24/outline';
-import AdminPlansManager from './AdminPlansManager';
+import AdminPlansManager from './SystemPlansManager';
 import AdminManagement from './AdminManagement';
 import AdminAnalytics from './AdminAnalytics';
+import UsersManager from './UsersManager';
+import ListingsManager from './ListingsManager';
 
 interface AdminPanelProps {
   userEmail: string;
@@ -189,39 +191,11 @@ function OverviewTab() {
 }
 
 function UsersTab() {
-  return (
-    <div>
-      <h3 className="text-xl font-bold text-gray-900 mb-4">Gestión de Usuarios</h3>
-      <p className="text-gray-600">Funcionalidad de gestión de usuarios en desarrollo...</p>
-      <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-        <ul className="space-y-2 text-sm text-gray-700">
-          <li>• Ver lista de todos los usuarios</li>
-          <li>• Suspender/Activar cuentas</li>
-          <li>• Cambiar roles de usuario</li>
-          <li>• Ver historial de actividad</li>
-          <li>• Exportar datos de usuarios</li>
-        </ul>
-      </div>
-    </div>
-  );
+  return <UsersManager />;
 }
 
 function ListingsTab() {
-  return (
-    <div>
-      <h3 className="text-xl font-bold text-gray-900 mb-4">Gestión de Propiedades</h3>
-      <p className="text-gray-600">Funcionalidad de gestión de propiedades en desarrollo...</p>
-      <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-        <ul className="space-y-2 text-sm text-gray-700">
-          <li>• Ver todas las propiedades publicadas</li>
-          <li>• Aprobar/Rechazar propiedades</li>
-          <li>• Marcar propiedades destacadas</li>
-          <li>• Eliminar propiedades inapropiadas</li>
-          <li>• Ver estadísticas de publicaciones</li>
-        </ul>
-      </div>
-    </div>
-  );
+  return <ListingsManager />;
 }
 
 function SubscriptionsTab() {

@@ -24,8 +24,13 @@ import {
   CameraIcon,
   Bars3Icon,
   ChevronDownIcon,
+  KeyIcon,
+  ShieldCheckIcon,
+  ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
+import { sendPasswordResetEmail } from 'firebase/auth';
+import { auth } from '../lib/firebase';
 
 const ProfilePage = () => {
   const router = useRouter();
@@ -39,6 +44,9 @@ const ProfilePage = () => {
   const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState<UpdateUserProfileRequest>({});
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showPasswordResetModal, setShowPasswordResetModal] = useState(false);
+  const [sendingPasswordReset, setSendingPasswordReset] = useState(false);
+  const [passwordResetSuccess, setPasswordResetSuccess] = useState(false);
 
   // Función local para refrescar el usuario en el contexto
   const localRefreshUser = async () => {
@@ -182,6 +190,47 @@ const ProfilePage = () => {
       ADMIN: 'Administrador',
     };
     return roles[role] || role;
+  };
+
+  const handlePasswordReset = async () => {
+    if (!profile?.email) {
+      toast.error('No se pudo obtener el correo electrónico');
+      return;
+    }
+
+    try {
+      setSendingPasswordReset(true);
+      await sendPasswordResetEmail(auth, profile.email);
+      setPasswordResetSuccess(true);
+      toast.success('Correo de restablecimiento enviado exitosamente');
+      
+      // Auto-close modal after 5 seconds
+      setTimeout(() => {
+        setShowPasswordResetModal(false);
+        setPasswordResetSuccess(false);
+      }, 5000);
+    } catch (error: any) {
+      console.error('Error sending password reset email:', error);
+      let errorMessage = 'Error al enviar el correo de restablecimiento';
+      
+      // Translate Firebase error codes to Spanish
+      if (error.code === 'auth/user-not-found') {
+        errorMessage = 'No se encontró un usuario con este correo';
+      } else if (error.code === 'auth/too-many-requests') {
+        errorMessage = 'Demasiados intentos. Por favor intenta más tarde';
+      } else if (error.code === 'auth/network-request-failed') {
+        errorMessage = 'Error de conexión. Verifica tu internet';
+      }
+      
+      toast.error(errorMessage);
+    } finally {
+      setSendingPasswordReset(false);
+    }
+  };
+
+  const closePasswordResetModal = () => {
+    setShowPasswordResetModal(false);
+    setPasswordResetSuccess(false);
   };
 
   if (authLoading || loading) {
@@ -617,7 +666,7 @@ const ProfilePage = () => {
           </div>
 
           {/* Información de la Cuenta */}
-          <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6">
+          <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6 mb-4 sm:mb-6">
             <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4">Información de la Cuenta</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
               <div className="p-3 sm:p-0 bg-gray-50 sm:bg-transparent rounded-lg">
@@ -650,9 +699,121 @@ const ProfilePage = () => {
               </div>
             </div>
           </div>
+
+          {/* Seguridad */}
+          <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <ShieldCheckIcon className="w-5 h-5 sm:w-6 sm:h-6 text-[#5AB0DB]" />
+              Seguridad
+            </h2>
+            <div className="space-y-4">
+              <div className="flex items-start sm:items-center justify-between p-4 bg-gray-50 rounded-lg flex-col sm:flex-row gap-3">
+                <div className="flex items-start gap-3 flex-1">
+                  <KeyIcon className="w-5 h-5 sm:w-6 sm:h-6 text-gray-400 mt-1 sm:mt-0 flex-shrink-0" />
+                  <div>
+                    <h3 className="text-sm sm:text-base font-medium text-gray-900">Contraseña</h3>
+                    <p className="text-xs sm:text-sm text-gray-600 mt-1">
+                      Restablece tu contraseña a través de tu correo electrónico
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowPasswordResetModal(true)}
+                  className="w-full sm:w-auto px-4 py-2 bg-[#5AB0DB] text-white rounded-lg hover:bg-[#4A9DC8] transition-colors font-medium text-sm whitespace-nowrap"
+                >
+                  Cambiar Contraseña
+                </button>
+              </div>
+            </div>
+          </div>
             </div>
           </div>
         </div>
+
+        {/* Modal de Restablecimiento de Contraseña */}
+        {showPasswordResetModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+              {!passwordResetSuccess ? (
+                <>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 bg-[#5AB0DB] bg-opacity-20 rounded-full flex items-center justify-center flex-shrink-0">
+                      <KeyIcon className="w-6 h-6 text-[#5AB0DB]" />
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-900">Cambiar Contraseña</h3>
+                  </div>
+
+                  <p className="text-gray-600 mb-4">
+                    Se enviará un enlace de restablecimiento al correo:
+                  </p>
+
+                  <div className="flex items-center gap-2 p-3 bg-[#5AB0DB] bg-opacity-10 rounded-lg border border-[#5AB0DB] border-opacity-30 mb-6">
+                    <EnvelopeIcon className="w-5 h-5 text-[#5AB0DB]" />
+                    <span className="text-gray-900 font-medium break-all">{profile?.email}</span>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <button
+                      onClick={closePasswordResetModal}
+                      disabled={sendingPasswordReset}
+                      className="flex-1 px-4 py-2.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium disabled:opacity-50"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={handlePasswordReset}
+                      disabled={sendingPasswordReset}
+                      className="flex-1 px-4 py-2.5 bg-[#5AB0DB] text-white rounded-lg hover:bg-[#4A9DC8] transition-colors font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {sendingPasswordReset ? (
+                        <>
+                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          Enviando...
+                        </>
+                      ) : (
+                        'Enviar Enlace'
+                      )}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="text-center">
+                    <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <CheckIcon className="w-8 h-8 text-green-600" />
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">¡Correo Enviado!</h3>
+                    <p className="text-gray-600 mb-6">
+                      Hemos enviado un enlace de restablecimiento a<br />
+                      <span className="font-medium text-gray-900">{profile?.email}</span>
+                    </p>
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 text-left">
+                      <p className="text-sm text-blue-800">
+                        <strong>Próximos pasos:</strong>
+                      </p>
+                      <ol className="text-sm text-blue-800 mt-2 space-y-1 list-decimal list-inside">
+                        <li>Revisa tu bandeja de entrada</li>
+                        <li>Haz clic en el enlace del correo</li>
+                        <li>Crea tu nueva contraseña</li>
+                        <li>Inicia sesión con tu nueva contraseña</li>
+                      </ol>
+                    </div>
+                    <p className="text-xs text-gray-500 mb-4">
+                      El enlace expirará en 1 hora. Si no recibes el correo, revisa tu carpeta de spam.
+                    </p>
+                    <button
+                      onClick={closePasswordResetModal}
+                      className="w-full px-4 py-2.5 bg-[#5AB0DB] text-white rounded-lg hover:bg-[#4A9DC8] transition-colors font-medium"
+                    >
+                      Entendido
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
         <Footer />
       </div>
     </>

@@ -1,9 +1,33 @@
-from sqlalchemy import Column, String, Numeric, Integer, Boolean, DateTime, Text, ForeignKey, CHAR, JSON
+from sqlalchemy import Column, String, Numeric, Integer, Boolean, DateTime, Text, ForeignKey, CHAR, JSON, Enum as SQLEnum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 import uuid
+import enum
 from datetime import datetime
 from app.core.database import Base
+
+
+class PlanTier(str, enum.Enum):
+    """Niveles de planes"""
+    free = "free"
+    basic = "basic"
+    premium = "premium"
+    enterprise = "enterprise"
+
+
+class PlanPeriod(str, enum.Enum):
+    """Períodos de facturación"""
+    monthly = "monthly"
+    quarterly = "quarterly"
+    yearly = "yearly"
+    permanent = "permanent"
+
+
+class PlanTargetType(str, enum.Enum):
+    """Tipo de usuario objetivo del plan"""
+    individual = "individual"  # Para usuarios individuales
+    agency = "agency"  # Para agencias
+    both = "both"  # Para ambos tipos
 
 
 class Plan(Base):
@@ -15,9 +39,10 @@ class Plan(Base):
     code = Column(Text, nullable=False, unique=True)
     name = Column(Text, nullable=False)
     description = Column(Text)
-    tier = Column(String(50), nullable=False)  # free, basic, premium
-    period = Column(String(50), nullable=False)  # monthly, yearly
+    tier = Column(SQLEnum(PlanTier, name='plan_tier', create_type=False), nullable=False)
+    period = Column(SQLEnum(PlanPeriod, name='plan_period', create_type=False), nullable=False)
     period_months = Column(Integer, nullable=False, default=1)
+    target_user_type = Column(SQLEnum(PlanTargetType, name='plan_target_type', create_type=False), nullable=False, default='individual')
     price_amount = Column(Numeric(10, 2), nullable=False, default=0)
     price_currency = Column(CHAR(3), nullable=False, default='PEN')
     

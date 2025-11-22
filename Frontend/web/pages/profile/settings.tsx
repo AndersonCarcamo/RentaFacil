@@ -12,8 +12,11 @@ import {
   TrashIcon,
   ExclamationTriangleIcon,
   CheckCircleIcon,
+  EnvelopeIcon,
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
+import { sendPasswordResetEmail } from 'firebase/auth';
+import { auth } from '../../lib/firebase';
 
 const SettingsPage = () => {
   const router = useRouter();
@@ -27,7 +30,6 @@ const SettingsPage = () => {
   const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
 
   // Estados para formularios
-  const [resetPasswordEmail, setResetPasswordEmail] = useState('');
   const [changePasswordData, setChangePasswordData] = useState({
     currentPassword: '',
     newPassword: '',
@@ -43,15 +45,29 @@ const SettingsPage = () => {
   }, [user, authLoading]);
 
   const handleResetPassword = async () => {
+    if (!user?.email) {
+      toast.error('No se pudo obtener el correo electrónico');
+      return;
+    }
+
     try {
       setLoading(true);
-      // TODO: Implementar llamada al endpoint de reset password
-      // await requestPasswordReset(resetPasswordEmail);
-      toast.success('Se ha enviado un correo para restablecer tu contraseña');
+      await sendPasswordResetEmail(auth, user.email);
+      toast.success('Correo de restablecimiento enviado exitosamente. Revisa tu bandeja de entrada.');
       setShowResetPasswordModal(false);
-      setResetPasswordEmail('');
     } catch (error: any) {
-      toast.error(error.message || 'Error al enviar el correo');
+      console.error('Error sending password reset email:', error);
+      let errorMessage = 'Error al enviar el correo de restablecimiento';
+      
+      if (error.code === 'auth/user-not-found') {
+        errorMessage = 'No se encontró un usuario con este correo';
+      } else if (error.code === 'auth/too-many-requests') {
+        errorMessage = 'Demasiados intentos. Por favor intenta más tarde';
+      } else if (error.code === 'auth/network-request-failed') {
+        errorMessage = 'Error de conexión. Verifica tu internet';
+      }
+      
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -374,28 +390,26 @@ const SettingsPage = () => {
           <div className="bg-white rounded-lg max-w-md w-full p-6">
             <h3 className="text-lg font-bold text-gray-900 mb-4">Restablecer Contraseña</h3>
             <p className="text-sm text-gray-600 mb-4">
-              Ingresa tu correo electrónico para recibir instrucciones de restablecimiento.
+              Se enviará un enlace de restablecimiento al correo:
             </p>
-            <input
-              type="email"
-              value={resetPasswordEmail}
-              onChange={(e) => setResetPasswordEmail(e.target.value)}
-              placeholder="correo@ejemplo.com"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5AB0DB] focus:border-[#5AB0DB] mb-4"
-            />
+            <div className="flex items-center gap-2 p-3 bg-[#5AB0DB] bg-opacity-10 rounded-lg border border-[#5AB0DB] border-opacity-30 mb-6">
+              <EnvelopeIcon className="w-5 h-5 text-[#5AB0DB]" />
+              <span className="text-gray-900 font-medium break-all">{user?.email}</span>
+            </div>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowResetPasswordModal(false)}
-                className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                disabled={loading}
+                className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors disabled:opacity-50"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleResetPassword}
-                disabled={loading || !resetPasswordEmail}
+                disabled={loading}
                 className="flex-1 px-4 py-2 bg-[#5AB0DB] text-white rounded-lg hover:bg-[#4A9DC8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? 'Enviando...' : 'Enviar'}
+                {loading ? 'Enviando...' : 'Enviar Enlace'}
               </button>
             </div>
           </div>
