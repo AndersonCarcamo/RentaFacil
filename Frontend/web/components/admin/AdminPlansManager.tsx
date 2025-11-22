@@ -14,6 +14,7 @@ import {
   CurrencyDollarIcon,
   SparklesIcon,
 } from '@heroicons/react/24/outline';
+import { useAuth } from '../../lib/hooks/useAuth';
 
 interface PlanLimits {
   max_listings?: number;
@@ -37,59 +38,133 @@ interface Plan {
 }
 
 export default function AdminPlansManager() {
-  const [plans, setPlans] = useState<Plan[]>([
-    {
-      id: 'basico',
-      name: 'Básico',
-      description: 'Perfecto para empezar a publicar tus propiedades',
-      price_monthly: 0,
-      price_yearly: 0,
-      features: ['Hasta 3 propiedades activas', 'Hasta 5 imágenes por propiedad', 'Soporte por email'],
-      limits: { max_listings: 3, max_images: 5, max_videos: 0 },
-      active: true,
-      sort_order: 1,
-    },
-    {
-      id: 'premium',
-      name: 'Premium',
-      description: 'Para arrendadores que quieren destacar',
-      price_monthly: 29.90,
-      price_yearly: 287.52,
-      features: ['Hasta 20 propiedades activas', 'Hasta 15 imágenes por propiedad', '2 videos por propiedad', 'Soporte prioritario'],
-      limits: { max_listings: 20, max_images: 15, max_videos: 2, featured_listings: 2 },
-      active: true,
-      sort_order: 2,
-    },
-    {
-      id: 'profesional',
-      name: 'Profesional',
-      description: 'Para inmobiliarias y agentes profesionales',
-      price_monthly: 99.90,
-      price_yearly: 959.04,
-      features: ['Propiedades ilimitadas', 'Imágenes ilimitadas', 'Videos ilimitados', 'Analíticas avanzadas', 'Soporte 24/7'],
-      limits: { max_listings: 999999, max_images: 999999, max_videos: 999999, analytics_access: true, priority_support: true },
-      active: true,
-      sort_order: 3,
-    },
-  ]);
+  const { firebaseUser } = useAuth();
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
+
+  // Cargar planes desde el backend
+  useEffect(() => {
+    fetchPlans();
+  }, []);
+
+  const fetchPlans = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await fetch('http://localhost:8000/v1/plans?include_inactive=true');
+      
+      if (!response.ok) {
+        throw new Error('Error al cargar los planes');
+      }
+      
+      const data = await response.json();
+      setPlans(data.plans || []);
+    } catch (err) {
+      console.error('Error fetching plans:', err);
+      setError('Error al cargar los planes. Usando datos de ejemplo.');
+      
+      // Datos de fallback
+      setPlans([
+        {
+          id: 'basico',
+          name: 'Básico',
+          description: 'Perfecto para empezar a publicar tus propiedades',
+          price_monthly: 0,
+          price_yearly: 0,
+          features: ['Hasta 3 propiedades activas', 'Hasta 5 imágenes por propiedad', 'Soporte por email'],
+          limits: { max_listings: 3, max_images: 5, max_videos: 0 },
+          active: true,
+          sort_order: 1,
+        },
+        {
+          id: 'premium',
+          name: 'Premium',
+          description: 'Para arrendadores que quieren destacar',
+          price_monthly: 29.90,
+          price_yearly: 287.52,
+          features: ['Hasta 20 propiedades activas', 'Hasta 15 imágenes por propiedad', '2 videos por propiedad', 'Soporte prioritario'],
+          limits: { max_listings: 20, max_images: 15, max_videos: 2, featured_listings: 2 },
+          active: true,
+          sort_order: 2,
+        },
+        {
+          id: 'profesional',
+          name: 'Profesional',
+          description: 'Para inmobiliarias y agentes profesionales',
+          price_monthly: 99.90,
+          price_yearly: 959.04,
+          features: ['Propiedades ilimitadas', 'Imágenes ilimitadas', 'Videos ilimitados', 'Analíticas avanzadas', 'Soporte 24/7'],
+          limits: { max_listings: 999999, max_images: 999999, max_videos: 999999, analytics_access: true, priority_support: true },
+          active: true,
+          sort_order: 3,
+        },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleEditPlan = (plan: Plan) => {
     setEditingPlan({ ...plan });
     setShowEditModal(true);
   };
 
-  const handleSavePlan = () => {
+  const handleSavePlan = async () => {
     if (!editingPlan) return;
 
-    setPlans(plans.map(p => p.id === editingPlan.id ? editingPlan : p));
-    setShowEditModal(false);
-    setEditingPlan(null);
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await fetch(`http://localhost:8000/v1/plans/${editingPlan.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: editingPlan.name,
+          description: editingPlan.description,
+          price_monthly: editingPlan.price_monthly,
+          price_yearly: editingPlan.price_yearly,
+          limits: editingPlan.limits,
+          features: editingPlan.features.filter(f => f.trim() !== ''),
+          is_active: editingPlan.active,
+          sort_order: editingPlan.sort_order,
+        }),
+      });
 
-    // TODO: Guardar en backend
-    console.log('💾 Plan guardado:', editingPlan);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Error al guardar el plan');
+      }
+
+      const updatedPlan = await response.json();
+      
+      // Actualizar en el estado local
+      setPlans(plans.map(p => p.id === updatedPlan.id ? updatedPlan : p));
+      
+      setSuccess(`✓ Plan "${editingPlan.name}" actualizado correctamente`);
+      setShowEditModal(false);
+      setEditingPlan(null);
+      
+      // Limpiar mensaje después de 3 segundos
+      setTimeout(() => setSuccess(null), 3000);
+      
+    } catch (err) {
+      console.error('Error saving plan:', err);
+      setError(err instanceof Error ? err.message : 'Error al guardar el plan');
+      
+      // Limpiar mensaje después de 5 segundos
+      setTimeout(() => setError(null), 5000);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleUpdateField = (field: keyof Plan, value: any) => {
@@ -135,9 +210,49 @@ export default function AdminPlansManager() {
         <p className="text-xs sm:text-sm text-gray-600">Modifica precios, límites y características de los planes</p>
       </div>
 
+      {/* Mensajes de Error y Éxito */}
+      {error && (
+        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3">
+          <XMarkIcon className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <h4 className="font-semibold text-red-900 text-sm">Error</h4>
+            <p className="text-sm text-red-700 mt-1">{error}</p>
+          </div>
+          <button
+            onClick={() => setError(null)}
+            className="p-1 hover:bg-red-100 rounded"
+          >
+            <XMarkIcon className="w-4 h-4 text-red-600" />
+          </button>
+        </div>
+      )}
+
+      {success && (
+        <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-xl flex items-start gap-3">
+          <CheckIcon className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="text-sm text-green-700 font-medium">{success}</p>
+          </div>
+          <button
+            onClick={() => setSuccess(null)}
+            className="p-1 hover:bg-green-100 rounded"
+          >
+            <XMarkIcon className="w-4 h-4 text-green-600" />
+          </button>
+        </div>
+      )}
+
+      {/* Loading State */}
+      {loading && !editingPlan && (
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      )}
+
       {/* Planes Grid - Mobile Optimized */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-        {plans.map((plan) => (
+      {!loading && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+          {plans.map((plan) => (
           <div
             key={plan.id}
             className="bg-white border-2 border-gray-200 rounded-xl p-4 sm:p-6 hover:border-blue-400 transition-all"
@@ -189,6 +304,7 @@ export default function AdminPlansManager() {
           </div>
         ))}
       </div>
+      )}
 
       {/* Edit Modal - Mobile Optimized */}
       {showEditModal && editingPlan && (
@@ -352,15 +468,26 @@ export default function AdminPlansManager() {
               <button
                 onClick={() => setShowEditModal(false)}
                 className="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium"
+                disabled={loading}
               >
                 Cancelar
               </button>
               <button
                 onClick={handleSavePlan}
-                className="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center justify-center gap-2"
+                disabled={loading}
+                className="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <CheckIcon className="w-4 h-4 sm:w-5 sm:h-5" />
-                <span>Guardar</span>
+                {loading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Guardando...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <span>Guardar</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

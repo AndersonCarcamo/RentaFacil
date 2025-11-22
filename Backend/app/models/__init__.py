@@ -11,4 +11,5 @@ from .verification import *
 from .notification import *
 from .admin import *
 from .integration import *
+from .subscription_plan import *
 # Removed webhook and api_key models - tables don't exist in database
