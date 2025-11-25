@@ -443,7 +443,7 @@ export function Header() {
 
 	return (
 		<>
-			<header className="sticky top-0 z-[1000] border-b border-gray-200 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/70">
+			<header className="sticky top-0 z-[500] border-b border-gray-200 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/70">
 				{/* Grid de 3 columnas para centrar logo */}
 				<div className="mx-auto grid max-w-7xl grid-cols-3 items-center h-24 px-4 sm:px-6 lg:px-8" aria-label="Global">
 					{/* Navegación izquierda */}
@@ -464,7 +464,7 @@ export function Header() {
 								leaveFrom="opacity-100 translate-y-0"
 								leaveTo="opacity-0 translate-y-1"
 							>
-								<Popover.Panel className="absolute -left-4 top-full z-[1010] mt-1 w-screen max-w-xs overflow-hidden rounded-md bg-white shadow-lg ring-1 ring-gray-900/5">
+								<Popover.Panel className="absolute -left-4 top-full z-[300] mt-1 w-screen max-w-xs overflow-hidden rounded-md bg-white shadow-lg ring-1 ring-gray-900/5">
 									<div className="p-2">
 										{propertyTypes.map((item) => (
 											<div
@@ -569,7 +569,7 @@ export function Header() {
 										leaveFrom="transform opacity-100 scale-100"
 										leaveTo="transform opacity-0 scale-95"
 									>
-										<Menu.Items className="absolute right-0 z-[1010] mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+										<Menu.Items className="absolute right-0 z-[300] mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
 											<div className="py-1">
 												<div className="px-4 py-3 border-b border-gray-100">
 													<p className="text-sm font-medium text-gray-900">
@@ -706,8 +706,8 @@ export function Header() {
 
 				{/* Mobile menu */}
 				<Dialog as="div" className="lg:hidden" open={mobileMenuOpen} onClose={setMobileMenuOpen}>
-					<div className="fixed inset-0 z-[990]" />
-					<Dialog.Panel className="fixed inset-y-0 right-0 z-[1000] w-full overflow-y-auto bg-white px-6 py-6 sm:max-w-sm sm:ring-1 sm:ring-gray-900/10">
+					<div className="fixed inset-0 z-[400]" />
+					<Dialog.Panel className="fixed inset-y-0 right-0 z-[450] w-full overflow-y-auto bg-white px-6 py-6 sm:max-w-sm sm:ring-1 sm:ring-gray-900/10">
 						<div className="flex items-center justify-between">
 							<Link href="/" className="-m-1.5 p-1.5">
 								<span className="sr-only">RentaFacil</span>

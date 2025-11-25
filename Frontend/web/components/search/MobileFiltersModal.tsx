@@ -540,11 +540,11 @@ export default function MobileFiltersModal({
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/50 z-[9998] animate-fade-in"
+        className="fixed inset-0 bg-black/50 z-[380] animate-fade-in"
       />
 
       {/* Modal */}
-      <div className="fixed left-0 right-0 bottom-0 z-[9999] bg-gray-50 rounded-t-3xl shadow-2xl animate-slide-up-mobile max-h-[85vh] flex flex-col w-screen">
+      <div className="fixed left-0 right-0 bottom-0 z-[390] bg-gray-50 rounded-t-3xl shadow-2xl animate-slide-up-mobile max-h-[85vh] flex flex-col w-screen">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-brand-navy/10 bg-white rounded-t-3xl flex-shrink-0">
           <div className="flex items-center gap-3 flex-1">

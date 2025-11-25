@@ -3,6 +3,9 @@
  * Definiciones de interfaces y tipos comunes
  */
 
+// Re-exportar tipos de booking
+export * from './booking'
+
 // Tipos base
 export type Currency = 'PEN' | 'USD'
 export type PropertyType = 'apartment' | 'house' | 'studio' | 'office' | 'room'
@@ -93,6 +96,10 @@ export interface Property {
   owner?: User
   createdAt?: string
   updatedAt?: string
+  // Campos para Airbnb
+  rental_term?: 'daily' | 'weekly' | 'monthly' | 'yearly'
+  rental_mode?: 'full_property' | 'private_room' | 'shared_room'
+  furnished?: boolean
 }
 
 // Ciudad para exploración

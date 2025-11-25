@@ -16,6 +16,8 @@ import {
 import { fetchProperty, PropertyResponse } from '../../lib/api/properties';
 import dynamic from 'next/dynamic';
 import ImageViewer from '../ui/ImageViewer';
+import { BookingModal } from '../booking';
+import toast from 'react-hot-toast';
 
 // Importar mapa dinámicamente para evitar problemas con SSR
 const PropertyMap = dynamic(() => import('../maps/PropertyMap'), {
@@ -53,6 +55,7 @@ const PropertyModal: React.FC<PropertyModalProps> = ({ propertyId, isOpen, onClo
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [carouselIndex, setCarouselIndex] = useState(0);
   const [contactSettings, setContactSettings] = useState<ContactSettings | null>(null);
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
 
   useEffect(() => {
     if (isOpen && propertyId) {
@@ -168,12 +171,12 @@ const PropertyModal: React.FC<PropertyModalProps> = ({ propertyId, isOpen, onClo
     <>
       {/* Overlay */}
       <div 
-        className="fixed inset-0 bg-black/50 z-[100] transition-opacity"
+        className="fixed inset-0 bg-black/50 z-[400] transition-opacity"
         onClick={onClose}
       />
       
       {/* Modal */}
-      <div className="fixed inset-0 z-[100] overflow-y-auto">
+      <div className="fixed inset-0 z-[450] overflow-y-auto">
         <div className="flex min-h-full items-center justify-center p-4">
           <div 
             className="relative bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden"
@@ -697,6 +700,41 @@ const PropertyModal: React.FC<PropertyModalProps> = ({ propertyId, isOpen, onClo
                     </div>
                   )}
 
+                  {/* Botón de Reserva - Solo para propiedades tipo Airbnb */}
+                  {property.rental_term === 'daily' && (
+                    <div className="mb-8 p-6 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border-2 border-purple-200">
+                      <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-2xl">🏠</span>
+                            <h3 className="text-xl font-bold text-gray-900">Reserva Ahora</h3>
+                          </div>
+                          <p className="text-gray-700 mb-1">
+                            <span className="text-3xl font-bold text-purple-600">
+                              {property.currency} {property.price.toLocaleString()}
+                            </span>
+                            <span className="text-gray-600 ml-2">por noche</span>
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            💳 Pago dividido: 50% al reservar, 50% al check-in
+                          </p>
+                          {property.minimum_stay_nights && property.minimum_stay_nights > 1 && (
+                            <p className="text-sm text-gray-600 mt-1">
+                              📅 Estancia mínima: {property.minimum_stay_nights} {property.minimum_stay_nights === 1 ? 'noche' : 'noches'}
+                            </p>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => setIsBookingModalOpen(true)}
+                          className="w-full md:w-auto px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold rounded-xl hover:from-purple-700 hover:to-pink-700 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center justify-center gap-2"
+                        >
+                          <span className="text-xl">📅</span>
+                          <span>Reservar Ahora</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Contact Information */}
                   <div className="border-t pt-6">
                     <h2 className="text-xl font-bold text-gray-900 mb-4">Información de contacto</h2>
@@ -790,6 +828,29 @@ const PropertyModal: React.FC<PropertyModalProps> = ({ propertyId, isOpen, onClo
           onClose={closeImageViewer}
           onNext={nextImage}
           onPrevious={previousImage}
+        />
+      )}
+
+      {/* Booking Modal - Solo para propiedades Airbnb */}
+      {property && property.rental_term === 'daily' && (
+        <BookingModal
+          isOpen={isBookingModalOpen}
+          onClose={() => setIsBookingModalOpen(false)}
+          listing={{
+            id: property.id,
+            title: property.title,
+            images: getPropertyImages(property),
+            pricePerNight: property.price,
+            minimumNights: property.minimum_stay_nights || 1,
+            maxGuests: property.max_guests || 2,
+            hostName: property.contact_name || property.agency?.name || 'Anfitrión'
+          }}
+          onSuccess={() => {
+            setIsBookingModalOpen(false);
+            toast.success('¡Reserva creada exitosamente! El anfitrión debe confirmarla.');
+            // Opcional: Redirigir a la página de reservas
+            // window.location.href = '/bookings';
+          }}
         />
       )}
     </>

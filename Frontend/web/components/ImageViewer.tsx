@@ -55,7 +55,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({
 
   return (
     <div 
-      className="fixed inset-0 z-[100] bg-black bg-opacity-95 flex items-center justify-center"
+      className="fixed inset-0 z-[470] bg-black bg-opacity-95 flex items-center justify-center"
       onClick={onClose}
     >
       {/* Botón de cerrar */}

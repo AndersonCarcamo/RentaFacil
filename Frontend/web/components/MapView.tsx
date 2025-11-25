@@ -330,7 +330,7 @@ const MapView: React.FC<MapViewProps> = ({
         <button
           onClick={handleGeolocation}
           disabled={isLocating}
-          className="absolute top-4 right-4 z-[1000] bg-white hover:bg-gray-50 disabled:bg-gray-100 text-gray-700 p-3 rounded-lg shadow-lg border border-gray-200 transition-all duration-200 hover:scale-105 disabled:cursor-not-allowed"
+          className="absolute top-4 right-4 z-[130] bg-white hover:bg-gray-50 disabled:bg-gray-100 text-gray-700 p-3 rounded-lg shadow-lg border border-gray-200 transition-all duration-200 hover:scale-105 disabled:cursor-not-allowed"
           title="Usar mi ubicación"
         >
           {isLocating ? (

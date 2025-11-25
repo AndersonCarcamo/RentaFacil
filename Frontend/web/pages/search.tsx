@@ -4,7 +4,7 @@ import Head from 'next/head';
 import dynamic from 'next/dynamic';
 import PropertyCardHorizontal from '../components/PropertyCardHorizontal';
 import SearchSidebar, { SearchFilters } from '../components/SearchSidebar';
-import PropertyModal from '../components/PropertyModal';
+import PropertyModal from '../components/property/PropertyModal';
 import SearchMobileView from '../components/SearchMobileView';
 import { Property, Currency, PropertyType } from '../types/index';
 import { fetchProperties, PropertyFilters, PropertyResponse } from '../lib/api/properties';

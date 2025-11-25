@@ -117,7 +117,7 @@ const SearchSidebar: React.FC<SearchSidebarProps> = ({
         className={`
           bg-white border-r border-gray-200 shadow-lg
           transition-all duration-300 ease-in-out
-          flex-shrink-0 relative z-30
+          flex-shrink-0 relative z-[110]
           ${isExpanded ? 'w-80' : 'w-14'}
         `}
         style={{ height: 'calc(100vh - 96px)' }}

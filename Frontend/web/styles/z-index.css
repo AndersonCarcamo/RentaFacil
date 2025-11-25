@@ -1,0 +1,113 @@
+/**
+ * Z-Index System - EasyRent Frontend
+ * ===================================
+ * Sistema centralizado de capas para mantener consistencia en toda la aplicación
+ * 
+ * IMPORTANTE: Usar estas constantes CSS en lugar de valores arbitrarios
+ */
+
+:root {
+  /* Base Layer (0-99) */
+  --z-base: 0;
+  --z-decorative: 10;
+  --z-cards: 20;
+  
+  /* Content Layer (100-199) */
+  --z-sidebar: 110;
+  --z-map: 120;
+  --z-card-hover: 130;
+  
+  /* Navigation Layer (200-299) */
+  --z-sticky-header: 200;
+  --z-mobile-nav: 250;
+  
+  /* Overlay Layer (300-399) */
+  --z-dropdown: 300;
+  --z-tooltip: 350;
+  --z-mobile-filters: 380;
+  
+  /* Modal Layer (400-499) */
+  --z-modal-backdrop: 400;
+  --z-modal-content: 450;
+  --z-nested-modal: 460;
+  --z-image-viewer: 470;
+  
+  /* Header Layer (500-599) */
+  --z-header: 500;
+  --z-header-search: 550;
+  
+  /* Notification Layer (600-699) */
+  --z-toast: 600;
+  --z-loading: 650;
+  
+  /* Emergency Layer (700+) */
+  --z-error: 999;
+  --z-dev-tools: 9999;
+}
+
+/**
+ * Clases de Utilidad
+ * Usar estas clases en Tailwind cuando sea posible
+ */
+
+/* Base */
+.z-base { z-index: 0; }
+.z-decorative { z-index: 10; }
+.z-cards { z-index: 20; }
+
+/* Content */
+.z-sidebar { z-index: 110; }
+.z-map { z-index: 120; }
+.z-card-hover { z-index: 130; }
+
+/* Navigation */
+.z-sticky-header { z-index: 200; }
+.z-mobile-nav { z-index: 250; }
+
+/* Overlay */
+.z-dropdown { z-index: 300; }
+.z-tooltip { z-index: 350; }
+.z-mobile-filters { z-index: 380; }
+
+/* Modal */
+.z-modal-backdrop { z-index: 400; }
+.z-modal-content { z-index: 450; }
+.z-nested-modal { z-index: 460; }
+.z-image-viewer { z-index: 470; }
+
+/* Header */
+.z-header { z-index: 500; }
+.z-header-search { z-index: 550; }
+
+/* Notification */
+.z-toast { z-index: 600; }
+.z-loading { z-index: 650; }
+
+/* Emergency */
+.z-error { z-index: 999; }
+.z-dev-tools { z-index: 9999; }
+
+/**
+ * Guía de Uso
+ * ===========
+ * 
+ * En Tailwind:
+ * ------------
+ * Usar: className="z-[500]" para Header
+ * Usar: className="z-[450]" para Modal content
+ * Usar: className="z-[400]" para Modal backdrop
+ * 
+ * En CSS Modules / styled-jsx:
+ * ---------------------------
+ * z-index: var(--z-header);
+ * z-index: var(--z-modal-content);
+ * 
+ * Reglas:
+ * -------
+ * 1. NO usar valores arbitrarios fuera de este sistema
+ * 2. Si necesitas un nuevo nivel, documéntalo aquí primero
+ * 3. Mantener gaps de 10-50 entre niveles para futuras inserciones
+ * 4. Header SIEMPRE en z-500 (requerimiento del usuario)
+ * 5. Modales sobre contenido pero bajo header
+ * 6. Notificaciones sobre todo excepto emergency
+ */
