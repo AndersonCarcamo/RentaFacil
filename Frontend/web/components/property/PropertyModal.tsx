@@ -58,15 +58,28 @@ const PropertyModal: React.FC<PropertyModalProps> = ({ propertyId, isOpen, onClo
   const [contactSettings, setContactSettings] = useState<ContactSettings | null>(null);
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
 
+  // 🔍 DEBUG: Verificar que este modal se está usando
+  useEffect(() => {
+    if (isOpen && propertyId) {
+      console.log('🏠 PropertyModal abierto:', {
+        propertyId,
+        hasPropertyData: !!propertyData,
+        component: 'components/property/PropertyModal.tsx'
+      });
+    }
+  }, [isOpen, propertyId, propertyData]);
+
   useEffect(() => {
     if (isOpen && propertyId) {
       // Si se pasaron datos de la propiedad, usarlos directamente
       if (propertyData) {
+        console.log('📦 PropertyModal - Usando datos precargados:', propertyData.title);
         setProperty(propertyData);
         setLoading(false);
         setError(null);
       } else {
         // Si no, cargar desde el backend
+        console.log('🔄 PropertyModal - Cargando desde API:', propertyId);
         loadProperty();
       }
       loadContactSettings();
@@ -742,7 +755,16 @@ const PropertyModal: React.FC<PropertyModalProps> = ({ propertyId, isOpen, onClo
                           )}
                         </div>
                         <button
-                          onClick={() => setIsBookingModalOpen(true)}
+                          onClick={() => {
+                            console.log('🎯 Abriendo BookingModal para propiedad:', {
+                              id: property.id,
+                              title: property.title,
+                              rental_term: property.rental_term,
+                              max_guests: property.max_guests,
+                              price: property.price
+                            });
+                            setIsBookingModalOpen(true);
+                          }}
                           className="w-full md:w-auto px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold rounded-xl hover:from-purple-700 hover:to-pink-700 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center justify-center gap-2"
                         >
                           <span className="text-xl">📅</span>
@@ -852,7 +874,10 @@ const PropertyModal: React.FC<PropertyModalProps> = ({ propertyId, isOpen, onClo
       {property && property.rental_term === 'daily' && (
         <BookingModal
           isOpen={isBookingModalOpen}
-          onClose={() => setIsBookingModalOpen(false)}
+          onClose={() => {
+            console.log('❌ Cerrando BookingModal');
+            setIsBookingModalOpen(false);
+          }}
           listing={{
             id: property.id,
             title: property.title,
@@ -863,6 +888,7 @@ const PropertyModal: React.FC<PropertyModalProps> = ({ propertyId, isOpen, onClo
             hostName: property.contact_name || property.agency?.name || 'Anfitrión'
           }}
           onSuccess={() => {
+            console.log('✅ Reserva creada exitosamente');
             setIsBookingModalOpen(false);
             toast.success('¡Reserva creada exitosamente! El anfitrión debe confirmarla.');
             // Opcional: Redirigir a la página de reservas

@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react'
 import { Property } from '../types'
-import PropertyCardMini from './PropertyCardMini'
+import PropertyCardMini from './property/PropertyCardMini'
 import { FunnelIcon, AdjustmentsHorizontalIcon, ListBulletIcon, Squares2X2Icon } from '@heroicons/react/24/outline'
 
 interface PropertyBottomSheetProps {

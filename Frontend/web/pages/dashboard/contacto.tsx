@@ -3,7 +3,7 @@ import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { useAuth } from '../../lib/hooks/useAuth';
 import { useIsMobile } from '../../lib/hooks/useIsMobile';
-import { Header } from '../../components/Header';
+import { Header } from '../../components/common/Header';
 import Button from '../../components/ui/Button';
 import { MobileContactPage } from '../../components/dashboard/mobile/contact';
 import {

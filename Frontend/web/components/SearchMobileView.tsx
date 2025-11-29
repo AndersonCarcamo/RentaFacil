@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { Property } from '../types'
 import { PropertyResponse } from '../lib/api/properties'
-import { Header } from './Header'
+import { Header } from './common/Header'
 import MapFullscreen from './MapFullscreen'
 import PropertyBottomSheet from './PropertyBottomSheet'
 import SearchFiltersMobile from './SearchFiltersMobile'

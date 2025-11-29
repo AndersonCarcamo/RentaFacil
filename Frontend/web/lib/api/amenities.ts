@@ -18,7 +18,7 @@ export interface ListingAmenity {
  * Get all available amenities
  */
 export async function getAmenities(): Promise<Amenity[]> {
-  const response = await fetch(`${API_BASE_URL}/amenities`, {
+  const response = await fetch(`${API_BASE_URL}/v1/listings/amenities`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
@@ -36,7 +36,7 @@ export async function getAmenities(): Promise<Amenity[]> {
  * Get amenities for a specific listing
  */
 export async function getListingAmenities(listingId: string): Promise<Amenity[]> {
-  const response = await fetch(`${API_BASE_URL}/listings/${listingId}/amenities`, {
+  const response = await fetch(`${API_BASE_URL}/v1/listings/${listingId}/amenities`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
@@ -58,7 +58,7 @@ export async function updateListingAmenities(
   amenityIds: number[]
 ): Promise<void> {
   const response = await authenticatedRequest(
-    `${API_BASE_URL}/listings/${listingId}/amenities`,
+    `${API_BASE_URL}/v1/listings/${listingId}/amenities`,
     {
       method: 'PUT',
       body: JSON.stringify({ amenity_ids: amenityIds }),
@@ -79,7 +79,7 @@ export async function addListingAmenities(
   amenityIds: number[]
 ): Promise<void> {
   const response = await authenticatedRequest(
-    `${API_BASE_URL}/listings/${listingId}/amenities`,
+    `${API_BASE_URL}/v1/listings/${listingId}/amenities`,
     {
       method: 'POST',
       body: JSON.stringify({ amenity_ids: amenityIds }),
@@ -100,7 +100,7 @@ export async function removeListingAmenities(
   amenityIds: number[]
 ): Promise<void> {
   const response = await authenticatedRequest(
-    `${API_BASE_URL}/listings/${listingId}/amenities`,
+    `${API_BASE_URL}/v1/listings/${listingId}/amenities`,
     {
       method: 'DELETE',
       body: JSON.stringify({ amenity_ids: amenityIds }),

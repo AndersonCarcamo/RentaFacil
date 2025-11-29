@@ -89,26 +89,67 @@ export interface ListingImage {
 }
 
 export interface CreateListingRequest {
+  // Basic Info
   title: string;
   description?: string;
+  operation: string;
   property_type: string;
-  rental_type: string;
-  rental_term?: string;
-  price_amount: number;
-  price_currency?: string;
-  address_line1: string;
-  address_line2?: string;
-  city: string;
-  state_province?: string;
-  postal_code?: string;
-  country?: string;
-  latitude?: number;
-  longitude?: number;
+  price: number;
+  currency?: string;
+  
+  // Area information
+  area_built?: number;
+  area_total?: number;
+  
+  // Property details
   bedrooms?: number;
   bathrooms?: number;
-  area_size?: number;
-  area_unit?: string;
-  status?: string;
+  parking_spots?: number;
+  floors?: number;
+  floor_number?: number;
+  age_years?: number;
+  pet_friendly?: boolean;
+  furnished?: boolean;
+  rental_mode?: string;
+  rental_term?: string;
+  rental_model?: string;
+  airbnb_score?: number;
+  airbnb_eligible?: boolean;
+  airbnb_opted_out?: boolean;
+  
+  // Location
+  address?: string;
+  department?: string;
+  province?: string;
+  district?: string;
+  latitude?: number;
+  longitude?: number;
+  
+  // Airbnb-specific fields
+  smoking_allowed?: boolean;
+  deposit_required?: boolean;
+  deposit_amount?: number;
+  minimum_stay_nights?: number;
+  maximum_stay_nights?: number;
+  check_in_time?: string;
+  check_out_time?: string;
+  max_guests?: number;
+  cleaning_included?: boolean;
+  cleaning_fee?: number;
+  utilities_included?: boolean;
+  internet_included?: boolean;
+  house_rules?: string;
+  cancellation_policy?: string;
+  available_from?: string;
+  
+  // Amenities
+  amenities?: number[];
+  
+  // Contact information
+  contact_name?: string;
+  contact_phone_e164?: string;
+  contact_whatsapp_phone_e164?: string;
+  contact_whatsapp_link?: string;
 }
 
 /**

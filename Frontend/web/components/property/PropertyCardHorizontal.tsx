@@ -23,6 +23,15 @@ export default function PropertyCardHorizontal({
 }: PropertyCardHorizontalProps) {
 	const [favorite, setFavorite] = useState(property.isFavorite)
 
+	// 🔍 DEBUG: Verificar que este componente se está usando
+	console.log('🏠 PropertyCardHorizontal renderizado:', {
+		id: property.id,
+		title: property.title,
+		rental_term: property.rental_term,
+		max_guests: property.max_guests,
+		component: 'components/PropertyCardHorizontal.tsx'
+	})
+
 	const toggleFav = (e: React.MouseEvent) => {
 		e.preventDefault()
 		e.stopPropagation()
@@ -32,6 +41,7 @@ export default function PropertyCardHorizontal({
 	}
 
 	const handleClick = () => {
+		console.log('🖱️ PropertyCardHorizontal - Click en propiedad:', property.id)
 		onClick?.(property.id)
 	}
 
@@ -42,14 +52,21 @@ export default function PropertyCardHorizontal({
 		>
 			{/* Banner de oferta limitada para Airbnb top performers */}
 			{property.rental_term === 'daily' && property.rating >= 4.7 && (
-				<div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-red-600 via-pink-600 to-red-600 text-white text-center py-1 text-[10px] font-bold uppercase tracking-wider z-10 shadow-lg">
+				<div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-red-600 via-pink-600 to-red-600 px-3 py-1.5 text-white text-xs font-bold text-center z-10 shadow-lg animate-pulse">
 					⏰ Oferta Limitada - Solo por hoy
 				</div>
 			)}
-			
+
+			{/* Badge "Hot Deal" en esquina superior derecha */}
+			{property.rental_term === 'daily' && property.rating >= 4.6 && (
+				<div className="absolute top-2 right-2 bg-gradient-to-br from-orange-500 to-red-600 text-white px-2 py-1 rounded-bl-lg rounded-tr-lg text-[10px] font-bold shadow-lg z-20 transform rotate-3">
+					🔥 Hot Deal
+				</div>
+			)}
+
 			<div className={`flex flex-col sm:flex-row h-auto sm:h-48 ${property.rental_term === 'daily' && property.rating >= 4.7 ? 'mt-6' : ''}`}>
-				{/* Imagen - Arriba en móvil, Izquierda en desktop */}
-				<div className="relative w-full h-48 sm:w-80 sm:h-auto flex-shrink-0 overflow-hidden">
+				{/* Imagen - Lado Izquierdo */}
+				<div className="relative w-full sm:w-80 h-48 sm:h-auto flex-shrink-0 overflow-hidden">
 					<Image
 						src={property.images[0] || '/images/placeholder.jpg'}
 						alt={property.title}
@@ -59,34 +76,8 @@ export default function PropertyCardHorizontal({
 					/>
 					<div className="absolute inset-0 bg-gradient-to-r from-black/20 via-transparent to-transparent" />
 
-					{/* Badge de "HOT DEAL" o "NUEVO" en esquina superior derecha */}
-					{property.rental_term === 'daily' && property.rating >= 4.6 && (
-						<div className="absolute top-0 right-0">
-							<div className="bg-gradient-to-br from-yellow-400 to-orange-500 text-white px-3 py-1 text-[10px] font-black uppercase tracking-wide shadow-lg transform rotate-0 rounded-bl-lg flex items-center gap-1">
-								🔥 Hot Deal
-							</div>
-						</div>
-					)}
-
-					{/* Badges top-left */}
-					<div className="absolute top-2 left-2 flex flex-col gap-1.5">
-						{/* Ofertas especiales para Airbnb (primeras 3 propiedades con rental_term = 'daily') */}
-						{property.rental_term === 'daily' && property.rating >= 4.5 && (
-							<span className="inline-flex items-center gap-1 rounded-md bg-gradient-to-r from-red-500 to-pink-500 px-2.5 py-1 text-[11px] font-bold text-white shadow-lg animate-pulse">
-								🔥 -20% Primera Reserva
-							</span>
-						)}
-						{property.rental_term === 'daily' && property.rating >= 4.0 && property.rating < 4.5 && (
-							<span className="inline-flex items-center gap-1 rounded-md bg-gradient-to-r from-orange-500 to-yellow-500 px-2.5 py-1 text-[11px] font-bold text-white shadow-lg">
-								⚡ Descuento Especial
-							</span>
-						)}
-						{property.rental_term === 'daily' && property.bedrooms >= 2 && (
-							<span className="inline-flex items-center gap-1 rounded-md bg-purple-600/95 px-2 py-1 text-[10px] font-semibold text-white backdrop-blur shadow">
-								✨ Reserva 3 noches, paga 2
-							</span>
-						)}
-						
+					{/* Badges promocionales top-left stack */}
+					<div className="absolute top-2 left-2 flex flex-col gap-1.5 z-10">
 						{property.isVerified && (
 							<span className="inline-flex items-center gap-1 rounded-md bg-secondary-500 px-2 py-1 text-[10px] font-semibold text-brand-navy shadow">
 								<CheckBadgeIcon className="h-3.5 w-3.5" /> Verificado
@@ -97,14 +88,21 @@ export default function PropertyCardHorizontal({
 								<StarIcon className="h-3.5 w-3.5" /> {property.rating.toFixed(2)}
 							</span>
 						)}
-						{property.furnished && (
-							<span className="inline-flex items-center gap-1 rounded-md bg-blue-500/90 px-2 py-1 text-[10px] font-medium text-white backdrop-blur">
-								🛋️ Amoblado
+						
+						{/* Ofertas especiales para propiedades tipo Airbnb */}
+						{property.rental_term === 'daily' && property.rating >= 4.5 && (
+							<span className="inline-flex items-center gap-1 rounded-md bg-gradient-to-r from-red-600 to-pink-600 px-2 py-1 text-[10px] font-bold text-white shadow-lg animate-pulse">
+								🔥 -20% Primera Reserva
 							</span>
 						)}
-						{property.petFriendly && (
-							<span className="inline-flex items-center gap-1 rounded-md bg-green-500/90 px-2 py-1 text-[10px] font-medium text-white backdrop-blur">
-								🐕 Pet Friendly
+						{property.rental_term === 'daily' && property.rating >= 4.0 && property.rating < 4.5 && (
+							<span className="inline-flex items-center gap-1 rounded-md bg-gradient-to-r from-orange-500 to-red-500 px-2 py-1 text-[10px] font-bold text-white shadow">
+								⚡ Descuento Especial
+							</span>
+						)}
+						{property.rental_term === 'daily' && property.bedrooms >= 2 && (
+							<span className="inline-flex items-center gap-1 rounded-md bg-gradient-to-r from-purple-600 to-indigo-600 px-2 py-1 text-[10px] font-bold text-white shadow">
+								✨ Reserva 3 noches, paga 2
 							</span>
 						)}
 					</div>
@@ -112,7 +110,7 @@ export default function PropertyCardHorizontal({
 					{/* Favorite button */}
 					<button
 						onClick={toggleFav}
-						className="absolute top-2 right-2 inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-gray-600 backdrop-blur hover:text-red-500 hover:bg-white transition"
+						className="absolute top-2 right-2 inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-gray-600 backdrop-blur hover:text-red-500 hover:bg-white transition z-10"
 					>
 						<HeartIcon className={`h-4 w-4 ${favorite ? 'fill-red-500 text-red-500' : 'fill-none'}`} />
 						<span className="sr-only">Favorito</span>
@@ -155,28 +153,38 @@ export default function PropertyCardHorizontal({
 								</svg>
 								{property.area} m²
 							</span>
+							{property.rental_term === 'daily' && property.max_guests && (
+								<>
+									<span className="h-1 w-1 rounded-full bg-gray-300" />
+									<span className="flex items-center gap-1 font-semibold text-primary-600">
+										<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+											<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+										</svg>
+										{property.max_guests} huéspedes
+									</span>
+								</>
+							)}
 						</div>
 
 						{/* Precio */}
 						<div className="text-right">
-							{/* Mostrar precio con descuento para Airbnb */}
-							{property.rental_term === 'daily' && property.rating >= 4.5 ? (
+							{property.rental_term === 'daily' ? (
 								<>
-									<div className="text-gray-400 line-through text-sm font-medium">
-										{property.currency === 'PEN' ? 'S/' : '$'}{formatPrice(Math.round(property.price * 1.25))}
+									{/* Precio con descuento para Airbnb */}
+									<div className="flex flex-col items-end gap-0.5">
+										<div className="text-gray-400 line-through text-sm">
+											{property.currency === 'PEN' ? 'S/' : '$'}{formatPrice(Math.round(property.price * 1.25))}
+										</div>
+										<div className="flex items-center gap-2">
+											<div className="text-brand-navy font-bold text-xl">
+												{property.currency === 'PEN' ? 'S/' : '$'}{formatPrice(property.price)}
+											</div>
+											<span className="bg-red-600 text-white px-1.5 py-0.5 rounded text-[10px] font-bold">
+												-20%
+											</span>
+										</div>
+										<span className="text-xs font-medium text-gray-500">/noche</span>
 									</div>
-									<div className="text-red-600 font-bold text-xl flex items-center justify-end gap-1">
-										{property.currency === 'PEN' ? 'S/' : '$'}{formatPrice(property.price)}
-										<span className="text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-bold">-20%</span>
-									</div>
-									<span className="text-xs font-medium text-gray-500">/noche</span>
-								</>
-							) : property.rental_term === 'daily' ? (
-								<>
-									<div className="text-brand-navy font-bold text-xl">
-										{property.currency === 'PEN' ? 'S/' : '$'}{formatPrice(property.price)}
-									</div>
-									<span className="text-xs font-medium text-gray-500">/noche</span>
 								</>
 							) : (
 								<>
@@ -213,25 +221,23 @@ export default function PropertyCardHorizontal({
 								</div>
 							</div>
 						</div>
-						
+
 						{/* Mensajes de urgencia para Airbnb */}
-						{property.rental_term === 'daily' && property.rating >= 4.5 && (
-							<div className="flex items-center gap-2 text-[11px] bg-red-50 border border-red-200 rounded-md px-2 py-1.5">
-								<span className="text-red-600 font-semibold flex items-center gap-1">
-									⚠️ Solo quedan 2 disponibles
+						{property.rental_term === 'daily' && (
+							<div className="flex flex-wrap items-center gap-2 text-[10px] pt-1 border-t border-gray-100">
+								{property.rating >= 4.5 && (
+									<span className="flex items-center gap-1 text-red-600 font-semibold">
+										⚠️ Solo quedan 2 disponibles
+									</span>
+								)}
+								{property.views > 50 && (
+									<span className="flex items-center gap-1 text-orange-600 font-medium">
+										👁️ {Math.floor(property.views / 10)} personas viendo esto ahora
+									</span>
+								)}
+								<span className="flex items-center gap-1 text-green-600 font-medium ml-auto">
+									✓ Cancelación gratis hasta 24h antes
 								</span>
-								<span className="text-gray-500">•</span>
-								<span className="text-orange-600 font-medium">
-									{Math.floor(Math.random() * 15) + 8} personas viendo
-								</span>
-							</div>
-						)}
-						{property.rental_term === 'daily' && property.rating >= 4.0 && property.rating < 4.5 && (
-							<div className="flex items-center gap-1 text-[11px] text-green-700 bg-green-50 border border-green-200 rounded-md px-2 py-1.5">
-								<svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
-									<path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-								</svg>
-								<span className="font-semibold">Cancelación gratis hasta 24h antes</span>
 							</div>
 						)}
 					</div>

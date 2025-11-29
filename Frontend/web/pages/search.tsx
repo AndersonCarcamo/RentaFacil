@@ -2,15 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import dynamic from 'next/dynamic';
-import PropertyCardHorizontal from '../components/PropertyCardHorizontal';
+import { PropertyCardHorizontal, PropertyModal } from '../components/property';
 import SearchSidebar, { SearchFilters } from '../components/SearchSidebar';
-import PropertyModal from '../components/property/PropertyModal';
 import SearchMobileView from '../components/SearchMobileView';
 import { Property, Currency, PropertyType } from '../types/index';
 import { fetchProperties, PropertyFilters, PropertyResponse } from '../lib/api/properties';
 
 // Importar el Header original
-import { Header } from '../components/Header';
+import { Header } from '../components/common/Header';
 
 // Importar MapView dinámicamente solo en el cliente (evita SSR issues con Leaflet)
 const MapView = dynamic(() => import('../components/MapView'), {
@@ -401,9 +400,29 @@ const SearchPage = () => {
   }, [])
 
   const openPropertyModal = (propertyId: string) => {
+    console.log('🏠 ========================================');
+    console.log('🏠 ABRIENDO MODAL DE PROPIEDAD');
+    console.log('🏠 ========================================');
+    console.log('🏠 Property ID:', propertyId);
+    
     setSelectedPropertyId(propertyId);
     // Buscar los datos de la propiedad en apiProperties
     const propertyData = apiProperties.find(p => p.id === propertyId);
+    
+    if (propertyData) {
+      console.log('🏠 Datos de propiedad encontrados:', {
+        id: propertyData.id,
+        title: propertyData.title,
+        rental_term: propertyData.rental_term,
+        max_guests: propertyData.max_guests,
+        price: propertyData.price,
+        is_airbnb: propertyData.rental_term === 'daily'
+      });
+    } else {
+      console.log('⚠️ No se encontraron datos precargados, se cargarán desde API');
+    }
+    console.log('🏠 ========================================');
+    
     setSelectedPropertyData(propertyData || null);
     setIsModalOpen(true);
   };
@@ -437,6 +456,25 @@ const SearchPage = () => {
       setApiProperties(apiPropertiesResponse);
       const convertedProperties = apiPropertiesResponse.map(convertToProperty);
       setProperties(convertedProperties);
+      
+      // Detectar propiedades tipo Airbnb
+      const airbnbProperties = apiPropertiesResponse.filter(p => p.rental_term === 'daily');
+      if (airbnbProperties.length > 0) {
+        console.log('🏖️ ========================================');
+        console.log('🏖️ PROPIEDADES TIPO AIRBNB ENCONTRADAS:', airbnbProperties.length);
+        console.log('🏖️ ========================================');
+        airbnbProperties.forEach(prop => {
+          console.log('🏖️ ', {
+            id: prop.id,
+            title: prop.title,
+            price: prop.price,
+            max_guests: prop.max_guests,
+            minimum_stay_nights: prop.minimum_stay_nights
+          });
+        });
+        console.log('🏖️ ========================================');
+      }
+      
       console.log('✅ Propiedades cargadas exitosamente');
     } catch (error) {
       console.error('❌ Error cargando propiedades:', error);

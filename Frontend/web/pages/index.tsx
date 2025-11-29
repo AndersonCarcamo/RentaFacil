@@ -26,7 +26,7 @@ import {
 // Componentes
 import Layout from '@/components/Layout'
 import SearchForm from '@/components/SearchForm'
-import PropertyCard from '@/components/PropertyCard'
+import { PropertyCard } from '@/components/property'
 import { Button } from '@/components/ui/Button'
 
 // API and Hooks

@@ -8,7 +8,7 @@ import { useRouter } from 'next/router'
 import Head from 'next/head'
 import { useAuth } from '../lib/hooks/useAuth'
 import AdminPanel from '../components/admin/AdminPanel'
-import { Header } from '../components/Header'
+import { Header } from '../components/common/Header'
 import { Footer } from '../components/Footer'
 
 export default function AdminPage() {

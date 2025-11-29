@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { useAuth } from '../../lib/hooks/useAuth';
-import { Header } from '../../components/Header';
+import { Header } from '../../components/common/Header';
 import Button from '../../components/ui/Button';
 import {
   ArrowLeftIcon,

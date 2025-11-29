@@ -7,7 +7,7 @@ import { useIsMobile } from '../../lib/hooks/useIsMobile';
 import { useGeocoding } from '../../lib/hooks/useGeocoding';
 import { createListing, getListing, updateListing } from '../../lib/api/listings';
 import { getAmenities, updateListingAmenities, getListingAmenities, type Amenity } from '../../lib/api/amenities';
-import { Header } from '../../components/Header';
+import { Header } from '../../components/common/Header';
 import Button from '../../components/ui/Button';
 import AutocompleteInput from '../../components/AutocompleteInput';
 import ImageUploader from '../../components/ImageUploader';
@@ -154,8 +154,7 @@ interface FormData {
   house_rules: string;
   cancellation_policy: string;
   
-  // Estadía (para Airbnb)
-  max_guests: string;
+  // Estadía (para Airbnb) - max_guests ya está definido arriba
   minimum_stay_nights: string;
   maximum_stay_nights: string;
   check_in_time: string;
@@ -219,7 +218,7 @@ const CreateListingPage: React.FC = () => {
     bedrooms: '',
     bathrooms: '',
     parking_spots: '',
-    max_guests: '',
+    max_guests: '2',
     floors: '',
     floor_number: '',
     
@@ -233,7 +232,7 @@ const CreateListingPage: React.FC = () => {
     house_rules: '',
     cancellation_policy: 'flexible',
     
-    max_guests: '2',
+    // Estadía - max_guests ya definido arriba con valor por defecto '2'
     minimum_stay_nights: '1',
     maximum_stay_nights: '',
     check_in_time: '14:00',
@@ -332,21 +331,21 @@ const CreateListingPage: React.FC = () => {
             bedrooms: listing.bedrooms?.toString() || '',
             bathrooms: listing.bathrooms?.toString() || '',
             parking_spots: listing.parking_spots?.toString() || '',
-            max_guests: listing.max_guests?.toString() || '',
-            floors: 0, // No está en Listing
+            max_guests: listing.max_guests?.toString() || '2',
+            floors: listing.floors?.toString() || '',
             floor_number: listing.floor_number?.toString() || '',
             
             rental_term: listing.rental_term || 'monthly',
-            rental_model: listing.rental_model || 'traditional',
+            rental_model: listing.rental_mode === 'airbnb' ? 'airbnb' : 'traditional',
             rental_mode: listing.rental_mode || 'full_property',
             furnished: listing.furnished || false,
             
-            pet_friendly: convertYesNoNone(listing.pet_friendly),
-            smoking_allowed: convertYesNoNone(listing.smoking_allowed),
+            pet_friendly: listing.pet_friendly === true ? 'yes' : listing.pet_friendly === false ? 'no' : 'none',
+            smoking_allowed: listing.smoking_allowed === true ? 'yes' : listing.smoking_allowed === false ? 'no' : 'none',
             house_rules: listing.house_rules || '',
             cancellation_policy: listing.cancellation_policy || 'flexible',
             
-            max_guests: listing.max_guests?.toString() || '2',
+            // Estadía - max_guests ya definido arriba
             minimum_stay_nights: listing.minimum_stay_nights?.toString() || '1',
             maximum_stay_nights: listing.maximum_stay_nights?.toString() || '',
             check_in_time: listing.check_in_time || '14:00',
@@ -359,7 +358,11 @@ const CreateListingPage: React.FC = () => {
             
             available_from: listing.available_from || '',
             selectedAmenities: listing.amenities?.map(a => a.id) || [],
-            images: listing.images || [], // Cargar imágenes del listing
+            images: listing.images?.map(img => ({
+              url: img.url,
+              preview: img.url,
+              isMain: img.is_main || false,
+            })) || [],
             contact_name: listing.contact_name || '',
             contact_phone_e164: listing.contact_phone_e164 || '',
             contact_whatsapp_phone_e164: listing.contact_whatsapp_phone_e164 || '',
@@ -453,6 +456,11 @@ const CreateListingPage: React.FC = () => {
         return null;
       };
 
+      // Función helper para convertir null a undefined (TypeScript requirement)
+      const nullToUndefined = <T,>(value: T | null): T | undefined => {
+        return value === null ? undefined : value;
+      };
+
       // Preparar datos del formulario
       const listingData = {
         // Básico
@@ -465,25 +473,25 @@ const CreateListingPage: React.FC = () => {
         price: parseFloat(formData.price),
         currency: formData.currency,
         deposit_required: formData.deposit_required,
-        deposit_amount: formData.deposit_amount ? parseFloat(formData.deposit_amount) : null,
+        deposit_amount: formData.deposit_amount ? parseFloat(formData.deposit_amount) : undefined,
         
         // Ubicación
         address: formData.address,
         department: formData.department,
         province: formData.province,
         district: formData.district,
-        latitude: formData.latitude,
-        longitude: formData.longitude,
+        latitude: formData.latitude || undefined,
+        longitude: formData.longitude || undefined,
         
         // Detalles
-        area_built: formData.area_built ? parseFloat(formData.area_built) : null,
-        area_total: formData.area_total ? parseFloat(formData.area_total) : null,
-        bedrooms: formData.bedrooms ? parseInt(formData.bedrooms) : null,
-        bathrooms: formData.bathrooms ? parseInt(formData.bathrooms) : null,
-        parking_spots: formData.parking_spots ? parseInt(formData.parking_spots) : null,
-        max_guests: formData.max_guests ? parseInt(formData.max_guests) : null,
-        floors: formData.floors ? parseInt(formData.floors) : null,
-        floor_number: formData.floor_number ? parseInt(formData.floor_number) : null,
+        area_built: formData.area_built ? parseFloat(formData.area_built) : undefined,
+        area_total: formData.area_total ? parseFloat(formData.area_total) : undefined,
+        bedrooms: formData.bedrooms ? parseInt(formData.bedrooms) : undefined,
+        bathrooms: formData.bathrooms ? parseInt(formData.bathrooms) : undefined,
+        parking_spots: formData.parking_spots ? parseInt(formData.parking_spots) : undefined,
+        max_guests: formData.max_guests ? parseInt(formData.max_guests) : undefined,
+        floors: formData.floors ? parseInt(formData.floors) : undefined,
+        floor_number: formData.floor_number ? parseInt(formData.floor_number) : undefined,
         
         // Alquiler
         rental_term: formData.rental_term,
@@ -492,15 +500,14 @@ const CreateListingPage: React.FC = () => {
         furnished: formData.furnished,
         
         // Políticas
-        pet_friendly: convertYesNoNone(formData.pet_friendly),
-        smoking_allowed: convertYesNoNone(formData.smoking_allowed),
+        pet_friendly: formData.pet_friendly === 'yes' ? true : formData.pet_friendly === 'no' ? false : undefined,
+        smoking_allowed: formData.smoking_allowed === 'yes' ? true : formData.smoking_allowed === 'no' ? false : undefined,
         house_rules: formData.house_rules,
         cancellation_policy: formData.cancellation_policy,
         
-        // Airbnb específico
-        max_guests: formData.max_guests ? parseInt(formData.max_guests) : null,
+        // Airbnb específico - max_guests ya definido arriba
         minimum_stay_nights: formData.minimum_stay_nights ? parseInt(formData.minimum_stay_nights) : 1,
-        maximum_stay_nights: formData.maximum_stay_nights ? parseInt(formData.maximum_stay_nights) : null,
+        maximum_stay_nights: formData.maximum_stay_nights ? parseInt(formData.maximum_stay_nights) : undefined,
         check_in_time: formData.check_in_time,
         check_out_time: formData.check_out_time,
         
@@ -508,7 +515,7 @@ const CreateListingPage: React.FC = () => {
         utilities_included: formData.utilities_included,
         internet_included: formData.internet_included,
         cleaning_included: formData.cleaning_included,
-        cleaning_fee: formData.cleaning_fee ? parseFloat(formData.cleaning_fee) : null,
+        cleaning_fee: formData.cleaning_fee ? parseFloat(formData.cleaning_fee) : undefined,
         
         // Disponibilidad
         available_from: formData.available_from,
@@ -517,12 +524,12 @@ const CreateListingPage: React.FC = () => {
         amenities: formData.selectedAmenities,
         
         // Información de contacto
-        contact_name: formData.contact_name || null,
-        contact_phone_e164: formData.contact_phone_e164 || null,
-        contact_whatsapp_phone_e164: formData.contact_whatsapp_phone_e164 || null,
+        contact_name: formData.contact_name || undefined,
+        contact_phone_e164: formData.contact_phone_e164 || undefined,
+        contact_whatsapp_phone_e164: formData.contact_whatsapp_phone_e164 || undefined,
         contact_whatsapp_link: formData.contact_whatsapp_phone_e164 
           ? `https://wa.me/${formData.contact_whatsapp_phone_e164.replace(/[^0-9]/g, '')}`
-          : null,
+          : undefined,
       };
 
       // Crear o actualizar listing según el modo
@@ -2359,7 +2366,12 @@ const CreateListingPage: React.FC = () => {
                 
                 <ImageUploader
                   listingId={editingListingId || undefined}
-                  initialImages={formData.images || []}
+                  initialImages={formData.images?.map((img, index) => ({
+                    id: img.url, // Usar URL como ID temporal si no existe
+                    url: img.url,
+                    is_main: img.isMain || false,
+                    display_order: index,
+                  })) || []}
                   onImagesChange={(images) => {
                     setFormData(prev => ({ ...prev, images }));
                   }}

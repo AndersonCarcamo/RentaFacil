@@ -38,12 +38,27 @@ export default function BookingModal({
   const [loading, setLoading] = useState(false)
   const [step, setStep] = useState<'dates' | 'details' | 'confirm'>('dates')
 
+  // 🔍 DEBUG: Verificar renderizado del BookingModal
+  React.useEffect(() => {
+    if (isOpen) {
+      console.log('📅 BookingModal renderizado:', {
+        listingId: listing.id,
+        listingTitle: listing.title,
+        pricePerNight: listing.pricePerNight,
+        maxGuests: listing.maxGuests,
+        minimumNights: listing.minimumNights,
+        component: 'components/booking/BookingModal.tsx'
+      });
+    }
+  }, [isOpen, listing]);
+
   const nights = checkIn && checkOut ? bookingUtils.calculateNights(checkIn, checkOut) : 0
   const prices = nights > 0 
     ? bookingUtils.calculatePrices(listing.pricePerNight, nights)
     : { totalPrice: 0, reservationAmount: 0, checkinAmount: 0 }
 
   function handleDateSelect(newCheckIn: string, newCheckOut: string) {
+    console.log('📆 Fechas seleccionadas:', { checkIn: newCheckIn, checkOut: newCheckOut });
     setCheckIn(newCheckIn)
     setCheckOut(newCheckOut)
     
@@ -88,7 +103,15 @@ export default function BookingModal({
         guestMessage: guestMessage || undefined
       }
 
+      console.log('📝 Creando reserva:', {
+        bookingData,
+        prices,
+        nights
+      });
+
       const booking = await bookingService.createBooking(bookingData)
+      
+      console.log('✅ Reserva creada exitosamente:', booking);
       
       toast.success('¡Solicitud de reserva enviada!')
       toast.success(`Esperando confirmación de ${listing.hostName}`)
@@ -102,7 +125,7 @@ export default function BookingModal({
       }, 1500)
 
     } catch (error: any) {
-      console.error('Error creating booking:', error)
+      console.error('❌ Error creating booking:', error)
       toast.error(error.message || 'Error al crear la reserva')
     } finally {
       setLoading(false)

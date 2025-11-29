@@ -4,7 +4,7 @@ import { useRouter } from 'next/router';
 import { useAuth } from '../lib/hooks/useAuth';
 import { getCurrentSubscription, getDefaultPlan, SubscriptionPlan, UserSubscription } from '../lib/api/subscriptions';
 import { getMyListings, Listing, publishListing, unpublishListing, deleteListing } from '../lib/api/listings';
-import { Header } from '../components/Header';
+import { Header } from '../components/common/Header';
 import Button from '../components/ui/Button';
 import AdminPanel from '../components/admin/AdminPanel';
 import {

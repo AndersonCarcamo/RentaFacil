@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
-import { Header } from './Header';
+import { Header } from './common/Header';
 import Button from './ui/Button';
 import { 
   EyeIcon, 

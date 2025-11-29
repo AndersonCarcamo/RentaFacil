@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request, UploadFile, File, Form, Body
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from app.core.database import get_db
 from app.schemas.listings import (
     CreateListingRequest, UpdateListingRequest, ListingResponse, ChangeListingStatusRequest
@@ -165,6 +166,132 @@ async def list_my_listings(db: Session = Depends(get_db), current_user=Depends(g
         raise HTTPException(status_code=400, detail=f"Invalid input: {str(e)}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving user listings: {str(e)}")
+
+# ========================================
+# AMENITIES ENDPOINTS (BEFORE /{listing_id} to avoid routing conflicts)
+# ========================================
+
+@router.get("/amenities", 
+    response_model=List[Dict[str, Any]],
+    summary="Obtener todas las amenidades"
+)
+async def get_all_amenities(db: Session = Depends(get_db)):
+    """
+    Obtiene todas las amenidades disponibles.
+    No requiere autenticación.
+    """
+    try:
+        result = db.execute(text("""
+            SELECT id, name, icon 
+            FROM core.amenities 
+            ORDER BY name
+        """))
+        
+        amenities = [
+            {"id": row[0], "name": row[1], "icon": row[2]}
+            for row in result.fetchall()
+        ]
+        
+        return amenities
+        
+    except Exception as e:
+        logger.error(f"Error obteniendo amenidades: {e}")
+        raise HTTPException(status_code=500, detail=f"Error al obtener amenidades: {str(e)}")
+
+
+@router.get("/{listing_id}/amenities",
+    response_model=List[Dict[str, Any]],
+    summary="Obtener amenidades de un listing"
+)
+async def get_listing_amenities(
+    listing_id: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Obtiene todas las amenidades de un listing específico.
+    """
+    try:
+        listing_uuid = UUID(listing_id)
+        
+        result = db.execute(text("""
+            SELECT a.id, a.name, a.icon
+            FROM core.listing_amenities la
+            JOIN core.amenities a ON la.amenity_id = a.id
+            WHERE la.listing_id = :listing_id
+            ORDER BY a.name
+        """), {"listing_id": listing_uuid})
+        
+        amenities = [
+            {"id": row[0], "name": row[1], "icon": row[2]}
+            for row in result.fetchall()
+        ]
+        
+        return amenities
+        
+    except ValueError:
+        raise HTTPException(status_code=400, detail="ID de listing inválido")
+    except Exception as e:
+        logger.error(f"Error obteniendo amenidades del listing: {e}")
+        raise HTTPException(status_code=500, detail=f"Error al obtener amenidades: {str(e)}")
+
+
+@router.put("/{listing_id}/amenities",
+    status_code=status.HTTP_200_OK,
+    summary="Actualizar amenidades de un listing"
+)
+async def update_listing_amenities(
+    listing_id: str,
+    amenity_ids: List[int] = Body(..., embed=True),
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Actualiza las amenidades de un listing.
+    Reemplaza todas las amenidades existentes con las nuevas.
+    """
+    try:
+        listing_uuid = UUID(listing_id)
+        
+        # Verificar que el listing existe y pertenece al usuario
+        listing = db.query(Listing).filter(Listing.id == listing_uuid).first()
+        if not listing:
+            raise HTTPException(status_code=404, detail="Listing no encontrado")
+        
+        if listing.agency_id != current_user["agency_id"]:
+            raise HTTPException(status_code=403, detail="No tienes permiso")
+        
+        # Eliminar amenidades existentes
+        db.execute(text("""
+            DELETE FROM core.listing_amenities
+            WHERE listing_id = :listing_id
+        """), {"listing_id": listing_uuid})
+        
+        # Insertar nuevas amenidades
+        if amenity_ids:
+            for amenity_id in amenity_ids:
+                db.execute(text("""
+                    INSERT INTO core.listing_amenities 
+                    (listing_id, listing_created_at, amenity_id)
+                    VALUES (:listing_id, :created_at, :amenity_id)
+                """), {
+                    "listing_id": listing_uuid,
+                    "created_at": listing.created_at,
+                    "amenity_id": amenity_id
+                })
+        
+        db.commit()
+        
+        return {"message": "Amenidades actualizadas correctamente"}
+        
+    except ValueError:
+        raise HTTPException(status_code=400, detail="ID de listing inválido")
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error actualizando amenidades: {e}")
+        raise HTTPException(status_code=500, detail=f"Error al actualizar amenidades: {str(e)}")
+
 
 @router.get("/{listing_id}", response_model=ListingResponse, summary="Obtener propiedad por ID")
 async def get_listing(listing_id: str, db: Session = Depends(get_db)):
