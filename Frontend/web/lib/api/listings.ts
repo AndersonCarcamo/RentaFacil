@@ -64,6 +64,7 @@ export interface Listing {
   
   // Media
   images?: ListingImage[];
+  amenities?: Array<{ id: number; name: string; icon?: string }>;
   
   // Status and metadata
   status: string;

@@ -70,6 +70,7 @@ BEGIN
         rental_term,
         rental_mode,
         furnished,
+        max_guests,
         
         -- Estado
         verification_status,
@@ -100,6 +101,7 @@ BEGIN
         E'✨ CARACTERÍSTICAS:\n' ||
         E'• 2 habitaciones con closets amplios\n' ||
         E'• 2 baños completos (uno en suite)\n' ||
+        E'• Capacidad para 4 huéspedes\n' ||
         E'• Sala-comedor con vista panorámica\n' ||
         E'• Cocina equipada (refrigeradora, cocina, microondas)\n' ||
         E'• Balcón con vista al Parque Kennedy\n' ||
@@ -146,6 +148,7 @@ BEGIN
         'daily', -- ⭐ rental_term: alquiler por días
         'full_property', -- ⭐ rental_mode: propiedad completa
         true, -- ⭐ furnished: amoblado
+        4, -- ⭐ max_guests: máximo 4 huéspedes
         
         -- Estado
         'verified', -- verification_status
@@ -260,6 +263,7 @@ BEGIN
     RAISE NOTICE 'Precio por noche: S/ 200';
     RAISE NOTICE 'Tipo de alquiler: DAILY (Airbnb style)';
     RAISE NOTICE 'Modo: FULL_PROPERTY (propiedad completa)';
+    RAISE NOTICE 'Capacidad: 4 huéspedes máximo';
     RAISE NOTICE '============================================';
     RAISE NOTICE '';
     RAISE NOTICE '🎯 Ahora puedes crear reservas usando estos datos en el frontend!';
@@ -275,6 +279,7 @@ SELECT
     property_type,
     rental_term,
     rental_mode,
+    max_guests,
     price,
     currency,
     bedrooms,

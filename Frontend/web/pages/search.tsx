@@ -65,7 +65,9 @@ const convertToProperty = (apiProperty: PropertyResponse): Property => {
     reviews: Math.floor(Math.random() * 50) + 10, // Reviews simuladas 10-60
     isVerified: apiProperty.verification_status === 'verified',
     isFavorite: false,
-    views: apiProperty.views_count
+    views: apiProperty.views_count,
+    rental_term: apiProperty.is_airbnb_available ? 'daily' : 'monthly', // Si es apto Airbnb, es daily
+    furnished: apiProperty.furnished
   }
 }
 
@@ -240,7 +242,9 @@ const mockProperties: Property[] = [
     reviews: 25,
     isVerified: true,
     isFavorite: false,
-    views: 150
+    views: 150,
+    rental_term: "daily",
+    furnished: true
   },
   {
     id: "2",
@@ -259,7 +263,8 @@ const mockProperties: Property[] = [
     reviews: 18,
     isVerified: true,
     isFavorite: false,
-    views: 230
+    views: 230,
+    rental_term: "monthly"
   },
   {
     id: "3",
@@ -278,7 +283,8 @@ const mockProperties: Property[] = [
     reviews: 12,
     isVerified: false,
     isFavorite: false,
-    views: 89
+    views: 89,
+    rental_term: "daily"
   },
   {
     id: "4",
@@ -297,7 +303,9 @@ const mockProperties: Property[] = [
     reviews: 32,
     isVerified: true,
     isFavorite: false,
-    views: 450
+    views: 450,
+    rental_term: "daily",
+    furnished: true
   },
   {
     id: "5",
@@ -316,7 +324,8 @@ const mockProperties: Property[] = [
     reviews: 8,
     isVerified: true,
     isFavorite: false,
-    views: 95
+    views: 95,
+    rental_term: "daily"
   },
   {
     id: "6",
@@ -335,7 +344,9 @@ const mockProperties: Property[] = [
     reviews: 22,
     isVerified: true,
     isFavorite: false,
-    views: 380
+    views: 380,
+    rental_term: "daily",
+    furnished: true
   }
 ];
 
@@ -345,6 +356,7 @@ const SearchPage = () => {
   const [apiProperties, setApiProperties] = useState<PropertyResponse[]>([]); // Para el mapa
   const [loading, setLoading] = useState(true);
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
+  const [selectedPropertyData, setSelectedPropertyData] = useState<PropertyResponse | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   
   // Inicializar filtros desde URL params
@@ -390,12 +402,16 @@ const SearchPage = () => {
 
   const openPropertyModal = (propertyId: string) => {
     setSelectedPropertyId(propertyId);
+    // Buscar los datos de la propiedad en apiProperties
+    const propertyData = apiProperties.find(p => p.id === propertyId);
+    setSelectedPropertyData(propertyData || null);
     setIsModalOpen(true);
   };
 
   const closePropertyModal = () => {
     setIsModalOpen(false);
     setSelectedPropertyId(null);
+    setSelectedPropertyData(null);
   };
 
   // Cargar propiedades desde la API
@@ -411,7 +427,9 @@ const SearchPage = () => {
       console.log('✅ Propiedades recibidas:', apiPropertiesResponse?.length || 0);
       
       if (!apiPropertiesResponse || apiPropertiesResponse.length === 0) {
-        setProperties([]);
+        // Usar mockProperties como fallback
+        console.log('⚠️ No se encontraron propiedades en el backend, usando datos de prueba');
+        setProperties(mockProperties);
         setApiProperties([]);
         return;
       }
@@ -422,7 +440,10 @@ const SearchPage = () => {
       console.log('✅ Propiedades cargadas exitosamente');
     } catch (error) {
       console.error('❌ Error cargando propiedades:', error);
-      setProperties([]);
+      // Usar mockProperties como fallback en caso de error
+      console.log('⚠️ Error de conexión, usando datos de prueba');
+      setProperties(mockProperties);
+      setApiProperties([]);
     } finally {
       setLoading(false);
     }
@@ -658,6 +679,7 @@ const SearchPage = () => {
           propertyId={selectedPropertyId}
           isOpen={isModalOpen}
           onClose={closePropertyModal}
+          propertyData={selectedPropertyData || undefined}
         />
       )}
     </>

@@ -6,6 +6,7 @@ import { useAuth } from '../../lib/hooks/useAuth';
 import { useIsMobile } from '../../lib/hooks/useIsMobile';
 import { useGeocoding } from '../../lib/hooks/useGeocoding';
 import { createListing, getListing, updateListing } from '../../lib/api/listings';
+import { getAmenities, updateListingAmenities, getListingAmenities, type Amenity } from '../../lib/api/amenities';
 import { Header } from '../../components/Header';
 import Button from '../../components/ui/Button';
 import AutocompleteInput from '../../components/AutocompleteInput';
@@ -154,6 +155,7 @@ interface FormData {
   cancellation_policy: string;
   
   // Estadía (para Airbnb)
+  max_guests: string;
   minimum_stay_nights: string;
   maximum_stay_nights: string;
   check_in_time: string;
@@ -191,6 +193,8 @@ const CreateListingPage: React.FC = () => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingListingId, setEditingListingId] = useState<string | null>(null);
   const [loadingListing, setLoadingListing] = useState(false);
+  const [availableAmenities, setAvailableAmenities] = useState<Amenity[]>([]);
+  const [loadingAmenities, setLoadingAmenities] = useState(false);
 
   const [formData, setFormData] = useState<FormData>({
     title: '',
@@ -229,6 +233,7 @@ const CreateListingPage: React.FC = () => {
     house_rules: '',
     cancellation_policy: 'flexible',
     
+    max_guests: '2',
     minimum_stay_nights: '1',
     maximum_stay_nights: '',
     check_in_time: '14:00',
@@ -253,6 +258,30 @@ const CreateListingPage: React.FC = () => {
       router.push('/login');
     }
   }, [user, loading, router]);
+
+  // Cargar amenidades disponibles
+  useEffect(() => {
+    const loadAmenities = async () => {
+      try {
+        setLoadingAmenities(true);
+        const amenities = await getAmenities();
+        setAvailableAmenities(amenities);
+      } catch (error) {
+        console.error('Error loading amenities:', error);
+        // Si falla, usar las amenidades mock
+        const mockAmenities: Amenity[] = AMENITIES.map(a => ({
+          id: a.id,
+          name: a.name,
+          icon: a.icon
+        }));
+        setAvailableAmenities(mockAmenities);
+      } finally {
+        setLoadingAmenities(false);
+      }
+    };
+    
+    loadAmenities();
+  }, []);
 
   // Cargar propiedad si estamos en modo edición
   useEffect(() => {
@@ -317,6 +346,7 @@ const CreateListingPage: React.FC = () => {
             house_rules: listing.house_rules || '',
             cancellation_policy: listing.cancellation_policy || 'flexible',
             
+            max_guests: listing.max_guests?.toString() || '2',
             minimum_stay_nights: listing.minimum_stay_nights?.toString() || '1',
             maximum_stay_nights: listing.maximum_stay_nights?.toString() || '',
             check_in_time: listing.check_in_time || '14:00',
@@ -328,7 +358,7 @@ const CreateListingPage: React.FC = () => {
             cleaning_fee: listing.cleaning_fee?.toString() || '',
             
             available_from: listing.available_from || '',
-            selectedAmenities: [], // TODO: Cargar amenidades
+            selectedAmenities: listing.amenities?.map(a => a.id) || [],
             images: listing.images || [], // Cargar imágenes del listing
             contact_name: listing.contact_name || '',
             contact_phone_e164: listing.contact_phone_e164 || '',
@@ -468,6 +498,7 @@ const CreateListingPage: React.FC = () => {
         cancellation_policy: formData.cancellation_policy,
         
         // Airbnb específico
+        max_guests: formData.max_guests ? parseInt(formData.max_guests) : null,
         minimum_stay_nights: formData.minimum_stay_nights ? parseInt(formData.minimum_stay_nights) : 1,
         maximum_stay_nights: formData.maximum_stay_nights ? parseInt(formData.maximum_stay_nights) : null,
         check_in_time: formData.check_in_time,
@@ -499,9 +530,16 @@ const CreateListingPage: React.FC = () => {
       
       if (isEditMode && editingListingId) {
         await updateListing(editingListingId, listingData);
+        // Actualizar amenidades
+        await updateListingAmenities(editingListingId, formData.selectedAmenities);
       } else {
         const createdListing = await createListing(listingData);
         listingId = createdListing.id;
+        
+        // Guardar amenidades para la nueva propiedad
+        if (listingId && formData.selectedAmenities.length > 0) {
+          await updateListingAmenities(listingId, formData.selectedAmenities);
+        }
         
         // Si es creación nueva, cambiar a modo edición automáticamente
         // para que el usuario pueda subir imágenes
@@ -1453,6 +1491,26 @@ const CreateListingPage: React.FC = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Capacidad Máxima (huéspedes) *
+                        </label>
+                        <input
+                          type="number"
+                          name="max_guests"
+                          value={formData.max_guests}
+                          onChange={handleInputChange}
+                          min="1"
+                          max="50"
+                          placeholder="2"
+                          required
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          👥 Número máximo de personas que pueden alojarse
+                        </p>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
                           Estancia Mínima (noches) *
                         </label>
                         <input
@@ -1656,35 +1714,48 @@ const CreateListingPage: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-3">
                     Selecciona las amenidades de tu propiedad
                   </label>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    {AMENITIES.map(amenity => (
-                      <label
-                        key={amenity.id}
-                        className="flex items-center gap-2 p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-blue-50 transition-colors"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={formData.selectedAmenities.includes(amenity.id)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setFormData(prev => ({
-                                ...prev,
-                                selectedAmenities: [...prev.selectedAmenities, amenity.id]
-                              }));
-                            } else {
-                              setFormData(prev => ({
-                                ...prev,
-                                selectedAmenities: prev.selectedAmenities.filter(id => id !== amenity.id)
-                              }));
-                            }
-                          }}
-                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                        />
-                        <span className="text-2xl">{amenity.icon}</span>
-                        <span className="text-sm text-gray-700">{amenity.name}</span>
-                      </label>
-                    ))}
-                  </div>
+                  
+                  {loadingAmenities ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                      <span className="ml-3 text-gray-600">Cargando amenidades...</span>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      {(availableAmenities.length > 0 ? availableAmenities : AMENITIES.map(a => ({
+                        id: a.id,
+                        name: a.name,
+                        icon: a.icon
+                      }))).map(amenity => (
+                        <label
+                          key={amenity.id}
+                          className="flex items-center gap-2 p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-blue-50 transition-colors"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={formData.selectedAmenities.includes(amenity.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setFormData(prev => ({
+                                  ...prev,
+                                  selectedAmenities: [...prev.selectedAmenities, amenity.id]
+                                }));
+                              } else {
+                                setFormData(prev => ({
+                                  ...prev,
+                                  selectedAmenities: prev.selectedAmenities.filter(id => id !== amenity.id)
+                                }));
+                              }
+                            }}
+                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                          />
+                          {amenity.icon && <span className="text-2xl">{amenity.icon}</span>}
+                          <span className="text-sm text-gray-700">{amenity.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                  
                   <p className="text-sm text-gray-500 mt-2">
                     Seleccionadas: {formData.selectedAmenities.length}
                   </p>
@@ -2002,6 +2073,10 @@ const CreateListingPage: React.FC = () => {
                       </div>
                       {formData.rental_model === 'airbnb' && (
                         <>
+                          <div>
+                            <p className="font-medium">• Capacidad:</p>
+                            <p className="ml-4">👥 {formData.max_guests || '2'} huéspedes máximo</p>
+                          </div>
                           <div>
                             <p className="font-medium">• Check-in/Check-out:</p>
                             <p className="ml-4">{formData.check_in_time || '14:00'} - {formData.check_out_time || '12:00'}</p>

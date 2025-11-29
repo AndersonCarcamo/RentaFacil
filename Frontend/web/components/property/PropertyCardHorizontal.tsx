@@ -40,7 +40,14 @@ export default function PropertyCardHorizontal({
 			className={`group relative overflow-hidden rounded-xl border border-gray-200 bg-white shadow-soft transition hover:shadow-medium cursor-pointer ${className}`}
 			onClick={handleClick}
 		>
-			<div className="flex flex-col sm:flex-row h-auto sm:h-48">
+			{/* Banner de oferta limitada para Airbnb top performers */}
+			{property.rental_term === 'daily' && property.rating >= 4.7 && (
+				<div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-red-600 via-pink-600 to-red-600 text-white text-center py-1 text-[10px] font-bold uppercase tracking-wider z-10 shadow-lg">
+					⏰ Oferta Limitada - Solo por hoy
+				</div>
+			)}
+			
+			<div className={`flex flex-col sm:flex-row h-auto sm:h-48 ${property.rental_term === 'daily' && property.rating >= 4.7 ? 'mt-6' : ''}`}>
 				{/* Imagen - Arriba en móvil, Izquierda en desktop */}
 				<div className="relative w-full h-48 sm:w-80 sm:h-auto flex-shrink-0 overflow-hidden">
 					<Image
@@ -52,8 +59,34 @@ export default function PropertyCardHorizontal({
 					/>
 					<div className="absolute inset-0 bg-gradient-to-r from-black/20 via-transparent to-transparent" />
 
+					{/* Badge de "HOT DEAL" o "NUEVO" en esquina superior derecha */}
+					{property.rental_term === 'daily' && property.rating >= 4.6 && (
+						<div className="absolute top-0 right-0">
+							<div className="bg-gradient-to-br from-yellow-400 to-orange-500 text-white px-3 py-1 text-[10px] font-black uppercase tracking-wide shadow-lg transform rotate-0 rounded-bl-lg flex items-center gap-1">
+								🔥 Hot Deal
+							</div>
+						</div>
+					)}
+
 					{/* Badges top-left */}
 					<div className="absolute top-2 left-2 flex flex-col gap-1.5">
+						{/* Ofertas especiales para Airbnb (primeras 3 propiedades con rental_term = 'daily') */}
+						{property.rental_term === 'daily' && property.rating >= 4.5 && (
+							<span className="inline-flex items-center gap-1 rounded-md bg-gradient-to-r from-red-500 to-pink-500 px-2.5 py-1 text-[11px] font-bold text-white shadow-lg animate-pulse">
+								🔥 -20% Primera Reserva
+							</span>
+						)}
+						{property.rental_term === 'daily' && property.rating >= 4.0 && property.rating < 4.5 && (
+							<span className="inline-flex items-center gap-1 rounded-md bg-gradient-to-r from-orange-500 to-yellow-500 px-2.5 py-1 text-[11px] font-bold text-white shadow-lg">
+								⚡ Descuento Especial
+							</span>
+						)}
+						{property.rental_term === 'daily' && property.bedrooms >= 2 && (
+							<span className="inline-flex items-center gap-1 rounded-md bg-purple-600/95 px-2 py-1 text-[10px] font-semibold text-white backdrop-blur shadow">
+								✨ Reserva 3 noches, paga 2
+							</span>
+						)}
+						
 						{property.isVerified && (
 							<span className="inline-flex items-center gap-1 rounded-md bg-secondary-500 px-2 py-1 text-[10px] font-semibold text-brand-navy shadow">
 								<CheckBadgeIcon className="h-3.5 w-3.5" /> Verificado
@@ -126,35 +159,81 @@ export default function PropertyCardHorizontal({
 
 						{/* Precio */}
 						<div className="text-right">
-							<div className="text-brand-navy font-bold text-xl">
-								{property.currency === 'PEN' ? 'S/' : '$'}{formatPrice(property.price)}
-							</div>
-							<span className="text-xs font-medium text-gray-500">/mes</span>
+							{/* Mostrar precio con descuento para Airbnb */}
+							{property.rental_term === 'daily' && property.rating >= 4.5 ? (
+								<>
+									<div className="text-gray-400 line-through text-sm font-medium">
+										{property.currency === 'PEN' ? 'S/' : '$'}{formatPrice(Math.round(property.price * 1.25))}
+									</div>
+									<div className="text-red-600 font-bold text-xl flex items-center justify-end gap-1">
+										{property.currency === 'PEN' ? 'S/' : '$'}{formatPrice(property.price)}
+										<span className="text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-bold">-20%</span>
+									</div>
+									<span className="text-xs font-medium text-gray-500">/noche</span>
+								</>
+							) : property.rental_term === 'daily' ? (
+								<>
+									<div className="text-brand-navy font-bold text-xl">
+										{property.currency === 'PEN' ? 'S/' : '$'}{formatPrice(property.price)}
+									</div>
+									<span className="text-xs font-medium text-gray-500">/noche</span>
+								</>
+							) : (
+								<>
+									<div className="text-brand-navy font-bold text-xl">
+										{property.currency === 'PEN' ? 'S/' : '$'}{formatPrice(property.price)}
+									</div>
+									<span className="text-xs font-medium text-gray-500">/mes</span>
+								</>
+							)}
 						</div>
 					</div>
 
 					{/* Footer */}
-					<div className="flex items-center justify-between text-xs">
-						{/* Ubicación */}
-						<div className="truncate max-w-[60%] text-gray-600 flex items-center gap-1.5">
-							<svg className="w-4 h-4 text-primary-500 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
-								<path fillRule="evenodd" d="M11.54 22.351l.07.04.028.016a.76.76 0 00.723 0l.028-.015.071-.041a16.975 16.975 0 001.144-.742 19.58 19.58 0 002.683-2.282c1.944-1.99 3.963-4.98 3.963-8.827a8.25 8.25 0 00-16.5 0c0 3.846 2.02 6.837 3.963 8.827a19.58 19.58 0 002.682 2.282 16.975 16.975 0 001.145.742zM12 13.5a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
-							</svg>
-							<span className="font-medium">{property.location}</span>
-						</div>
+					<div className="flex flex-col gap-2">
+						<div className="flex items-center justify-between text-xs">
+							{/* Ubicación */}
+							<div className="truncate max-w-[60%] text-gray-600 flex items-center gap-1.5">
+								<svg className="w-4 h-4 text-primary-500 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+									<path fillRule="evenodd" d="M11.54 22.351l.07.04.028.016a.76.76 0 00.723 0l.028-.015.071-.041a16.975 16.975 0 001.144-.742 19.58 19.58 0 002.683-2.282c1.944-1.99 3.963-4.98 3.963-8.827a8.25 8.25 0 00-16.5 0c0 3.846 2.02 6.837 3.963 8.827a19.58 19.58 0 002.682 2.282 16.975 16.975 0 001.145.742zM12 13.5a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+								</svg>
+								<span className="font-medium">{property.location}</span>
+							</div>
 
-						{/* Rating y Views */}
-						<div className="flex items-center gap-3 text-gray-500">
-							<div className="flex items-center gap-1">
-								<StarIcon className="h-4 w-4 text-yellow-400" />
-								<span className="text-gray-700 font-semibold">{property.rating.toFixed(1)}</span>
-								<span className="text-gray-400">({property.reviews})</span>
-							</div>
-							<div className="flex items-center gap-1">
-								<EyeIcon className="h-4 w-4" />
-								<span className="font-medium">{property.views}</span>
+							{/* Rating y Views */}
+							<div className="flex items-center gap-3 text-gray-500">
+								<div className="flex items-center gap-1">
+									<StarIcon className="h-4 w-4 text-yellow-400" />
+									<span className="text-gray-700 font-semibold">{property.rating.toFixed(1)}</span>
+									<span className="text-gray-400">({property.reviews})</span>
+								</div>
+								<div className="flex items-center gap-1">
+									<EyeIcon className="h-4 w-4" />
+									<span className="font-medium">{property.views}</span>
+								</div>
 							</div>
 						</div>
+						
+						{/* Mensajes de urgencia para Airbnb */}
+						{property.rental_term === 'daily' && property.rating >= 4.5 && (
+							<div className="flex items-center gap-2 text-[11px] bg-red-50 border border-red-200 rounded-md px-2 py-1.5">
+								<span className="text-red-600 font-semibold flex items-center gap-1">
+									⚠️ Solo quedan 2 disponibles
+								</span>
+								<span className="text-gray-500">•</span>
+								<span className="text-orange-600 font-medium">
+									{Math.floor(Math.random() * 15) + 8} personas viendo
+								</span>
+							</div>
+						)}
+						{property.rental_term === 'daily' && property.rating >= 4.0 && property.rating < 4.5 && (
+							<div className="flex items-center gap-1 text-[11px] text-green-700 bg-green-50 border border-green-200 rounded-md px-2 py-1.5">
+								<svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+									<path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+								</svg>
+								<span className="font-semibold">Cancelación gratis hasta 24h antes</span>
+							</div>
+						)}
 					</div>
 				</div>
 			</div>

@@ -29,6 +29,7 @@ interface PropertyModalProps {
   propertyId: string;
   isOpen: boolean;
   onClose: () => void;
+  propertyData?: PropertyResponse; // Datos opcionales de la propiedad para evitar llamada al backend
 }
 
 interface ContactSettings {
@@ -47,7 +48,7 @@ interface ContactSettings {
   contactName?: string;
 }
 
-const PropertyModal: React.FC<PropertyModalProps> = ({ propertyId, isOpen, onClose }) => {
+const PropertyModal: React.FC<PropertyModalProps> = ({ propertyId, isOpen, onClose, propertyData }) => {
   const [property, setProperty] = useState<PropertyResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -59,11 +60,19 @@ const PropertyModal: React.FC<PropertyModalProps> = ({ propertyId, isOpen, onClo
 
   useEffect(() => {
     if (isOpen && propertyId) {
-      loadProperty();
+      // Si se pasaron datos de la propiedad, usarlos directamente
+      if (propertyData) {
+        setProperty(propertyData);
+        setLoading(false);
+        setError(null);
+      } else {
+        // Si no, cargar desde el backend
+        loadProperty();
+      }
       loadContactSettings();
       setCarouselIndex(0); // Reset carousel when opening
     }
-  }, [isOpen, propertyId]);
+  }, [isOpen, propertyId, propertyData]);
 
   const loadContactSettings = () => {
     try {
@@ -553,6 +562,14 @@ const PropertyModal: React.FC<PropertyModalProps> = ({ propertyId, isOpen, onClo
                                 {property.rental_term === 'weekly' && '📅 Semanal'}
                                 {property.rental_term === 'monthly' && '📅 Mensual'}
                                 {property.rental_term === 'yearly' && '📅 Anual'}
+                              </p>
+                            </div>
+                          )}
+                          {property.max_guests && (
+                            <div>
+                              <p className="text-sm text-gray-600 mb-1">Capacidad</p>
+                              <p className="text-lg font-semibold text-gray-900">
+                                👥 {property.max_guests} {property.max_guests === 1 ? 'huésped' : 'huéspedes'}
                               </p>
                             </div>
                           )}
