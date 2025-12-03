@@ -95,11 +95,13 @@ const ProfilePage = () => {
     try {
       setLoading(true);
       const data = await fetchUserProfile();
+      console.log('👤 Profile loaded:', { role: data.role, roleType: typeof data.role });
       setProfile(data);
       setFormData({
         first_name: data.first_name || '',
         last_name: data.last_name || '',
         phone: data.phone || '',
+        bio: data.bio || '',
       });
     } catch (error) {
       console.error('Error loading profile:', error);
@@ -112,7 +114,9 @@ const ProfilePage = () => {
   const handleSave = async () => {
     try {
       setSaving(true);
+      console.log('💾 Saving profile with data:', formData);
       const updated = await updateUserProfile(formData);
+      console.log('✅ Profile updated:', updated);
       setProfile(updated);
       setEditing(false);
       toast.success('Perfil actualizado correctamente');
@@ -130,6 +134,7 @@ const ProfilePage = () => {
         first_name: profile.first_name || '',
         last_name: profile.last_name || '',
         phone: profile.phone || '',
+        bio: profile.bio || '',
       });
     }
     setEditing(false);
@@ -664,6 +669,59 @@ const ProfilePage = () => {
               </div>
             </div>
           </div>
+
+          {/* Biografía - Solo para LANDLORD y AGENT */}
+          {(profile.role?.toUpperCase() === 'LANDLORD' || profile.role?.toUpperCase() === 'AGENT') && (
+            <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6 mb-4 sm:mb-6">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4">
+                Biografía Profesional
+              </h2>
+              <div className="space-y-2">
+                <p className="text-xs sm:text-sm text-gray-600">
+                  Cuéntale a los inquilinos sobre ti y tu experiencia. Esta información será visible en tus propiedades publicadas.
+                </p>
+                {editing ? (
+                  <textarea
+                    value={formData.bio || ''}
+                    onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+                    rows={6}
+                    maxLength={500}
+                    className="w-full px-4 py-3 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#5AB0DB] focus:border-[#5AB0DB] resize-none"
+                    placeholder={
+                      profile.role === 'LANDLORD' 
+                        ? 'Ejemplo: Propietario con 5+ años de experiencia en alquiler de departamentos en Lima. Me preocupo por el bienestar de mis inquilinos y mantengo mis propiedades en excelente estado.'
+                        : 'Ejemplo: Agente inmobiliario certificado con 3+ años ayudando a encontrar el hogar perfecto. Especializado en alquileres residenciales en Lima Moderna.'
+                    }
+                  />
+                ) : (
+                  <div className="min-h-[100px] p-4 bg-gray-50 rounded-lg">
+                    {profile.bio ? (
+                      <p className="text-sm sm:text-base text-gray-900 whitespace-pre-wrap">{profile.bio}</p>
+                    ) : (
+                      <p className="text-sm sm:text-base text-gray-400 italic">
+                        {profile.role === 'LANDLORD' 
+                          ? 'Aún no has agregado una biografía. Los inquilinos valoran conocer más sobre el propietario.'
+                          : 'Aún no has agregado una biografía. Una buena presentación genera más confianza en tus clientes.'}
+                      </p>
+                    )}
+                  </div>
+                )}
+                {editing && (
+                  <div className="flex justify-between items-center text-xs text-gray-500">
+                    <span>
+                      {formData.bio?.length || 0} / 500 caracteres
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Visible en tus propiedades
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Información de la Cuenta */}
           <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6 mb-4 sm:mb-6">

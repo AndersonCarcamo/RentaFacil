@@ -5,7 +5,11 @@ from app.schemas.agencies import (
     CreateAgencyRequest, UpdateAgencyRequest, AgencyResponse, AgencyAgentResponse, AddAgentRequest, VerificationRequest
 )
 from app.services.agency_service import AgencyService
-from typing import List
+from app.api.deps import get_current_active_user
+from app.models.auth import User
+from app.models.agency import AgencyAgent
+from typing import List, Optional
+import uuid
 
 router = APIRouter()
 
@@ -17,6 +21,66 @@ async def list_agencies(city: str = None, verified: bool = None, db: Session = D
         return [AgencyResponse.from_orm(a) for a in agencies]
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error listing agencies: {str(e)}")
+
+@router.get("/me/agency", response_model=AgencyResponse, summary="Obtener agencia del usuario actual")
+async def get_my_agency(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get the agency associated with the current user (for agency owners/agents)."""
+    try:
+        # Query the user_agency table to find the user's agency
+        user_agency = db.query(AgencyAgent).filter(
+            AgencyAgent.user_id == current_user.id
+        ).first()
+        
+        if not user_agency:
+            # If user is an agent or landlord, auto-create a personal agency
+            if current_user.role in ['agent', 'landlord']:
+                from app.models.agency import Agency
+                from app.schemas.agencies import CreateAgencyRequest
+                
+                # Create a personal agency for the user
+                agency_name = f"{current_user.first_name or 'Mi'} {current_user.last_name or 'Agencia'}"
+                service = AgencyService(db)
+                
+                new_agency_data = CreateAgencyRequest(
+                    name=agency_name.strip(),
+                    email=current_user.email,
+                    phone=current_user.phone,
+                    description=f"Agencia personal de {agency_name.strip()}"
+                )
+                
+                new_agency = service.create_agency(new_agency_data)
+                
+                # Associate the user with the new agency as owner
+                user_agency_relation = AgencyAgent(
+                    user_id=current_user.id,
+                    agency_id=new_agency.id,
+                    role='owner'
+                )
+                db.add(user_agency_relation)
+                db.commit()
+                
+                return AgencyResponse.from_orm(new_agency)
+            else:
+                raise HTTPException(
+                    status_code=404, 
+                    detail="User is not associated with any agency"
+                )
+        
+        # Get the agency details
+        service = AgencyService(db)
+        agency = service.get_agency(str(user_agency.agency_id))
+        
+        if not agency:
+            raise HTTPException(status_code=404, detail="Agency not found")
+            
+        return AgencyResponse.from_orm(agency)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving user's agency: {str(e)}")
 
 @router.post("/", response_model=AgencyResponse, status_code=status.HTTP_201_CREATED, summary="Crear agencia")
 async def create_agency(request: CreateAgencyRequest, db: Session = Depends(get_db)):

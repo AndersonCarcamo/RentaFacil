@@ -28,8 +28,9 @@ class UserRegisterRequest(BaseModel):
     phone: Optional[str] = Field(None, max_length=20)
     firebase_uid: Optional[str] = None
     role: UserRole = UserRole.USER
-    national_id: Optional[str] = None
+    national_id: Optional[str] = None  # Para landlord es DNI, para agent es RUC de la agencia
     national_id_type: str = "DNI"
+    agency_name: Optional[str] = None  # Nombre de la agencia (solo para role='agent')
 
     @validator('phone')
     def validate_phone(cls, v):
@@ -69,6 +70,7 @@ class UserResponse(BaseModel):
     profile_picture_url: Optional[str]
     national_id: Optional[str]
     national_id_type: Optional[str]
+    agency_name: Optional[str]  # Para usuarios de agencias
     role: UserRole
     is_verified: bool
     is_active: bool

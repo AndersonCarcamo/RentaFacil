@@ -56,6 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           const storedUser = getStoredUser()
           if (storedUser) {
+            console.log('✅ User from storage:', storedUser)
             setUser(storedUser)
             if (storedUser.role === 'admin') {
               console.log('👑 Admin user detected:', storedUser.email)
@@ -63,6 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           } else {
             // Try to get from server
             const currentUser = await getCurrentUser()
+            console.log('✅ User from server:', currentUser)
             setUser(currentUser)
             if (currentUser.role === 'admin') {
               console.log('👑 Admin user detected:', currentUser.email)
@@ -164,12 +166,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       // 2. Register in our backend
       const { password, ...userDataWithoutPassword } = userData
+      console.log('📤 Sending to backend:', {
+        ...userDataWithoutPassword,
+        firebase_uid: firebaseUser.uid
+      })
       const result = await apiRegister({
         ...userDataWithoutPassword,
         firebase_uid: firebaseUser.uid
       })
       
-      console.log('✅ Backend registration successful:', result.email)
+      console.log('✅ Backend registration successful:', result)
+      console.log('📋 User role:', result.role)
+      console.log('🏢 Agency name:', result.agency_name)
       
       // 3. Auto-login after successful registration
       console.log('🔄 Auto-logging in after registration...')

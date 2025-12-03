@@ -1728,38 +1728,80 @@ const CreateListingPage: React.FC = () => {
                       <span className="ml-3 text-gray-600">Cargando amenidades...</span>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                       {(availableAmenities.length > 0 ? availableAmenities : AMENITIES.map(a => ({
                         id: a.id,
                         name: a.name,
                         icon: a.icon
-                      }))).map(amenity => (
-                        <label
-                          key={amenity.id}
-                          className="flex items-center gap-2 p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-blue-50 transition-colors"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={formData.selectedAmenities.includes(amenity.id)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setFormData(prev => ({
-                                  ...prev,
-                                  selectedAmenities: [...prev.selectedAmenities, amenity.id]
-                                }));
-                              } else {
-                                setFormData(prev => ({
-                                  ...prev,
-                                  selectedAmenities: prev.selectedAmenities.filter(id => id !== amenity.id)
-                                }));
-                              }
-                            }}
-                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                          />
-                          {amenity.icon && <span className="text-2xl">{amenity.icon}</span>}
-                          <span className="text-sm text-gray-700">{amenity.name}</span>
-                        </label>
-                      ))}
+                      }))).map(amenity => {
+                        // Mapeo de iconos técnicos a emojis
+                        const iconMap: Record<string, string> = {
+                          'pool': '🏊',
+                          'fitness_center': '💪',
+                          'elevator': '🛗',
+                          'balcony': '🏡',
+                          'deck': '🏡',
+                          'local_florist': '🌳',
+                          'garage': '🚗',
+                          'security': '🔒',
+                          'ac_unit': '❄️',
+                          'thermostat': '🔥',
+                          'chair': '🛋️',
+                          'local_laundry_service': '🧺',
+                          'wifi': '📶',
+                          'pets': '🐕',
+                          'train': '🚇',
+                          'shopping_mall': '🛍️',
+                          'waves': '🌊',
+                          'location_city': '🏙️',
+                          'sports_esports': '🎮',
+                          'outdoor_grill': '🍖',
+                          'vpn_key': '🔑',
+                          'kitchen': '🍳',
+                          'restaurant': '🍽️',
+                          'local_parking': '🅿️',
+                          'cleaning_services': '🧹',
+                          'bed': '🛏️',
+                          'schedule': '📅',
+                          'concierge_service': '🛎️',
+                          'dry_cleaning': '👔',
+                          'tv': '📺',
+                        };
+                        
+                        const displayIcon = amenity.icon ? (iconMap[amenity.icon] || '📌') : '📌';
+                        
+                        return (
+                          <label
+                            key={amenity.id}
+                            className={`flex items-center gap-2 p-3 border-2 rounded-lg cursor-pointer transition-all ${
+                              formData.selectedAmenities.includes(amenity.id)
+                                ? 'border-blue-600 bg-blue-50'
+                                : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={formData.selectedAmenities.includes(amenity.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    selectedAmenities: [...prev.selectedAmenities, amenity.id]
+                                  }));
+                                } else {
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    selectedAmenities: prev.selectedAmenities.filter(id => id !== amenity.id)
+                                  }));
+                                }
+                              }}
+                              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                            />
+                            <span className="text-2xl">{displayIcon}</span>
+                            <span className="text-sm font-medium text-gray-700">{amenity.name}</span>
+                          </label>
+                        );
+                      })}
                     </div>
                   )}
                   

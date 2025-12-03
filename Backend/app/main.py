@@ -7,6 +7,7 @@ from pathlib import Path
 from app.api.endpoints.auth import router as auth_router
 from app.api.endpoints.users import router as users_router
 from app.api.endpoints.agencies import router as agencies_router
+from app.api.endpoints.agents import router as agents_router
 from app.api.endpoints.listings import router as listings_router
 from app.api.endpoints.listings_simple import router as listings_simple_router
 from app.api.endpoints.search import router as search_router
@@ -143,6 +144,12 @@ app.include_router(
     agencies_router,
     prefix="/v1/agencies",
     tags=["Agencies"]
+)
+
+app.include_router(
+    agents_router,
+    prefix="/v1/agencies",
+    tags=["Agents"]
 )
 
 app.include_router(

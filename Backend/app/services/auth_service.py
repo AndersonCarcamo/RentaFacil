@@ -54,10 +54,13 @@ class AuthService:
                 role=user_data.role,
                 national_id=user_data.national_id,
                 national_id_type=user_data.national_id_type,
+                agency_name=user_data.agency_name,  # Guardar nombre de agencia
                 is_verified=False,
                 is_active=True
             )
             logger.info(f"User instance created with role: {user.role}")
+            if user_data.agency_name:
+                logger.info(f"Agency name set: {user_data.agency_name}")
             
             # Save to database
             logger.info("Adding user to database session...")

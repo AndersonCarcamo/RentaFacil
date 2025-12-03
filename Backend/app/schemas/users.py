@@ -124,6 +124,7 @@ class UserDetailResponse(BaseModel):
     first_name: str
     last_name: str
     phone: Optional[str]
+    bio: Optional[str]
     profile_picture_url: Optional[str] = Field(None, alias="avatar_url")
     role: UserRole
     is_verified: bool

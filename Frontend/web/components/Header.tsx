@@ -3,7 +3,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/router'
 import { Dialog, Disclosure, Popover, Transition, Menu } from '@headlessui/react'
-import { useAuth } from '../../lib/hooks/useAuth'
+import { useAuth } from '../lib/hooks/useAuth'
 import { 
 	Bars3Icon, 
 	XMarkIcon,
@@ -21,7 +21,6 @@ import {
 	IdentificationIcon,
 	CheckIcon,
 	ExclamationTriangleIcon,
-	CalendarDaysIcon,
 	ShieldCheckIcon,
 	UsersIcon
 } from '@heroicons/react/24/outline'
@@ -32,26 +31,26 @@ const propertyTypes = [
 	{ 
 		name: 'Departamentos', 
 		description: 'Encuentra departamentos en toda la ciudad', 
-		href: '/alquiler/apartment/lima',
+		href: '/departamentos', 
 		icon: BuildingOfficeIcon 
 	},
 	{ 
 		name: 'Casas', 
 		description: 'Casas familiares y unifamiliares', 
-		href: '/alquiler/house/lima',
+		href: '/casas', 
 		icon: HomeIcon 
 	},
 	{ 
 		name: 'Cuartos', 
 		description: 'Habitaciones individuales para estudiantes', 
-		href: '/alquiler/room/lima',
+		href: '/cuartos', 
 		icon: KeyIcon 
 	},
 	{ 
 		name: 'Tipo Airbnb', 
 		description: 'Alquileres temporales y vacacionales', 
-		href: '/alquiler-temporal/apartment/lima',
-		icon: CalendarDaysIcon // ✨ Nuevo icono para Airbnb
+		href: '/airbnb', 
+		icon: HomeIcon 
 	},
 ]
 
@@ -87,50 +86,46 @@ export function Header() {
 	const [isMounted, setIsMounted] = useState(false)
 	const { user, isLoggedIn, logout, updateUserRole } = useAuth()
 	const router = useRouter()
-	
-	// Log inmediato al obtener user del hook
-	console.log('🎯 Header render - user from useAuth:', user)
-	console.log('🎯 Header render - isLoggedIn:', isLoggedIn)
-
-	// Debug: Log user role
-	useEffect(() => {
-		console.log('🔍 Header - useAuth hook data:', { user, isLoggedIn })
-		if (user) {
-			console.log('🔍 Header - User data:', user)
-			console.log('🔍 Header - User role:', user.role)
-			console.log('🔍 Header - Is admin?:', user.role === 'admin')
-			console.log('🔍 Header - Should show Dashboard?:', user?.role === 'landlord' || user?.role === 'agent' || user?.role === 'admin')
-			console.log('🔍 Header - Should show Admin Panel?:', user?.role === 'admin')
-		} else {
-			console.log('🔍 Header - User is null/undefined')
-		}
-	}, [user, isLoggedIn])
 
 	useEffect(() => {
 		// ensure document is available for portals (client-side only)
 		setIsMounted(true)
-	}, [])
+		
+		// Debug: Log complete user object
+		if (user) {
+			console.log('👤 COMPLETE USER OBJECT:', JSON.stringify(user, null, 2))
+			console.log('🏢 agency_name field:', user.agency_name)
+			console.log('📧 email:', user.email)
+			console.log('🎭 role:', user.role)
+		}
+	}, [user])
 
 	const handlePublishClick = () => {
+		console.log('🖱️ Click en Publicar desde Header')
+		
 		// Si no está autenticado, mostrar modal de registro
 		if (!user) {
+			console.log('❌ No autenticado - Mostrando modal de registro')
 			setShowPublishModal(true)
 			return
 		}
 
 		// Si es usuario normal, mostrar modal para upgrade de rol
 		if (user.role === 'user') {
+			console.log('👤 Usuario normal - Mostrando modal para upgrade de rol')
 			setShowRoleUpgradeModal(true)
 			return
 		}
 
-		// Si es landlord o agent, ir directo a publicar
+		// Si es landlord o agent, ir directo a crear propiedad
 		if (user.role === 'landlord' || user.role === 'agent') {
-			router.push('/publish')
+			console.log('✅ Usuario autorizado - Redirigiendo a /dashboard/create-listing')
+			router.push('/dashboard/create-listing')
 			return
 		}
 
 		// Default: mostrar modal de upgrade
+		console.log('⚠️ Caso no manejado - Mostrando modal de upgrade')
 		setShowRoleUpgradeModal(true)
 	}
 
@@ -457,340 +452,330 @@ export function Header() {
 
 	return (
 		<>
-			<header className="sticky top-0 z-[100] border-b border-gray-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 shadow-sm">
-				{/* Container responsive con mejor espaciado */}
-				<nav className="mx-auto max-w-7xl px-3 sm:px-4 lg:px-6" aria-label="Global">
-					<div className="flex h-16 sm:h-20 lg:h-24 items-center justify-between gap-2">
-						
-						{/* LEFT: Navegación Desktop */}
-						<div className="hidden lg:flex lg:flex-1 lg:items-center lg:gap-x-6">
-							{/* Tipos de Propiedad Dropdown */}
-							<Popover className="relative">
-								<Popover.Button className="flex items-center gap-x-1 text-sm font-medium text-gray-700 hover:text-brand-navy transition-colors">
-									Propiedades
-									<ChevronDownIcon className="h-4 w-4 flex-none text-gray-400" aria-hidden="true" />
-								</Popover.Button>
+			<header className="sticky top-0 z-[500] border-b border-gray-200 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/70">
+				{/* Grid de 3 columnas para centrar logo */}
+				<div className="mx-auto grid max-w-7xl grid-cols-3 items-center h-24 px-4 sm:px-6 lg:px-8" aria-label="Global">
+					{/* Navegación izquierda */}
+					<Popover.Group className="hidden md:flex items-center gap-5">
+						{/* Tipos de Propiedad Dropdown */}
+						<Popover className="relative">
+							<Popover.Button className="flex items-center gap-1 text-sm font-medium text-gray-600 hover:text-brand-navy transition-colors">
+								Propiedades
+								<ChevronDownIcon className="h-3.5 w-3.5 flex-none text-gray-400" aria-hidden="true" />
+							</Popover.Button>
 
-								<Transition
-									as={Fragment}
-									enter="transition ease-out duration-200"
-									enterFrom="opacity-0 translate-y-1"
-									enterTo="opacity-100 translate-y-0"
-									leave="transition ease-in duration-150"
-									leaveFrom="opacity-100 translate-y-0"
-									leaveTo="opacity-0 translate-y-1"
-								>
-									<Popover.Panel className="absolute -left-4 top-full z-[110] mt-2 w-screen max-w-xs overflow-hidden rounded-xl bg-white shadow-lg ring-1 ring-gray-900/5">
-										<div className="p-3">
-											{propertyTypes.map((item) => (
-												<div
-													key={item.name}
-													className="group relative flex items-center gap-x-4 rounded-lg p-3 text-sm leading-6 hover:bg-gray-50 transition-colors"
-												>
-													<div className="flex h-10 w-10 flex-none items-center justify-center rounded-lg bg-gray-50 group-hover:bg-white">
-														<item.icon className="h-5 w-5 text-gray-600 group-hover:text-brand-blue transition-colors" aria-hidden="true" />
-													</div>
-													<div className="flex-auto">
-														<Link href={item.href} className="block font-semibold text-gray-900 hover:text-brand-blue">
-															{item.name}
-															<span className="absolute inset-0" />
-														</Link>
-														<p className="mt-1 text-xs text-gray-600">{item.description}</p>
-													</div>
-												</div>
-											))}
-											<button
-												onClick={handlePublishClick}
-												className="mt-2 flex w-full items-center justify-center gap-x-2 rounded-lg bg-secondary-500/20 px-3 py-2.5 text-sm font-semibold text-brand-navy hover:bg-secondary-500/30 transition-colors"
+							<Transition
+								as={Fragment}
+								enter="transition ease-out duration-200"
+								enterFrom="opacity-0 translate-y-1"
+								enterTo="opacity-100 translate-y-0"
+								leave="transition ease-in duration-150"
+								leaveFrom="opacity-100 translate-y-0"
+								leaveTo="opacity-0 translate-y-1"
+							>
+								<Popover.Panel className="absolute -left-4 top-full z-[300] mt-1 w-screen max-w-xs overflow-hidden rounded-md bg-white shadow-lg ring-1 ring-gray-900/5">
+									<div className="p-2">
+										{propertyTypes.map((item) => (
+											<div
+												key={item.name}
+												className="group relative flex items-center gap-3 rounded-md p-2.5 text-xs sm:text-sm leading-5 hover:bg-gray-50"
 											>
-												<PlusIcon className="h-4 w-4 flex-none" aria-hidden="true" />
-												Publicar Propiedad
-											</button>
-										</div>
-									</Popover.Panel>
-								</Transition>
-							</Popover>
-
-							<Link href="/inmobiliarias" className="text-sm font-medium text-gray-700 hover:text-brand-navy transition-colors">
-								Inmobiliarias
-							</Link>
-							<Link href="/nosotros" className="text-sm font-medium text-gray-700 hover:text-brand-navy transition-colors">
-								Nosotros
-							</Link>
-							<Link href="/ayuda" className="text-sm font-medium text-gray-700 hover:text-brand-navy transition-colors">
-								Ayuda
-							</Link>
-						</div>
-
-					{/* CENTER: Logo - Tamaño grande fijo */}
-					<div className="flex lg:flex-1 lg:justify-center">
-						<Link href="/" className="flex items-center -m-1.5 p-1.5">
+												<div className="flex h-8 w-8 flex-none items-center justify-center rounded-md bg-gray-50 group-hover:bg-white">
+													<item.icon className="h-4 w-4 text-gray-600 group-hover:text-brand-blue" aria-hidden="true" />
+												</div>
+												<div className="flex-auto">
+													<Link href={item.href} className="block font-medium text-gray-800">
+														{item.name}
+														<span className="absolute inset-0" />
+													</Link>
+													<p className="mt-0.5 text-gray-500 text-[10px] sm:text-xs">{item.description}</p>
+												</div>
+											</div>
+										))}
+										<button
+											onClick={handlePublishClick}
+											className="mt-1 flex items-center justify-center gap-1.5 rounded-md bg-secondary-500/20 px-2.5 py-2 text-xs sm:text-sm font-medium text-brand-navy hover:bg-secondary-500/30 transition-colors"
+										>
+											<PlusIcon className="h-3.5 w-3.5 flex-none text-brand-navy" aria-hidden="true" />
+											Publicar Propiedad
+										</button>
+									</div>
+								</Popover.Panel>
+							</Transition>
+						</Popover>
+						<Link href="/inmobiliarias" className="font-medium text-gray-600 hover:text-brand-navy transition-colors">
+							Inmobiliarias
+						</Link>
+						<Link href="/nosotros" className="font-medium text-gray-600 hover:text-brand-navy transition-colors">
+							Nosotros
+						</Link>
+						<Link href="/ayuda" className="font-medium text-gray-600 hover:text-brand-navy transition-colors">
+							Ayuda
+						</Link>
+					</Popover.Group>
+					{/* Logo centrado */}
+					<div className="flex justify-center items-center col-span-1 md:col-span-1">
+						<Link href="/" className="flex items-center">
 							<span className="sr-only">RentaFacil</span>
 							<Image
 								src="/images/renta_facil_logo2.png"
 								alt="RentaFacil Logo"
-								width={260}
-								height={68}
-								style={{ height: '6.5rem', width: 'auto' }}
-								priority
-								className="select-none"
+								width={330}
+								height={50}
+								className='w-auto select-none'
+								style={{ height: '6.5rem' }}
 							/>
 						</Link>
-					</div>							{/* RIGHT: Acciones */}
-							<div className="flex flex-1 items-center justify-end gap-x-3">
-								{/* Search - Hidden on mobile */}
-								<button 
-									aria-label="Buscar"
-									className="hidden sm:inline-flex p-2.5 text-gray-600 hover:text-brand-navy rounded-lg hover:bg-gray-100 transition-colors"
-								>
-									<MagnifyingGlassIcon className="h-6 w-6" />
+					</div>
+
+					{/* Acciones derecha */}
+					<div className="flex items-center justify-end gap-2 md:gap-3 col-span-2 md:col-span-1">
+						{/* Search button */}
+						<button className="hidden sm:inline-flex text-gray-400 hover:text-brand-navy transition-colors p-2 rounded-md hover:bg-gray-100">
+							<span className="sr-only">Buscar</span>
+							<MagnifyingGlassIcon className="h-5 w-5" />
+						</button>
+
+						{isLoggedIn ? (
+							<>
+								{/* Notifications - Solo cuando está logueado */}
+								<button className="hidden sm:inline-flex text-gray-400 hover:text-brand-navy transition-colors relative p-2 rounded-md hover:bg-gray-100">
+									<span className="sr-only">Notificaciones</span>
+									<BellIcon className="h-5 w-5" />
+									{/* Notification dot */}
+									<span className="absolute top-1.5 right-1.5 h-2 w-2 bg-red-500 rounded-full"></span>
 								</button>
 
-								{isLoggedIn ? (
-									<>
-										{/* Notifications */}
-										<button 
-											aria-label="Notificaciones"
-											className="hidden sm:inline-flex relative p-2.5 text-gray-600 hover:text-brand-navy rounded-lg hover:bg-gray-100 transition-colors"
-										>
-											<BellIcon className="h-6 w-6" />
-											<span className="absolute top-2 right-2 h-2 w-2 bg-red-500 rounded-full ring-2 ring-white"></span>
-										</button>
+								{/* User Profile Menu */}
+								<Menu as="div" className="relative hidden md:inline-block">
+									<Menu.Button className="flex items-center gap-2 text-gray-600 hover:text-brand-navy transition-colors p-2 rounded-md hover:bg-gray-100">
+										{/* Avatar o icono según si tiene foto */}
+										{getAvatarUrl(user?.profile_picture_url) ? (
+											<img
+												src={getAvatarUrl(user?.profile_picture_url)!}
+												alt={user?.first_name || 'Usuario'}
+												className="h-8 w-8 rounded-full object-cover border-2 border-gray-200"
+												onError={(e) => {
+													// Si falla cargar la imagen, mostrar el ícono de respaldo
+													console.error('Error loading avatar:', e);
+												}}
+											/>
+										) : (
+											<UserCircleIcon className="h-6 w-6" />
+										)}
+										<span className="text-sm font-medium hidden lg:inline">
+											{user?.first_name || 'Usuario'}
+										</span>
+										<ChevronDownIcon className="h-4 w-4" />
+									</Menu.Button>
 
-										{/* User Menu Desktop */}
-										<Menu as="div" className="relative hidden lg:block">
-											<Menu.Button className="flex items-center gap-x-2 rounded-lg px-3 py-2.5 text-base font-medium text-gray-700 hover:text-brand-navy hover:bg-gray-100 transition-colors">
-												{getAvatarUrl(user?.profile_picture_url) ? (
-													<img
-														src={getAvatarUrl(user?.profile_picture_url)!}
-														alt={user?.first_name || 'Usuario'}
-														className="h-10 w-10 rounded-full object-cover border-2 border-gray-200"
-														onError={(e) => {
-															e.currentTarget.style.display = 'none';
-														}}
-													/>
-												) : (
-													<UserCircleIcon className="h-10 w-10" />
-												)}
-												<span className="hidden xl:inline-block max-w-[120px] truncate">
-													{user?.first_name || 'Usuario'}
-												</span>
-												<ChevronDownIcon className="h-5 w-5 text-gray-400" />
-											</Menu.Button>
-
-										<Transition
-											as={Fragment}
-											enter="transition ease-out duration-100"
-											enterFrom="transform opacity-0 scale-95"
-											enterTo="transform opacity-100 scale-100"
-											leave="transition ease-in duration-75"
-											leaveFrom="transform opacity-100 scale-100"
-											leaveTo="transform opacity-0 scale-95"
-										>
-											<Menu.Items className="absolute right-0 z-[110] mt-2 w-56 origin-top-right rounded-xl bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
-												<div className="py-2">
-													<div className="px-4 py-3 border-b border-gray-100">
-														<p className="text-sm font-medium text-gray-900 truncate">
-															{user?.first_name} {user?.last_name}
-														</p>
-														<p className="text-xs text-gray-500 truncate mt-1">
-															{user?.email}
-														</p>
-													</div>
-
-													<Menu.Item>
-														{({ active }) => (
-															<Link
-																href="/profile"
-																className={classNames(
-																	active ? 'bg-gray-50' : '',
-																	'flex items-center gap-x-3 px-4 py-2.5 text-sm text-gray-700'
-																)}
-															>
-																<UserIcon className="h-5 w-5 text-gray-400" />
-																Mi Perfil
-															</Link>
-														)}
-													</Menu.Item>
-
-													{(user?.role === 'landlord' || user?.role === 'agent' || user?.role === 'admin') && (
-														<Menu.Item>
-															{({ active }) => (
-																<Link
-																	href="/dashboard"
-																	className={classNames(
-																		active ? 'bg-gray-50' : '',
-																		'flex items-center gap-x-3 px-4 py-2.5 text-sm text-gray-700'
-																	)}
-																>
-																	<ChartBarIcon className="h-5 w-5 text-gray-400" />
-																	Dashboard
-																</Link>
-															)}
-														</Menu.Item>
-													)}
-
-													{/* Mi Equipo - Solo para AGENT (inmobiliarias) */}
-													{user?.role === 'agent' && (
-														<Menu.Item>
-															{({ active }) => (
-																<Link
-																	href="/dashboard/agents"
-																	className={classNames(
-																		active ? 'bg-gray-50' : '',
-																		'flex items-center gap-x-3 px-4 py-2.5 text-sm text-gray-700'
-																	)}
-																>
-																	<UsersIcon className="h-5 w-5 text-gray-400" />
-																	Mi Equipo
-																</Link>
-															)}
-														</Menu.Item>
-													)}
-
-													{user?.role === 'admin' && (
-														<Menu.Item>
-															{({ active }) => (
-																<Link
-																	href="/admin"
-																	className={classNames(
-																		active ? 'bg-gray-50' : '',
-																		'flex items-center gap-x-3 px-4 py-2.5 text-sm text-gray-700'
-																	)}
-																>
-																	<ShieldCheckIcon className="h-5 w-5 text-purple-600" />
-																	<span className="text-purple-600 font-semibold">Panel de Admin</span>
-																</Link>
-															)}
-														</Menu.Item>
-													)}
-
-													<Menu.Item>
-														{({ active }) => (
-															<Link
-																href="/perfil"
-																className={classNames(
-																	active ? 'bg-gray-50' : '',
-																	'flex items-center gap-x-3 px-4 py-2.5 text-sm text-gray-700'
-																)}
-															>
-																<HeartIcon className="h-5 w-5 text-gray-400" />
-																Favoritos
-															</Link>
-														)}
-													</Menu.Item>
-
-													<div className="border-t border-gray-100 my-2"></div>
-
-													<Menu.Item>
-														{({ active }) => (
-															<button
-																onClick={handleLogout}
-																className={classNames(
-																	active ? 'bg-red-50' : '',
-																	'flex w-full items-center gap-x-3 px-4 py-2.5 text-sm text-red-600 hover:text-red-700'
-																)}
-															>
-																<ArrowRightOnRectangleIcon className="h-5 w-5" />
-																Cerrar Sesión
-															</button>
-														)}
-													</Menu.Item>
+									<Transition
+										as={Fragment}
+										enter="transition ease-out duration-100"
+										enterFrom="transform opacity-0 scale-95"
+										enterTo="transform opacity-100 scale-100"
+										leave="transition ease-in duration-75"
+										leaveFrom="transform opacity-100 scale-100"
+										leaveTo="transform opacity-0 scale-95"
+									>
+										<Menu.Items className="absolute right-0 z-[300] mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+											<div className="py-1">
+												<div className="px-4 py-3 border-b border-gray-100">
+													<p className="text-sm font-medium text-gray-900">
+														{user?.first_name} {user?.last_name}
+													</p>
+													<p className="text-sm text-gray-500 truncate">
+														{user?.email}
+													</p>
 												</div>
-											</Menu.Items>
-										</Transition>
-									</Menu>
 
-									{/* Botón Publicar */}
-									<button
-										onClick={handlePublishClick}
-										type="button"
-										className="inline-flex items-center gap-x-2 rounded-lg bg-secondary-500 px-5 py-3 text-base font-semibold text-brand-navy shadow-sm hover:bg-secondary-500/90 transition-colors"
-									>
-										<span className="hidden sm:inline">Publicar</span>
-										<PlusIcon className="h-5 w-5 sm:hidden" />
-									</button>
-								</>
-							) : (
-								<>
-									{/* Login/Register - Only Desktop */}
-									<Link 
-										href="/login" 
-										className="hidden lg:inline-flex items-center px-4 py-2.5 text-base font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-									>
-										Ingresar
-									</Link>
-									<Link 
-										href="/registro" 
-										className="hidden md:inline-flex items-center rounded-lg bg-secondary-500 px-4 py-2.5 text-base font-semibold text-brand-navy shadow-sm hover:bg-secondary-500/90 transition-colors"
-									>
-										Registrarse
-									</Link>
-									<button
-										onClick={handlePublishClick}
-										type="button"
-										className="inline-flex items-center gap-x-1.5 rounded-lg bg-brand-blue px-4 py-2.5 text-base font-semibold text-white shadow-sm hover:bg-brand-blue/90 transition-colors"
-									>
-										Publicar
-									</button>
-								</>
-							)}
+												<Menu.Item>
+													{({ active }) => (
+														<Link
+															href="/profile"
+															className={classNames(
+																active ? 'bg-gray-100' : '',
+																'flex items-center gap-3 px-4 py-2 text-sm text-gray-700'
+															)}
+														>
+															<UserIcon className="h-5 w-5 text-gray-400" />
+															Mi Perfil
+														</Link>
+													)}
+											</Menu.Item>
 
-							{/* Mobile menu button */}
-							<button
-								type="button"
-								className="lg:hidden inline-flex items-center justify-center rounded-lg p-2.5 text-gray-700 hover:bg-gray-100 hover:text-brand-navy transition-colors"
-								onClick={() => setMobileMenuOpen(true)}
-								aria-label="Abrir menú"
-							>
-								<span className="sr-only">Abrir menú</span>
-								<Bars3Icon className="h-7 w-7" aria-hidden="true" />
-							</button>
-						</div>
+											{/* Dashboard - Para LANDLORD, AGENT y ADMIN */}
+											{(user?.role === 'landlord' || user?.role === 'agent' || user?.role === 'admin') && (
+												<Menu.Item>
+													{({ active }) => (
+														<Link
+															href="/dashboard"
+															className={classNames(
+																active ? 'bg-gray-100' : '',
+																'flex items-center gap-3 px-4 py-2 text-sm text-gray-700'
+															)}
+														>
+															<ChartBarIcon className="h-5 w-5 text-gray-400" />
+															Dashboard
+														</Link>
+													)}
+												</Menu.Item>
+											)}
+
+											{/* Mi Equipo - Solo para AGENT (inmobiliarias) */}
+											{(() => {
+												const shouldShow = user?.role === 'agent';
+												console.log('🔍 Mi Equipo check:', {
+													userRole: user?.role,
+													userRoleType: typeof user?.role,
+													comparison: user?.role === 'agent',
+													shouldShow
+												});
+												return shouldShow;
+											})() && (
+												<Menu.Item>
+													{({ active }) => (
+														<Link
+															href="/dashboard/agents"
+															className={classNames(
+																active ? 'bg-gray-100' : '',
+																'flex items-center gap-3 px-4 py-2 text-sm text-gray-700'
+															)}
+														>
+															<UsersIcon className="h-5 w-5 text-gray-400" />
+															Mi Equipo
+														</Link>
+													)}
+												</Menu.Item>
+											)}
+
+											{/* Panel de Admin - Solo para ADMIN */}
+											{user?.role === 'admin' && (
+												<Menu.Item>
+													{({ active }) => (
+														<Link
+															href="/admin"
+															className={classNames(
+																active ? 'bg-gray-100' : '',
+																'flex items-center gap-3 px-4 py-2 text-sm text-gray-700'
+															)}
+														>
+															<ShieldCheckIcon className="h-5 w-5 text-purple-600" />
+															<span className="text-purple-600 font-medium">Panel de Admin</span>
+														</Link>
+													)}
+												</Menu.Item>
+											)}
+
+											<Menu.Item>
+													{({ active }) => (
+														<Link
+															href="/profile"
+															className={classNames(
+																active ? 'bg-gray-100' : '',
+																'flex items-center gap-3 px-4 py-2 text-sm text-gray-700'
+															)}
+														>
+															<HeartIcon className="h-5 w-5 text-gray-400" />
+															Favoritos
+														</Link>
+													)}
+												</Menu.Item>
+
+												<div className="border-t border-gray-100"></div>
+
+												<Menu.Item>
+													{({ active }) => (
+														<button
+															onClick={handleLogout}
+															className={classNames(
+																active ? 'bg-gray-100' : '',
+																'flex w-full items-center gap-3 px-4 py-2 text-sm text-red-600'
+															)}
+														>
+															<ArrowRightOnRectangleIcon className="h-5 w-5" />
+															Cerrar Sesión
+														</button>
+													)}
+												</Menu.Item>
+											</div>
+										</Menu.Items>
+									</Transition>
+								</Menu>
+
+								<button
+									onClick={handlePublishClick}
+									type="button"
+									className="inline-flex h-10 items-center rounded-md border border-secondary-500/60 px-3 text-sm font-semibold text-brand-navy hover:bg-secondary-500/30 transition"
+								>
+									Publicar
+								</button>
+							</>
+						) : (
+							<>
+								{/* Botones de login/registro cuando NO está logueado */}
+								<Link href="/login" className="hidden md:inline-flex h-10 items-center px-3 rounded-md text-sm font-medium text-gray-600 hover:text-brand-navy transition">
+									Ingresar
+								</Link>
+								<Link href="/registro" className="hidden md:inline-flex h-10 items-center rounded-md bg-secondary-500 px-3 text-sm font-semibold text-brand-navy shadow-sm hover:bg-secondary-500/90 transition">
+									Registrarse
+								</Link>
+								<button
+									onClick={handlePublishClick}
+									type="button"
+									className="inline-flex h-10 items-center rounded-md border border-secondary-500/60 px-3 text-sm font-semibold text-brand-navy hover:bg-secondary-500/30 transition"
+								>
+									Publicar
+								</button>
+							</>
+						)}
+
+						{/* Mobile menu button */}
+						<button
+							type="button"
+							className="md:hidden inline-flex items-center justify-center rounded-md p-2 text-gray-600 hover:text-brand-navy hover:bg-gray-100"
+							onClick={() => setMobileMenuOpen(true)}
+						>
+							<span className="sr-only">Abrir menú principal</span>
+							<Bars3Icon className="h-6 w-6" aria-hidden="true" />
+						</button>
 					</div>
-				</nav>
+				</div>
 
 				{/* Mobile menu */}
 				<Dialog as="div" className="lg:hidden" open={mobileMenuOpen} onClose={setMobileMenuOpen}>
-					<div className="fixed inset-0 z-[200] bg-black/30 backdrop-blur-sm" />
-					<Dialog.Panel className="fixed inset-y-0 right-0 z-[200] w-full overflow-y-auto bg-white px-6 py-6 sm:max-w-sm sm:ring-1 sm:ring-gray-900/10">
-						{/* Header del menú móvil */}
-						<div className="flex items-center justify-between mb-8">
-							<Link href="/" className="-m-1.5 p-1.5" onClick={() => setMobileMenuOpen(false)}>
+					<div className="fixed inset-0 z-[400]" />
+					<Dialog.Panel className="fixed inset-y-0 right-0 z-[450] w-full overflow-y-auto bg-white px-6 py-6 sm:max-w-sm sm:ring-1 sm:ring-gray-900/10">
+						<div className="flex items-center justify-between">
+							<Link href="/" className="-m-1.5 p-1.5">
 								<span className="sr-only">RentaFacil</span>
 								<Image
-									src="/images/renta_facil_logo2.png"
-									alt="RentaFacil Logo"
-									width={180}
-									height={40}
-									className="h-10 w-auto"
-								/>
+                src="/images/renta_facil_logo2.png"
+                alt="RentaFacil Logo"
+                width={160}
+                height={42}
+                className='h-10 w-auto'
+              />
 							</Link>
 							<button
 								type="button"
-								className="-m-2.5 rounded-lg p-2.5 text-gray-700 hover:bg-gray-100 transition-colors"
+								className="-m-2.5 rounded-md p-2.5 text-gray-700"
 								onClick={() => setMobileMenuOpen(false)}
 							>
 								<span className="sr-only">Cerrar menú</span>
 								<XMarkIcon className="h-6 w-6" aria-hidden="true" />
 							</button>
 						</div>
-
-						<div className="flow-root">
-							<div className="-my-6 divide-y divide-gray-200">
-								{/* Navegación principal */}
+						<div className="mt-6 flow-root">
+							<div className="-my-6 divide-y divide-gray-500/10">
 								<div className="space-y-2 py-6">
-									{/* Dropdown Propiedades */}
 									<Disclosure as="div" className="-mx-3">
 										{({ open }) => (
 											<>
-												<Disclosure.Button className="flex w-full items-center justify-between rounded-lg py-3 pl-3 pr-3.5 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50 transition-colors">
+												<Disclosure.Button className="flex w-full items-center justify-between rounded-lg py-2 pl-3 pr-3.5 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50">
 													Propiedades
 													<ChevronDownIcon
-														className={classNames(
-															open ? 'rotate-180' : '',
-															'h-5 w-5 flex-none text-gray-400 transition-transform duration-200'
-														)}
+														className={classNames(open ? 'rotate-180' : '', 'h-5 w-5 flex-none')}
 														aria-hidden="true"
 													/>
 												</Disclosure.Button>
@@ -800,57 +785,53 @@ export function Header() {
 															key={item.name}
 															as={Link}
 															href={item.href}
-															onClick={() => setMobileMenuOpen(false)}
-															className="block rounded-lg py-2.5 pl-6 pr-3 text-sm font-semibold leading-7 text-gray-900 hover:bg-gray-50 transition-colors"
+															className="block rounded-lg py-2 pl-6 pr-3 text-sm font-semibold leading-7 text-gray-900 hover:bg-gray-50"
 														>
 															{item.name}
 														</Disclosure.Button>
 													))}
 													<Disclosure.Button
 														as="button"
-														onClick={() => {
-															setMobileMenuOpen(false)
-															handlePublishClick()
-														}}
-														className="block w-full text-left rounded-lg py-2.5 pl-6 pr-3 text-sm font-semibold leading-7 text-brand-blue hover:bg-gray-50 transition-colors"
+														onClick={handlePublishClick}
+														className="block w-full text-left rounded-lg py-2 pl-6 pr-3 text-sm font-semibold leading-7 text-gray-900 hover:bg-gray-50"
 													>
-														+ Publicar Propiedad
+														Publicar Propiedad
 													</Disclosure.Button>
 												</Disclosure.Panel>
 											</>
 										)}
 									</Disclosure>
-
-									{/* Enlaces directos */}
+									<Link
+										href="/buscar"
+										className="-mx-3 block rounded-lg px-3 py-2 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50"
+									>
+										Buscar
+									</Link>
 									<Link
 										href="/inmobiliarias"
-										onClick={() => setMobileMenuOpen(false)}
-										className="-mx-3 block rounded-lg px-3 py-3 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50 transition-colors"
+										className="-mx-3 block rounded-lg px-3 py-2 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50"
 									>
 										Inmobiliarias
 									</Link>
 									<Link
 										href="/nosotros"
-										onClick={() => setMobileMenuOpen(false)}
-										className="-mx-3 block rounded-lg px-3 py-3 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50 transition-colors"
+										className="-mx-3 block rounded-lg px-3 py-2 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50"
 									>
 										Nosotros
 									</Link>
 									<Link
 										href="/ayuda"
-										onClick={() => setMobileMenuOpen(false)}
-										className="-mx-3 block rounded-lg px-3 py-3 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50 transition-colors"
+										className="-mx-3 block rounded-lg px-3 py-2 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50"
 									>
 										Ayuda
 									</Link>
 								</div>
-
-								{/* Sección de usuario */}
 								<div className="py-6">
 									{isLoggedIn ? (
 										<>
-											{/* Perfil del usuario */}
-											<div className="mb-6 flex items-center gap-3 px-3 pb-4 border-b border-gray-200">
+											{/* User info */}
+											<div className="px-3 pb-4 border-b border-gray-200 flex items-center gap-3">
+												{/* Avatar en móvil */}
 												{getAvatarUrl(user?.profile_picture_url) ? (
 													<img
 														src={getAvatarUrl(user?.profile_picture_url)!}
@@ -863,8 +844,8 @@ export function Header() {
 												) : (
 													<UserCircleIcon className="h-12 w-12 text-gray-400" />
 												)}
-												<div className="flex-1 min-w-0">
-													<p className="text-base font-semibold text-gray-900 truncate">
+												<div className="flex-1">
+													<p className="text-base font-semibold text-gray-900">
 														{user?.first_name} {user?.last_name}
 													</p>
 													<p className="text-sm text-gray-500 truncate">
@@ -872,92 +853,66 @@ export function Header() {
 													</p>
 												</div>
 											</div>
-
-											{/* Enlaces del perfil */}
-											<div className="space-y-1">
+											
+											<Link
+												href="/profile"
+												className="-mx-3 mt-4 flex items-center gap-3 rounded-lg px-3 py-2.5 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50"
+											>
+												<UserIcon className="h-5 w-5 text-gray-400" />
+												Mi Perfil
+											</Link>
+											
+											{/* Dashboard - Para LANDLORD, AGENT y ADMIN */}
+											{(user?.role === 'landlord' || user?.role === 'agent' || user?.role === 'admin') && (
 												<Link
-													href="/profile"
-													onClick={() => setMobileMenuOpen(false)}
-													className="-mx-3 flex items-center gap-x-3 rounded-lg px-3 py-3 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50 transition-colors"
+													href="/dashboard"
+													className="-mx-3 flex items-center gap-3 rounded-lg px-3 py-2.5 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50"
 												>
-													<UserIcon className="h-5 w-5 text-gray-400" />
-													Mi Perfil
+													<ChartBarIcon className="h-5 w-5 text-gray-400" />
+													Dashboard
 												</Link>
-
-												{(user?.role === 'landlord' || user?.role === 'agent' || user?.role === 'admin') && (
-													<Link
-														href="/dashboard"
-														onClick={() => setMobileMenuOpen(false)}
-														className="-mx-3 flex items-center gap-x-3 rounded-lg px-3 py-3 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50 transition-colors"
-													>
-														<ChartBarIcon className="h-5 w-5 text-gray-400" />
-														Dashboard
-													</Link>
-												)}
-
-												{/* Mi Equipo - Solo para AGENT */}
-												{user?.role === 'agent' && (
-													<Link
-														href="/dashboard/agents"
-														onClick={() => setMobileMenuOpen(false)}
-														className="-mx-3 flex items-center gap-x-3 rounded-lg px-3 py-3 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50 transition-colors"
-													>
-														<UsersIcon className="h-5 w-5 text-gray-400" />
-														Mi Equipo
-													</Link>
-												)}
-
-												{user?.role === 'admin' && (
-													<Link
-														href="/admin"
-														onClick={() => setMobileMenuOpen(false)}
-														className="-mx-3 flex items-center gap-x-3 rounded-lg px-3 py-3 text-base font-semibold leading-7 text-purple-600 hover:bg-purple-50 transition-colors"
-													>
-														<ShieldCheckIcon className="h-5 w-5 text-purple-600" />
-														Panel de Admin
-													</Link>
-												)}
-
+											)}
+											
+											{/* Panel de Admin - Solo para ADMIN */}
+											{user?.role === 'admin' && (
 												<Link
-													href="/perfil"
-													onClick={() => setMobileMenuOpen(false)}
-													className="-mx-3 flex items-center gap-x-3 rounded-lg px-3 py-3 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50 transition-colors"
+													href="/admin"
+													className="-mx-3 flex items-center gap-3 rounded-lg px-3 py-2.5 text-base font-semibold leading-7 text-purple-600 hover:bg-gray-50"
 												>
-													<HeartIcon className="h-5 w-5 text-gray-400" />
-													Favoritos
+													<ShieldCheckIcon className="h-5 w-5 text-purple-600" />
+													Panel de Admin
 												</Link>
-
-												<button
-													onClick={() => {
-														setMobileMenuOpen(false)
-														handleLogout()
-													}}
-													className="-mx-3 flex w-full items-center gap-x-3 rounded-lg px-3 py-3 text-base font-semibold leading-7 text-red-600 hover:bg-red-50 transition-colors"
-												>
-													<ArrowRightOnRectangleIcon className="h-5 w-5" />
-													Cerrar Sesión
-												</button>
-											</div>
+											)}
+											
+											<Link
+												href="/profile"
+												className="-mx-3 flex items-center gap-3 rounded-lg px-3 py-2.5 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50"
+											>
+												<HeartIcon className="h-5 w-5 text-gray-400" />
+												Favoritos
+											</Link>
+											<button
+												onClick={handleLogout}
+												className="-mx-3 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-base font-semibold leading-7 text-red-600 hover:bg-gray-50"
+											>
+												<ArrowRightOnRectangleIcon className="h-5 w-5" />
+												Cerrar Sesión
+											</button>
 										</>
 									) : (
 										<>
-											{/* Botones para usuarios no logueados */}
-											<div className="space-y-3">
-												<Link
-													href="/login"
-													onClick={() => setMobileMenuOpen(false)}
-													className="flex w-full items-center justify-center rounded-lg bg-white border-2 border-gray-300 px-3 py-3 text-base font-semibold text-gray-900 hover:bg-gray-50 transition-colors"
-												>
-													Ingresar
-												</Link>
-												<Link
-													href="/registro"
-													onClick={() => setMobileMenuOpen(false)}
-													className="flex w-full items-center justify-center rounded-lg bg-secondary-500 px-3 py-3 text-base font-semibold text-brand-navy shadow-sm hover:bg-secondary-500/90 transition-colors"
-												>
-													Registrarse
-												</Link>
-											</div>
+											<Link
+												href="/login"
+												className="-mx-3 block rounded-lg px-3 py-2.5 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50"
+											>
+												Ingresar
+											</Link>
+											<Link
+												href="/registro"
+												className="-mx-3 block rounded-lg px-3 py-2.5 text-base font-semibold leading-7 text-brand-blue hover:bg-gray-50"
+											>
+												Registrarse
+											</Link>
 										</>
 									)}
 								</div>

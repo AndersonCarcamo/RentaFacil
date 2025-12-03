@@ -8,6 +8,7 @@ export interface UserProfile {
   first_name: string;
   last_name: string;
   phone?: string;
+  bio?: string;
   role: 'TENANT' | 'LANDLORD' | 'AGENT' | 'ADMIN';
   avatar_url?: string;
   is_active: boolean;
@@ -23,6 +24,7 @@ export interface UpdateUserProfileRequest {
   first_name?: string;
   last_name?: string;
   phone?: string;
+  bio?: string;
 }
 
 /**
