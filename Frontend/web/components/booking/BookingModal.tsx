@@ -114,15 +114,15 @@ export default function BookingModal({
       console.log('✅ Reserva creada exitosamente:', booking);
       
       toast.success('¡Solicitud de reserva enviada!')
-      toast.success(`Esperando confirmación de ${listing.hostName}`)
+      toast.success(`Esperando confirmación de ${listing.hostName}. El propietario recibirá un correo de notificación.`)
       
       onSuccess?.()
       onClose()
       
-      // Redirigir al detalle de la reserva
+      // Redirigir a la lista de reservas del usuario
       setTimeout(() => {
-        window.location.href = `/bookings/${booking.id}`
-      }, 1500)
+        window.location.href = `/dashboard/bookings`
+      }, 2000)
 
     } catch (error: any) {
       console.error('❌ Error creating booking:', error)

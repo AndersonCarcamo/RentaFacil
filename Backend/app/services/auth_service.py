@@ -83,14 +83,19 @@ class AuthService:
     async def authenticate_with_firebase(self, firebase_token: str) -> Optional[User]:
         """Authenticate user with Firebase token."""
         try:
+            logger.info("Starting Firebase authentication...")
+            
             # Verify Firebase token
             firebase_claims = await verify_firebase_token(firebase_token)
             firebase_uid = firebase_claims['uid']
             email = firebase_claims['email']
             
+            logger.info(f"Token verified for user: {email}, Firebase UID: {firebase_uid}")
+            
             # Check if user exists by Firebase UID
             user = self.get_user_by_firebase_uid(firebase_uid)
             if user:
+                logger.info(f"User found by Firebase UID: {user.id}")
                 # Update last login
                 self.update_last_login(user)
                 return user
@@ -98,6 +103,7 @@ class AuthService:
             # Check if user exists by email (for migration cases)
             user = self.get_user_by_email(email)
             if user:
+                logger.info(f"User found by email: {user.id}, linking Firebase UID...")
                 # Link Firebase UID to existing user
                 user.firebase_uid = firebase_uid
                 self.db.commit()
@@ -105,6 +111,7 @@ class AuthService:
                 return user
             
             # User doesn't exist, create new one from Firebase data
+            logger.info(f"User not found, creating new user from Firebase data...")
             user_data = UserRegisterRequest(
                 email=email,
                 first_name=firebase_claims.get('name', '').split(' ')[0] if firebase_claims.get('name') else '',
@@ -115,10 +122,13 @@ class AuthService:
             )
             
             user = self.create_user(user_data, firebase_uid)
+            logger.info(f"New user created successfully: {user.id}")
             return user
             
         except Exception as e:
-            logger.error(f"Error in authenticate_with_firebase: {e}")
+            logger.error(f"Error in authenticate_with_firebase: {type(e).__name__} - {str(e)}")
+            import traceback
+            logger.error(f"Full traceback:\n{traceback.format_exc()}")
             return None
 
     def authenticate_user(self, email: str, firebase_uid: str = None) -> Optional[User]:

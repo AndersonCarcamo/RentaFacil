@@ -26,10 +26,14 @@ class Settings(BaseSettings):
     environment: str = "development"
     
     # Email
+    email_enabled: bool = True
+    smtp_host: str = "smtp.gmail.com"
+    smtp_user: Optional[str] = None
     smtp_server: str = "smtp.gmail.com"
     smtp_port: int = 587
     smtp_username: Optional[str] = None
     smtp_password: Optional[str] = None
+    smtp_from_email: str = "noreply@easyrent.com"  # Campo agregado
     email_from: str = "noreply@easyrent.pe"
     email_from_name: str = "EasyRent"
     

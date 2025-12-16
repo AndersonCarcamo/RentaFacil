@@ -4,6 +4,7 @@ import Image from 'next/image'
 import { useRouter } from 'next/router'
 import { Dialog, Disclosure, Popover, Transition, Menu } from '@headlessui/react'
 import { useAuth } from '../../lib/hooks/useAuth'
+import { BookingNotifications } from '../BookingNotifications'
 import { 
 	Bars3Icon, 
 	XMarkIcon,
@@ -548,14 +549,10 @@ export function Header() {
 
 								{isLoggedIn ? (
 									<>
-										{/* Notifications */}
-										<button 
-											aria-label="Notificaciones"
-											className="hidden sm:inline-flex relative p-2.5 text-gray-600 hover:text-brand-navy rounded-lg hover:bg-gray-100 transition-colors"
-										>
-											<BellIcon className="h-6 w-6" />
-											<span className="absolute top-2 right-2 h-2 w-2 bg-red-500 rounded-full ring-2 ring-white"></span>
-										</button>
+										{/* Booking Notifications */}
+										<div className="hidden sm:inline-flex">
+											<BookingNotifications />
+										</div>
 
 										{/* User Menu Desktop */}
 										<Menu as="div" className="relative hidden lg:block">
@@ -613,6 +610,40 @@ export function Header() {
 														)}
 													</Menu.Item>
 
+													{/* Mis Reservas - Para todos los usuarios */}
+													<Menu.Item>
+														{({ active }) => (
+															<Link
+																href="/my-bookings"
+																className={classNames(
+																	active ? 'bg-gray-50' : '',
+																	'flex items-center gap-x-3 px-4 py-2.5 text-sm text-gray-700'
+																)}
+															>
+																<CalendarDaysIcon className="h-5 w-5 text-gray-400" />
+																Mis Reservas
+															</Link>
+														)}
+													</Menu.Item>
+
+													{/* Mensajes - Para todos los usuarios */}
+													<Menu.Item>
+														{({ active }) => (
+															<Link
+																href="/messages"
+																className={classNames(
+																	active ? 'bg-gray-50' : '',
+																	'flex items-center gap-x-3 px-4 py-2.5 text-sm text-gray-700'
+																)}
+															>
+																<svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+																	<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+																</svg>
+																Mensajes
+															</Link>
+														)}
+													</Menu.Item>
+
 													{(user?.role === 'landlord' || user?.role === 'agent' || user?.role === 'admin') && (
 														<Menu.Item>
 															{({ active }) => (
@@ -643,6 +674,24 @@ export function Header() {
 																>
 																	<UsersIcon className="h-5 w-5 text-gray-400" />
 																	Mi Equipo
+																</Link>
+															)}
+														</Menu.Item>
+													)}
+
+													{/* Gestión de Reservas - Solo para LANDLORD y AGENT */}
+													{(user?.role === 'landlord' || user?.role === 'agent') && (
+														<Menu.Item>
+															{({ active }) => (
+																<Link
+																	href="/dashboard/bookings"
+																	className={classNames(
+																		active ? 'bg-gray-50' : '',
+																		'flex items-center gap-x-3 px-4 py-2.5 text-sm text-gray-700'
+																	)}
+																>
+																	<CalendarDaysIcon className="h-5 w-5 text-gray-400" />
+																	Gestión de Reservas
 																</Link>
 															)}
 														</Menu.Item>

@@ -13,6 +13,7 @@ import { useAuth } from '@/lib/hooks/useAuth'
 // Types y Services
 import { Property } from '@/types'
 import { listingsService } from '@/services/listings'
+import chatService from '@/services/chatService'
 
 // Utilities
 import { formatPrice } from '@/lib/utils'
@@ -24,6 +25,9 @@ interface PropertyDetailPageProps {
 
 const PropertyDetailPage: NextPage<PropertyDetailPageProps> = ({ property, error }) => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
+  const [loadingChat, setLoadingChat] = useState(false)
+  const [hasConfirmedBooking, setHasConfirmedBooking] = useState(false)
+  const [checkingBooking, setCheckingBooking] = useState(true)
   const { user } = useAuth()
   const router = useRouter()
 
@@ -44,6 +48,67 @@ const PropertyDetailPage: NextPage<PropertyDetailPageProps> = ({ property, error
           alert('Enviar email')
           break
       }
+    }
+  }
+
+  // Verificar si el usuario tiene una reserva confirmada para este listing
+  useEffect(() => {
+    const checkBookingStatus = async () => {
+      if (!user || !property) {
+        setCheckingBooking(false)
+        return
+      }
+
+      try {
+        const token = localStorage.getItem('access_token')
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}/bookings/my-bookings`,
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+          }
+        )
+        
+        if (response.ok) {
+          const bookings = await response.json()
+          // Verificar si hay alguna reserva confirmada para este listing
+          const confirmedBooking = bookings.find(
+            (booking: any) => 
+              booking.listing_id === property.id && 
+              booking.status === 'confirmed'
+          )
+          setHasConfirmedBooking(!!confirmedBooking)
+        }
+      } catch (err) {
+        console.error('Error checking booking:', err)
+      } finally {
+        setCheckingBooking(false)
+      }
+    }
+
+    checkBookingStatus()
+  }, [user, property])
+
+  const handleStartChat = async () => {
+    if (!user) {
+      router.push('/register?type=user&redirectTo=' + encodeURIComponent(router.asPath))
+      return
+    }
+
+    if (!property) return
+
+    try {
+      setLoadingChat(true)
+      const conversation = await chatService.createConversation({
+        listing_id: property.id,
+      })
+      router.push(`/messages/${conversation.id}`)
+    } catch (err: any) {
+      console.error('Error starting chat:', err)
+      alert(err.response?.data?.detail || 'Error al iniciar chat')
+    } finally {
+      setLoadingChat(false)
     }
   }
 
@@ -209,8 +274,31 @@ const PropertyDetailPage: NextPage<PropertyDetailPageProps> = ({ property, error
                   </h3>
                   
                   <div className="space-y-4">
+                    {/* Botón de chat - Solo visible con reserva confirmada */}
+                    {user && hasConfirmedBooking && (
+                      <Button 
+                        variant="primary" 
+                        className="w-full"
+                        onClick={handleStartChat}
+                        disabled={loadingChat}
+                      >
+                        <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                        </svg>
+                        {loadingChat ? 'Iniciando chat...' : 'Enviar mensaje'}
+                      </Button>
+                    )}
+
+                    {/* Mensaje informativo si no hay reserva */}
+                    {user && !checkingBooking && !hasConfirmedBooking && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
+                        <p className="font-medium mb-1">💬 Chat disponible</p>
+                        <p>El chat estará disponible una vez que el propietario acepte tu reserva.</p>
+                      </div>
+                    )}
+
                     <Button 
-                      variant="primary" 
+                      variant="outline" 
                       className="w-full"
                       onClick={() => handleContact('call')}
                     >

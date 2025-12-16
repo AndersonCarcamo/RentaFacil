@@ -15,6 +15,7 @@ import {
 } from '../types/booking'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+const API_VERSION = '/v1'
 
 // Helper para manejar respuestas de la API
 async function handleResponse<T>(response: Response): Promise<T> {
@@ -30,7 +31,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
 // Helper para obtener el token de autenticación
 function getAuthToken(): string | null {
   if (typeof window === 'undefined') return null
-  return localStorage.getItem('authToken')
+  return localStorage.getItem('access_token')
 }
 
 // Headers con autenticación
@@ -55,7 +56,7 @@ export const bookingService = {
    * Crear una nueva reserva (Step 1: Usuario solicita reserva)
    */
   async createBooking(data: CreateBookingDto): Promise<Booking> {
-    const response = await fetch(`${API_BASE_URL}/api/bookings`, {
+    const response = await fetch(`${API_BASE_URL}${API_VERSION}/bookings`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(data)
@@ -67,7 +68,7 @@ export const bookingService = {
    * Obtener una reserva por ID
    */
   async getBooking(bookingId: string): Promise<BookingWithPayments> {
-    const response = await fetch(`${API_BASE_URL}/api/bookings/${bookingId}`, {
+    const response = await fetch(`${API_BASE_URL}${API_VERSION}/bookings/${bookingId}`, {
       headers: getAuthHeaders()
     })
     return handleResponse<BookingWithPayments>(response)
@@ -89,7 +90,7 @@ export const bookingService = {
     if (params?.limit) queryParams.set('limit', params.limit.toString())
     
     const response = await fetch(
-      `${API_BASE_URL}/api/bookings/my-bookings?${queryParams}`,
+      `${API_BASE_URL}${API_VERSION}/bookings/my-bookings?${queryParams}`,
       { headers: getAuthHeaders() }
     )
     return handleResponse(response)
@@ -111,7 +112,7 @@ export const bookingService = {
     if (params?.limit) queryParams.set('limit', params.limit.toString())
     
     const response = await fetch(
-      `${API_BASE_URL}/api/bookings/host-bookings?${queryParams}`,
+      `${API_BASE_URL}${API_VERSION}/bookings/host-bookings?${queryParams}`,
       { headers: getAuthHeaders() }
     )
     return handleResponse(response)
@@ -122,7 +123,7 @@ export const bookingService = {
    */
   async confirmBooking(data: ConfirmBookingDto): Promise<Booking> {
     const response = await fetch(
-      `${API_BASE_URL}/api/bookings/${data.bookingId}/confirm`,
+      `${API_BASE_URL}${API_VERSION}/bookings/${data.bookingId}/confirm`,
       {
         method: 'PATCH',
         headers: getAuthHeaders(),
@@ -141,7 +142,7 @@ export const bookingService = {
     clientSecret: string
   }> {
     const response = await fetch(
-      `${API_BASE_URL}/api/bookings/${data.bookingId}/payment/reservation`,
+      `${API_BASE_URL}${API_VERSION}/bookings/${data.bookingId}/payment/reservation`,
       {
         method: 'POST',
         headers: getAuthHeaders(),
@@ -162,7 +163,7 @@ export const bookingService = {
     clientSecret: string
   }> {
     const response = await fetch(
-      `${API_BASE_URL}/api/bookings/${data.bookingId}/payment/checkin`,
+      `${API_BASE_URL}${API_VERSION}/bookings/${data.bookingId}/payment/checkin`,
       {
         method: 'POST',
         headers: getAuthHeaders(),
@@ -179,13 +180,28 @@ export const bookingService = {
    */
   async cancelBooking(data: CancelBookingDto): Promise<Booking> {
     const response = await fetch(
-      `${API_BASE_URL}/api/bookings/${data.bookingId}/cancel`,
+      `${API_BASE_URL}${API_VERSION}/bookings/${data.bookingId}/cancel`,
       {
         method: 'PATCH',
         headers: getAuthHeaders(),
         body: JSON.stringify({
           cancellationReason: data.cancellationReason
         })
+      }
+    )
+    return handleResponse<Booking>(response)
+  },
+
+  /**
+   * Rechazar reserva (solo para host)
+   */
+  async rejectBooking(bookingId: string, reason?: string): Promise<Booking> {
+    const response = await fetch(
+      `${API_BASE_URL}${API_VERSION}/bookings/${bookingId}/reject`,
+      {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ reason })
       }
     )
     return handleResponse<Booking>(response)
@@ -200,7 +216,7 @@ export const bookingService = {
     checkOut: string
   ): Promise<AvailabilityCheckResult> {
     const response = await fetch(
-      `${API_BASE_URL}/api/bookings/availability?` +
+      `${API_BASE_URL}${API_VERSION}/bookings/availability?` +
       `listingId=${listingId}&checkIn=${checkIn}&checkOut=${checkOut}`,
       { headers: getAuthHeaders() }
     )
@@ -216,7 +232,7 @@ export const bookingService = {
     month: number
   ): Promise<DateAvailability[]> {
     const response = await fetch(
-      `${API_BASE_URL}/api/bookings/calendar/${listingId}?year=${year}&month=${month}`,
+      `${API_BASE_URL}${API_VERSION}/bookings/calendar/${listingId}?year=${year}&month=${month}`,
       { headers: getAuthHeaders() }
     )
     return handleResponse<DateAvailability[]>(response)
@@ -232,7 +248,7 @@ export const paymentService = {
    */
   async getBookingPayments(bookingId: string): Promise<BookingPayment[]> {
     const response = await fetch(
-      `${API_BASE_URL}/api/bookings/${bookingId}/payments`,
+      `${API_BASE_URL}${API_VERSION}/bookings/${bookingId}/payments`,
       { headers: getAuthHeaders() }
     )
     return handleResponse<BookingPayment[]>(response)
@@ -241,9 +257,9 @@ export const paymentService = {
   /**
    * Obtener un pago específico
    */
-  async getPayment(paymentId: string): Promise<BookingPayment> {
+  async getPaymentDetails(paymentId: string): Promise<BookingPayment> {
     const response = await fetch(
-      `${API_BASE_URL}/api/payments/${paymentId}`,
+      `${API_BASE_URL}${API_VERSION}/payments/${paymentId}`,
       { headers: getAuthHeaders() }
     )
     return handleResponse<BookingPayment>(response)

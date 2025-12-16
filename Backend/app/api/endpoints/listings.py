@@ -98,6 +98,9 @@ async def list_listings(
         # Convertir listings a dicts e incluir imágenes
         result = []
         for listing in listings:
+            # 🔍 DEBUG: Ver si max_guests está en el objeto
+            print(f"🔍 DEBUG list_listings - listing.id: {listing.id}, max_guests: {getattr(listing, 'max_guests', 'NO ATTRIBUTE')}")
+            
             listing_dict = ListingResponse.from_orm(listing).dict()
             listing_dict['images'] = images_by_listing.get(listing.id, [])
             result.append(listing_dict)
@@ -299,6 +302,9 @@ async def get_listing(listing_id: str, db: Session = Depends(get_db)):
     listing = service.get_listing(listing_id)
     if not listing:
         raise HTTPException(status_code=404, detail="Listing not found")
+    
+    # 🔍 DEBUG: Ver si max_guests está en el objeto
+    print(f"🔍 DEBUG get_listing - max_guests: {getattr(listing, 'max_guests', 'NO ATTRIBUTE')}")
     
     # Obtener imágenes del listing
     images = db.query(Image).filter(
