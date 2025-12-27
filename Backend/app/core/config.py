@@ -69,6 +69,13 @@ class Settings(BaseSettings):
     max_image_size: int = 10485760  # 10MB
     max_video_size: int = 104857600  # 100MB
     
+    # Culqi Payment Gateway
+    culqi_public_key: str = "pk_test_SsNSbc4aceAySSp3"
+    culqi_secret_key: str = "sk_test_yrsjDrloVOls3E62"
+    culqi_api_url: str = "https://api.culqi.com/v2"
+    culqi_rsa_id: Optional[str] = None  # RSA ID from CulqiPanel -> Desarrollo -> RSA Keys
+    culqi_rsa_public_key: Optional[str] = None  # RSA Public Key for payload encryption
+    
     class Config:
         env_file = ".env"
         case_sensitive = False

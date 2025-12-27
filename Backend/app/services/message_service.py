@@ -117,7 +117,19 @@ class MessageService:
         if not conversation:
             return None
         
-        return ConversationResponse.model_validate(conversation)
+        # Determinar el "otro usuario"
+        is_client = conversation.client_user_id == user_id
+        other_user_id = conversation.owner_user_id if is_client else conversation.client_user_id
+        
+        # Obtener info del otro usuario
+        other_user = self.db.query(User).filter(User.id == other_user_id).first()
+        
+        # Crear respuesta con datos adicionales
+        response_data = ConversationResponse.model_validate(conversation).model_dump()
+        response_data['other_user_name'] = f"{other_user.first_name or ''} {other_user.last_name or ''}".strip() or other_user.email if other_user else 'Usuario'
+        response_data['other_user_picture'] = other_user.profile_picture_url if other_user else None
+        
+        return ConversationResponse(**response_data)
     
     async def get_user_conversations(
         self,

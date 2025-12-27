@@ -149,41 +149,53 @@ async def websocket_endpoint(
     
     try:
         # Autenticar usuario
+        logger.info(f"[WS] Authenticating WebSocket connection for conversation {conversation_id}")
         current_user = await get_current_user_websocket(token, db)
+        logger.info(f"[WS] User authenticated: {current_user.id}")
         
         # Verificar acceso a la conversación
         message_service = MessageService(db)
+        logger.info(f"[WS] Checking conversation access for user {current_user.id}")
         conversation = await message_service.get_conversation(
             conversation_id, 
             current_user.id
         )
         
         if not conversation:
+            logger.warning(f"[WS] User {current_user.id} has no access to conversation {conversation_id}")
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
-            logger.warning(
-                f"User {current_user.id} tried to access conversation {conversation_id} without permission"
-            )
             return
+        
+        logger.info(f"[WS] Conversation access granted, connecting WebSocket")
         
         # Conectar al WebSocket manager
         await manager.connect(websocket, current_user.id, conversation_id)
+        logger.info(f"[WS] WebSocket connected to manager")
         
         # Actualizar presencia del usuario
-        await message_service.update_user_presence(
-            current_user.id,
-            is_online=True,
-            increment_connections=1
-        )
+        try:
+            await message_service.update_user_presence(
+                current_user.id,
+                is_online=True,
+                increment_connections=1
+            )
+            logger.info(f"[WS] User presence updated")
+        except Exception as e:
+            logger.error(f"[WS] Error updating presence: {e}", exc_info=True)
         
         # Notificar a otros participantes que el usuario está online
-        await manager.broadcast_presence(
-            conversation_id,
-            current_user.id,
-            is_online=True
-        )
+        try:
+            await manager.broadcast_presence(
+                conversation_id,
+                current_user.id,
+                is_online=True
+            )
+            logger.info(f"[WS] Presence broadcasted")
+        except Exception as e:
+            logger.error(f"[WS] Error broadcasting presence: {e}", exc_info=True)
         
         logger.info(
-            f"User {current_user.id} connected to conversation {conversation_id}"
+            f"[WS] ✅ User {current_user.id} fully connected to conversation {conversation_id}"
         )
         
         try:

@@ -29,6 +29,8 @@ interface SearchSidebarProps {
     rentalMode?: string
     petFriendly?: boolean
     ageYears?: string
+    airbnbEligible?: boolean
+    amenities?: string[]
   }) => void
   isLoading?: boolean
   isCollapsed: boolean
@@ -62,6 +64,8 @@ export default function SearchSidebar({
   const [rentalMode, setRentalMode] = useState('')
   const [petFriendly, setPetFriendly] = useState<boolean | undefined>(undefined)
   const [ageYears, setAgeYears] = useState('')
+  const [airbnbEligible, setAirbnbEligible] = useState<boolean | undefined>(undefined)
+  const [amenities, setAmenities] = useState<string[]>([])
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -79,7 +83,9 @@ export default function SearchSidebar({
       verified: verified,
       rentalMode: rentalMode || undefined,
       petFriendly: petFriendly,
-      ageYears: ageYears || undefined
+      ageYears: ageYears || undefined,
+      airbnbEligible: airbnbEligible,
+      amenities: amenities.length > 0 ? amenities : undefined
     })
   }
 
@@ -97,6 +103,8 @@ export default function SearchSidebar({
     setRentalMode('')
     setPetFriendly(undefined)
     setAgeYears('')
+    setAirbnbEligible(undefined)
+    setAmenities([])
   }
 
   // Vista Colapsada (Solo iconos)
@@ -201,12 +209,33 @@ export default function SearchSidebar({
             <option value="">Todos los tipos</option>
             <option value="apartment">Departamento</option>
             <option value="house">Casa</option>
-            <option value="TipoAirbnb">Tipo Airbnb</option>
             <option value="room">Habitación</option>
             <option value="studio">Estudio</option>
             <option value="office">Oficina</option>
+            <option value="commercial">Local Comercial</option>
+            <option value="land">Terreno</option>
           </select>
         </div>
+
+        {/* Modo de Alquiler - Solo visible en modo alquiler */}
+        {mode === 'alquiler' && (
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-2">
+              🏡 Modo de Alquiler
+            </label>
+            <select
+              value={rentalMode}
+              onChange={(e) => setRentalMode(e.target.value)}
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">Todos los modos</option>
+              <option value="traditional">Tradicional (Contrato largo)</option>
+              <option value="shared">Compartido</option>
+              <option value="private">Habitación privada</option>
+              <option value="coliving">Coliving</option>
+            </select>
+          </div>
+        )}
 
         {/* Precio */}
         <div>
@@ -309,7 +338,81 @@ export default function SearchSidebar({
               </div>
             </div>
 
-            {/* Checkboxes */}
+            {/* Años de Antigüedad */}
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-2">
+                Antigüedad de la Propiedad
+              </label>
+              <select
+                value={ageYears}
+                onChange={(e) => setAgeYears(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Cualquier antigüedad</option>
+                <option value="new">🆕 A estrenar (0 años)</option>
+                <option value="0-5">0-5 años</option>
+                <option value="5-10">5-10 años</option>
+                <option value="10-20">10-20 años</option>
+                <option value="20+">20+ años</option>
+              </select>
+            </div>
+
+            {/* Amenidades */}
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-2">
+                Amenidades
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { value: 'piscina', label: '🏊 Piscina' },
+                  { value: 'gimnasio', label: '💪 Gimnasio' },
+                  { value: 'ascensor', label: '🛗 Ascensor' },
+                  { value: 'balcon', label: '🪟 Balcón' },
+                  { value: 'terraza', label: '🌅 Terraza' },
+                  { value: 'jardin', label: '🌳 Jardín' },
+                  { value: 'garaje', label: '🚗 Garaje' },
+                  { value: 'seguridad', label: '🔒 Seguridad 24h' },
+                  { value: 'aire_acondicionado', label: '❄️ A/C' },
+                  { value: 'calefaccion', label: '🔥 Calefacción' },
+                  { value: 'lavanderia', label: '🧺 Lavandería' },
+                  { value: 'wifi', label: '📶 WiFi' }
+                ].map(amenity => (
+                  <label key={amenity.value} className="flex items-center gap-1 text-xs text-gray-700 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={amenities.includes(amenity.value)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setAmenities([...amenities, amenity.value])
+                        } else {
+                          setAmenities(amenities.filter(a => a !== amenity.value))
+                        }
+                      }}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    {amenity.label}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Tipo de Alquiler Airbnb - Destacado */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={airbnbEligible === true}
+                  onChange={(e) => setAirbnbEligible(e.target.checked ? true : undefined)}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm font-medium text-blue-900">
+                  🏖️ Tipo Airbnb (Corta estadía)
+                </span>
+              </label>
+              <p className="text-xs text-blue-700 mt-1 ml-6">Propiedades disponibles para reserva inmediata</p>
+            </div>
+
+            {/* Checkboxes - Características */}
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
                 <input

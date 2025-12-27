@@ -50,11 +50,12 @@ class SearchFilters(BaseModel):
     pet_friendly: Optional[bool] = Field(None, description="Solo propiedades que aceptan mascotas (true) o no (false)")
     furnished: Optional[bool] = Field(None, description="Solo propiedades amuebladas (true) o no amuebladas (false)")
     rental_mode: Optional[str] = Field(None, description="Modalidad de alquiler (full_property, private_room, shared_room)")
+    rental_model: Optional[str] = Field(None, description="Modelo de renta (traditional, airbnb)")
     airbnb_eligible: Optional[bool] = Field(None, description="Solo propiedades elegibles para Airbnb")
     min_airbnb_score: Optional[int] = Field(None, ge=0, le=100, description="Score mínimo de elegibilidad Airbnb")
     
     # Amenidades
-    amenities: Optional[List[int]] = Field(None, description="IDs de amenidades")
+    amenities: Optional[List[str]] = Field(None, description="Nombres de amenidades (ej: piscina, gimnasio, wifi)")
     
     # Paginación y ordenamiento
     page: int = Field(default=1, ge=1)

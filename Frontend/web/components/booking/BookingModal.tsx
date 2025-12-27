@@ -106,7 +106,11 @@ export default function BookingModal({
       console.log('📝 Creando reserva:', {
         bookingData,
         prices,
-        nights
+        nights,
+        checkInType: typeof checkIn,
+        checkOutType: typeof checkOut,
+        checkInValue: checkIn,
+        checkOutValue: checkOut
       });
 
       const booking = await bookingService.createBooking(bookingData)
@@ -121,11 +125,13 @@ export default function BookingModal({
       
       // Redirigir a la lista de reservas del usuario
       setTimeout(() => {
-        window.location.href = `/dashboard/bookings`
+        window.location.href = `/my-bookings`
       }, 2000)
 
     } catch (error: any) {
       console.error('❌ Error creating booking:', error)
+      console.error('❌ Error message:', error.message)
+      console.error('❌ Error detail:', error.detail)
       toast.error(error.message || 'Error al crear la reserva')
     } finally {
       setLoading(false)

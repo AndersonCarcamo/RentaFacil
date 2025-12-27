@@ -56,11 +56,20 @@ export const bookingService = {
    * Crear una nueva reserva (Step 1: Usuario solicita reserva)
    */
   async createBooking(data: CreateBookingDto): Promise<Booking> {
+    console.log('📤 Enviando datos de reserva:', JSON.stringify(data, null, 2));
+    
     const response = await fetch(`${API_BASE_URL}${API_VERSION}/bookings`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(data)
     })
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      console.error('❌ Error response:', errorData);
+      throw new Error(errorData?.detail || errorData?.message || `Error ${response.status}`);
+    }
+    
     return handleResponse<Booking>(response)
   },
 

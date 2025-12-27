@@ -1,5 +1,5 @@
 // Hook para manejar autenticación
-import { useState, useEffect, createContext, useContext } from 'react'
+import { useState, useEffect, createContext, useContext, useMemo, useCallback } from 'react'
 import type { ReactNode } from 'react'
 import { 
   signInWithEmailAndPassword,
@@ -84,7 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe()
   }, [])
 
-  const login = async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string) => {
     setLoading(true)
     try {
       console.log('🔐 Logging in with Firebase:', email)
@@ -136,9 +136,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
-  const register = async (userData: {
+  const register = useCallback(async (userData: {
     email: string
     password: string
     first_name: string
@@ -223,9 +223,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     setLoading(true)
     try {
       console.log('🚪 Logging out')
@@ -247,9 +247,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
-  const updateUserRole = async (roleData: UpdateRoleRequest) => {
+  const updateUserRole = useCallback(async (roleData: UpdateRoleRequest) => {
     setLoading(true)
     try {
       console.log('🔄 Updating user role')
@@ -263,9 +263,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
-  const value: AuthContextType = {
+  const value: AuthContextType = useMemo(() => ({
     user,
     firebaseUser,
     loading,
@@ -275,7 +275,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     register,
     updateUserRole,
     logout
-  }
+  }), [user, firebaseUser, loading, isAdmin])
 
   return (
     <AuthContext.Provider value={value}>

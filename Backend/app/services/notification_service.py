@@ -32,16 +32,34 @@ class NotificationService:
         sender_id: Optional[UUID] = None
     ) -> Notification:
         """Crear nueva notificación"""
+        import logging
+        logger = logging.getLogger(__name__)
         
         # Si no se especifica user_id, usar sender_id
         user_id = notification_data.user_id or sender_id
         if not user_id:
             raise ValidationError("Se requiere especificar el usuario destinatario")
         
+        logger.info(f"🔔 Creando notificación para user_id: {user_id}")
+        logger.info(f"   Tipo: {notification_data.notification_type}, Categoría: {notification_data.category}")
+        logger.info(f"   Título: {notification_data.title}")
+        
         # Verificar configuración del usuario
         user_settings = self.get_notification_settings(user_id)
-        if not user_settings or not user_settings.enabled:
+        if not user_settings:
+            logger.warning(f"⚠️ Usuario {user_id} no tiene configuraciones de notificación, usando configuración por defecto")
+            # Crear configuración por defecto si no existe
+            try:
+                user_settings = self._create_default_settings(user_id)
+                logger.info(f"✅ Configuraciones por defecto creadas para usuario {user_id}")
+            except Exception as e:
+                logger.error(f"❌ Error creando configuraciones por defecto: {e}")
+                # Continuar sin configuraciones
+                user_settings = None
+        
+        if user_settings and not user_settings.enabled:
             # Usuario tiene notificaciones deshabilitadas
+            logger.warning(f"⚠️ Usuario {user_id} tiene notificaciones deshabilitadas")
             raise ValidationError("El usuario tiene las notificaciones deshabilitadas")
         
         # Crear notificación
@@ -62,13 +80,18 @@ class NotificationService:
             expires_at=notification_data.expires_at
         )
         
+        logger.info(f"💾 Agregando notificación a la base de datos...")
         self.db.add(notification)
         self.db.flush()
+        logger.info(f"✅ Notificación guardada con ID: {notification.id}")
         
         # Agregar a la cola de envío
+        logger.info(f"📤 Agregando a cola de envío...")
         self._add_to_notification_queue(notification)
         
+        logger.info(f"💾 Haciendo commit...")
         self.db.commit()
+        logger.info(f"✅✅✅ Notificación creada exitosamente - ID: {notification.id}, User: {user_id}")
         return notification
     
     def get_notification(self, notification_id: UUID, user_id: UUID) -> Optional[Notification]:
@@ -431,6 +454,38 @@ class NotificationService:
         return self.create_notification(notification_data, sender_id)
     
     # Métodos privados
+    def _create_default_settings(self, user_id: UUID) -> NotificationSettings:
+        """Crear configuraciones de notificación por defecto para un usuario"""
+        default_method_settings = {
+            "in_app": True,
+            "email": True,
+            "push": False,
+            "sms": False
+        }
+        
+        settings = NotificationSettings(
+            user_id=user_id,
+            enabled=True,  # Habilitado por defecto
+            quiet_hours_enabled=False,
+            timezone="America/Lima",
+            digest_frequency="instant",
+            marketing_emails=True,
+            newsletter_subscription=True,
+            system_notifications=default_method_settings,
+            verification_notifications=default_method_settings,
+            listing_notifications=default_method_settings,
+            subscription_notifications=default_method_settings,
+            message_notifications=default_method_settings,
+            lead_notifications=default_method_settings,
+            review_notifications=default_method_settings,
+            payment_notifications=default_method_settings,
+            security_notifications=default_method_settings
+        )
+        
+        self.db.add(settings)
+        self.db.flush()  # No commit aún, se hará después
+        return settings
+    
     def _add_to_notification_queue(self, notification: Notification):
         """Agregar notificación a la cola de envío"""
         priority_score = self._calculate_notification_priority_score(notification.priority)

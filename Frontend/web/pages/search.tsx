@@ -58,14 +58,14 @@ const convertToProperty = (apiProperty: PropertyResponse): Property => {
       ...(apiProperty.furnished ? ['Amoblado'] : ['Sin amoblar']),
       ...(apiProperty.parking_spots ? [`${apiProperty.parking_spots} estacionamiento(s)`] : []),
       ...(apiProperty.pet_friendly ? ['Pet Friendly'] : []),
-      ...(apiProperty.is_airbnb_available ? ['Apto Airbnb'] : [])
+      ...(apiProperty.rental_model === 'airbnb' ? ['🏖️ Tipo Airbnb'] : [])
     ].slice(0, 3), // Máximo 3 amenities
     rating: parseFloat((4.5 + (Math.random() * 0.5)).toFixed(2)), // Rating simulado entre 4.5-5.0
     reviews: Math.floor(Math.random() * 50) + 10, // Reviews simuladas 10-60
     isVerified: apiProperty.verification_status === 'verified',
     isFavorite: false,
     views: apiProperty.views_count,
-    rental_term: apiProperty.is_airbnb_available ? 'daily' : 'monthly', // Si es apto Airbnb, es daily
+    rental_term: apiProperty.rental_term || 'monthly', // Usar el rental_term del API
     furnished: apiProperty.furnished
   }
 }
@@ -86,6 +86,16 @@ const mapSearchFiltersToPropertyFilters = (filters: SearchFilters): PropertyFilt
   if (filters.petFriendly !== undefined) propertyFilters.pet_friendly = filters.petFriendly
   if (filters.verified !== undefined) propertyFilters.has_media = filters.verified
   
+  // Filtro Airbnb: usar rental_model = 'airbnb' para propiedades tipo Airbnb
+  if (filters.airbnbEligible === true) {
+    propertyFilters.rental_model = 'airbnb'
+  }
+  
+  // Filtro por inmobiliaria
+  if (filters.agencyId) {
+    propertyFilters.agency_id = filters.agencyId
+  }
+  
   if (filters.rentalMode) {
     switch (filters.rentalMode) {
       case 'traditional':
@@ -98,10 +108,12 @@ const mapSearchFiltersToPropertyFilters = (filters: SearchFilters): PropertyFilt
       case 'private':
         propertyFilters.rental_mode = 'private_room'
         break
-      case 'airbnb':
-        propertyFilters.airbnb_eligible = true
-        break
     }
+  }
+  
+  // Agregar amenities
+  if (filters.amenities && filters.amenities.length > 0) {
+    propertyFilters.amenities = filters.amenities
   }
   
   propertyFilters.page = 1
@@ -124,9 +136,14 @@ const mapSearchParamsToFilters = (params: any): PropertyFilters => {
   
   // Mapear operación
   if (params.mode) {
-    filters.operation = params.mode === 'alquiler' ? 'rent' : 
-                      params.mode === 'comprar' ? 'sale' : 
-                      params.mode === 'vender' ? 'sale' : 'rent'
+    // Caso especial: si el mode es "tipo_Airbnb", aplicar filtro de rental_model
+    if (params.mode === 'tipo_Airbnb') {
+      filters.rental_model = 'airbnb'
+    } else {
+      filters.operation = params.mode === 'alquiler' ? 'rent' : 
+                        params.mode === 'comprar' ? 'sale' : 
+                        params.mode === 'vender' ? 'sale' : 'rent'
+    }
   }
   
   // Mapear tipo de propiedad
@@ -194,6 +211,16 @@ const mapSearchParamsToFilters = (params: any): PropertyFilters => {
     filters.pet_friendly = params.petFriendly
   }
   
+  // Filtro Airbnb: usar rental_model = 'airbnb' para propiedades tipo Airbnb
+  if (params.airbnbEligible === true) {
+    filters.rental_model = 'airbnb'
+  }
+  
+  // Mapear agency_id (inmobiliaria)
+  if (params.agency_id) {
+    filters.agency_id = params.agency_id
+  }
+  
   // Mapear modo de alquiler
   if (params.rentalMode) {
     switch (params.rentalMode) {
@@ -206,9 +233,6 @@ const mapSearchParamsToFilters = (params: any): PropertyFilters => {
       case 'coliving':
       case 'private':
         filters.rental_mode = 'private_room'
-        break
-      case 'airbnb':
-        filters.airbnb_eligible = true
         break
     }
   }
@@ -374,6 +398,9 @@ const SearchPage = () => {
       verified: params.verified === 'true' ? true : params.verified === 'false' ? false : undefined,
       rentalMode: params.rentalMode as string,
       petFriendly: params.petFriendly === 'true' ? true : params.petFriendly === 'false' ? false : undefined,
+      // Convertir mode=tipo_Airbnb a airbnbEligible
+      airbnbEligible: params.mode === 'tipo_Airbnb' ? true : params.airbnbEligible === 'true' ? true : undefined,
+      agencyId: params.agency_id as string,
     };
   });
   
@@ -413,10 +440,11 @@ const SearchPage = () => {
       console.log('🏠 Datos de propiedad encontrados:', {
         id: propertyData.id,
         title: propertyData.title,
+        rental_model: propertyData.rental_model,
         rental_term: propertyData.rental_term,
         max_guests: propertyData.max_guests,
         price: propertyData.price,
-        is_airbnb: propertyData.rental_term === 'daily'
+        is_airbnb: propertyData.rental_model === 'airbnb'
       });
     } else {
       console.log('⚠️ No se encontraron datos precargados, se cargarán desde API');
@@ -457,19 +485,20 @@ const SearchPage = () => {
       const convertedProperties = apiPropertiesResponse.map(convertToProperty);
       setProperties(convertedProperties);
       
-      // Detectar propiedades tipo Airbnb
-      const airbnbProperties = apiPropertiesResponse.filter(p => p.rental_term === 'daily');
+      // Detectar propiedades tipo Airbnb usando rental_model = 'airbnb'
+      const airbnbProperties = apiPropertiesResponse.filter(p => p.rental_model === 'airbnb');
       if (airbnbProperties.length > 0) {
-        console.log('🏖️ ========================================');
-        console.log('🏖️ PROPIEDADES TIPO AIRBNB ENCONTRADAS:', airbnbProperties.length);
-        console.log('🏖️ ========================================');
+        console.log('🏖️ ========================================')
+        console.log('🏖️ PROPIEDADES TIPO AIRBNB ENCONTRADAS:', airbnbProperties.length)
+        console.log('🏖️ ========================================')
         airbnbProperties.forEach(prop => {
           console.log('🏖️ ', {
             id: prop.id,
             title: prop.title,
             price: prop.price,
-            max_guests: prop.max_guests,
-            minimum_stay_nights: prop.minimum_stay_nights
+            rental_model: prop.rental_model,
+            rental_term: prop.rental_term,
+            status: prop.status
           });
         });
         console.log('🏖️ ========================================');
@@ -511,6 +540,8 @@ const SearchPage = () => {
       verified: params.verified === 'true' ? true : params.verified === 'false' ? false : undefined,
       rentalMode: params.rentalMode as string,
       petFriendly: params.petFriendly === 'true' ? true : params.petFriendly === 'false' ? false : undefined,
+      // Convertir mode=tipo_Airbnb a airbnbEligible
+      airbnbEligible: params.mode === 'tipo_Airbnb' ? true : params.airbnbEligible === 'true' ? true : undefined,
     };
     
     setCurrentFilters(urlFilters);

@@ -27,6 +27,10 @@ from ...schemas.bookings import (
     HostBookingsResponse
 )
 from ...services.email_service import EmailService
+from ...services.message_service import MessageService
+from ...services.notification_service import NotificationService
+from ...models.notification import NotificationType, NotificationPriority
+from ...schemas.notifications import NotificationCreate
 
 logger = logging.getLogger(__name__)
 
@@ -264,7 +268,7 @@ async def create_booking(
             raise HTTPException(status_code=404, detail="Propiedad no encontrada")
         
         # 2. Verificar que el listing es tipo Airbnb
-        if listing.rental_term != 'daily':
+        if listing.rental_model != 'airbnb':
             raise HTTPException(
                 status_code=400,
                 detail="Esta propiedad no está disponible para reservas tipo Airbnb"
@@ -347,6 +351,41 @@ async def create_booking(
         db.refresh(booking)
         
         logger.info(f"Reserva creada: {booking.id} para listing {data.listing_id}")
+        
+        # Crear notificación en la plataforma para el propietario
+        try:
+            notification_service = NotificationService(db)
+            owner = db.query(User).filter(User.id == listing.owner_user_id).first()
+            
+            if owner:
+                guest_name = f"{current_user.first_name or ''} {current_user.last_name or ''}".strip() or current_user.email
+                check_in_formatted = booking.check_in_date.strftime("%d/%m/%Y")
+                check_out_formatted = booking.check_out_date.strftime("%d/%m/%Y")
+                
+                notification_data = NotificationCreate(
+                    user_id=str(listing.owner_user_id),
+                    notification_type=NotificationType.BOOKING,
+                    category="booking_request",
+                    title="🏖️ Nueva solicitud de reserva Airbnb",
+                    message=f"{guest_name} quiere reservar '{listing.title}' del {check_in_formatted} al {check_out_formatted} ({nights} noches, {booking.number_of_guests} huéspedes). Total: S/ {float(total_price):.2f}",
+                    summary=f"Solicitud de {guest_name} para {nights} noches",
+                    priority=NotificationPriority.HIGH,
+                    related_entity_type="booking",
+                    related_entity_id=str(booking.id),
+                    action_url=f"/dashboard/bookings/{booking.id}",
+                    action_data={
+                        "booking_id": str(booking.id),
+                        "listing_id": str(listing.id),
+                        "guest_name": guest_name,
+                        "check_in": check_in_formatted,
+                        "check_out": check_out_formatted
+                    }
+                )
+                
+                notification_service.create_notification(notification_data)
+                logger.info(f"🔔 Notificación creada para propietario {owner.email} - reserva {booking.id}")
+        except Exception as notif_error:
+            logger.error(f"❌ Error creando notificación: {notif_error}")
         
         # Enviar notificación por email al propietario
         try:
@@ -698,6 +737,71 @@ async def confirm_booking(
                 import traceback
                 traceback.print_exc()
                 email_status = f"error: {str(e)}"
+            
+            # Crear conversación de chat automáticamente
+            try:
+                logger.info(f"💬 Creando conversación de chat para la reserva {booking_id}")
+                message_service = MessageService(db)
+                conversation = await message_service.get_or_create_conversation(
+                    listing_id=booking.listing_id,
+                    client_user_id=booking.guest_user_id,
+                    owner_user_id=booking.host_user_id
+                )
+                logger.info(f"✅ Conversación de chat creada/recuperada: {conversation.id}")
+                
+                # Enviar mensaje automático del sistema
+                system_message_content = (
+                    f"🎉 ¡Reserva confirmada! El anfitrión ha aceptado tu solicitud para {listing.title}. "
+                    f"Tienes 6 horas para completar el pago del 50% inicial (S/ {reservation_amount:.2f}). "
+                    f"Plazo límite: {payment_deadline_str}"
+                )
+                
+                await message_service.create_message(
+                    conversation_id=conversation.id,
+                    sender_id=booking.host_user_id,
+                    content=system_message_content,
+                    message_type="system"
+                )
+                logger.info(f"✅ Mensaje del sistema enviado al chat")
+                
+            except Exception as e:
+                logger.error(f"❌ Error al crear conversación de chat: {e}")
+                import traceback
+                traceback.print_exc()
+            
+            # Crear notificación in-app para el huésped
+            try:
+                logger.info(f"🔔 Creando notificación in-app para {guest.email}")
+                notification_service = NotificationService(db)
+                
+                notification_data = NotificationCreate(
+                    user_id=booking.guest_user_id,
+                    notification_type=NotificationType.PAYMENT,
+                    category="booking_confirmed",
+                    title="¡Reserva Confirmada! 🎉",
+                    message=f"{owner_name} ha aceptado tu reserva para {listing.title}. Completa el pago del 50% (S/ {reservation_amount:.2f}) antes del {payment_deadline_str}.",
+                    summary=f"Reserva confirmada - Completa el pago antes de {payment_deadline_str}",
+                    priority=NotificationPriority.HIGH,
+                    related_entity_type="booking",
+                    related_entity_id=booking.id,
+                    action_url=f"/my-bookings/{booking.id}",
+                    action_data={
+                        "booking_id": str(booking.id),
+                        "listing_title": listing.title,
+                        "payment_deadline": payment_deadline_str,
+                        "reservation_amount": reservation_amount
+                    },
+                    expires_at=payment_deadline
+                )
+                
+                notification_service.create_notification(notification_data)
+                logger.info(f"✅ Notificación in-app creada para el huésped")
+                
+            except Exception as e:
+                logger.error(f"❌ Error al crear notificación in-app: {e}")
+                import traceback
+                traceback.print_exc()
+                
         else:
             if not guest:
                 logger.error(f"❌ No se encontró el huésped con ID: {booking.guest_user_id}")
@@ -762,6 +866,38 @@ async def reject_booking(
         db.commit()
         
         logger.info(f"Reserva {booking_id} rechazada por host {current_user.id}")
+        
+        # Crear notificación para el huésped
+        try:
+            guest = db.query(User).filter(User.id == booking.guest_user_id).first()
+            listing = db.query(Listing).filter(Listing.id == booking.listing_id).first()
+            
+            if guest and listing:
+                notification_service = NotificationService(db)
+                owner_name = f"{current_user.first_name or ''} {current_user.last_name or ''}".strip() or "El anfitrión"
+                
+                notification_data = NotificationCreate(
+                    user_id=str(booking.guest_user_id),
+                    notification_type=NotificationType.BOOKING,
+                    category="booking_rejected",
+                    title="❌ Solicitud de reserva rechazada",
+                    message=f"{owner_name} ha rechazado tu solicitud de reserva para '{listing.title}'. {f'Motivo: {reason}' if reason else ''}",
+                    summary=f"Reserva rechazada{f': {reason}' if reason else ''}",
+                    priority=NotificationPriority.MEDIUM,
+                    related_entity_type="booking",
+                    related_entity_id=str(booking.id),
+                    action_url=f"/my-bookings/{booking.id}",
+                    action_data={
+                        "booking_id": str(booking.id),
+                        "listing_title": listing.title,
+                        "rejection_reason": reason
+                    }
+                )
+                
+                notification_service.create_notification(notification_data)
+                logger.info(f"🔔 Notificación de rechazo creada para huésped {guest.email}")
+        except Exception as notif_error:
+            logger.error(f"❌ Error creando notificación de rechazo: {notif_error}")
         
         return {
             "message": "Reserva rechazada",
@@ -900,49 +1036,90 @@ async def process_payment(
         
         # Configuración de Culqi
         import requests
+        from ...core.config import settings
         
-        # Llave privada de Culqi (debe estar en variables de entorno en producción)
-        culqi_secret_key = 'sk_test_yrsjDrloVOls3E62'
+        # Llave privada de Culqi desde configuración
+        culqi_secret_key = settings.culqi_secret_key
         amount_in_cents = int(booking.reservation_amount * 100)
         
         logger.info(f"🔑 Procesando pago Culqi - Booking: {booking_id}, Monto: {amount_in_cents} centavos")
+        logger.info(f"🔑 Usando llave: {culqi_secret_key[:15]}...")
         
-        # Crear cargo en Culqi
-        headers = {
-            'Authorization': f'Bearer {culqi_secret_key}',
-            'Content-Type': 'application/json'
-        }
-        
-        charge_data = {
-            'amount': amount_in_cents,
-            'currency_code': 'PEN',
-            'email': current_user.email,
-            'source_id': culqi_token,
-            'description': f'Reserva de propiedad - {booking.listing_id}'
-        }
-        
-        response = requests.post(
-            'https://api.culqi.com/v2/charges',
-            json=charge_data,
-            headers=headers
-        )
-        
-        logger.info(f"📡 Respuesta de Culqi - Status: {response.status_code}")
-        logger.info(f"📡 Respuesta de Culqi - Body: {response.text}")
-        
-        if response.status_code != 201:
-            error_data = response.json()
-            logger.error(f"❌ Error en Culqi: {error_data}")
+        # Intentar usar SDK de Culqi
+        try:
+            from culqi.client import Culqi
             
-            # Mensaje más específico según el tipo de error
-            error_message = error_data.get('user_message') or error_data.get('merchant_message') or 'Error al procesar el pago'
+            # Inicializar cliente Culqi
+            culqi = Culqi(settings.culqi_public_key, settings.culqi_secret_key)
             
-            raise HTTPException(
-                status_code=400,
-                detail=error_message
+            # Preparar datos del cargo
+            charge_data = {
+                'amount': amount_in_cents,
+                'currency_code': 'PEN',
+                'email': current_user.email,
+                'source_id': culqi_token,
+                'description': f'Reserva #{booking.id} - Propiedad {booking.listing_id}',
+                'capture': True,
+            }
+            
+            logger.info(f"📤 Datos del cargo (SDK): {charge_data}")
+            
+            # Si hay RSA keys configuradas, usar encriptación de payload
+            if settings.culqi_rsa_id and settings.culqi_rsa_public_key:
+                logger.info(f"🔐 Usando encriptación RSA con ID: {settings.culqi_rsa_id}")
+                options = {
+                    "rsa_public_key": settings.culqi_rsa_public_key,
+                    "rsa_id": settings.culqi_rsa_id
+                }
+                charge_result = culqi.charge.create(data=charge_data, **options)
+            else:
+                logger.warning("⚠️ RSA keys no configuradas, enviando sin encriptación")
+                charge_result = culqi.charge.create(data=charge_data)
+            
+            logger.info(f"📡 Respuesta del SDK: {charge_result}")
+            
+            # Verificar si hay error en la respuesta
+            if isinstance(charge_result, dict) and charge_result.get('object') == 'error':
+                error_message = charge_result.get('user_message') or charge_result.get('merchant_message') or 'Error al procesar el pago'
+                logger.error(f"❌ Error en Culqi SDK: {charge_result}")
+                raise HTTPException(status_code=400, detail=error_message)
+                
+        except ImportError:
+            # Fallback: usar requests si el SDK no está instalado
+            logger.warning("⚠️ SDK de Culqi no instalado, usando requests directamente")
+            
+            headers = {
+                'Authorization': f'Bearer {culqi_secret_key}',
+                'Content-Type': 'application/json'
+            }
+            
+            charge_data = {
+                'amount': amount_in_cents,
+                'currency_code': 'PEN',
+                'email': current_user.email,
+                'source_id': culqi_token,
+                'description': f'Reserva #{booking.id} - Propiedad {booking.listing_id}',
+                'capture': True,
+            }
+            
+            logger.info(f"📤 Datos del cargo (HTTP): {charge_data}")
+            
+            response = requests.post(
+                f'{settings.culqi_api_url}/charges',
+                json=charge_data,
+                headers=headers
             )
-        
-        charge_result = response.json()
+            
+            logger.info(f"📡 Respuesta HTTP - Status: {response.status_code}")
+            logger.info(f"📡 Respuesta HTTP - Body: {response.text}")
+            
+            if response.status_code != 201:
+                error_data = response.json()
+                logger.error(f"❌ Error HTTP en Culqi: {error_data}")
+                error_message = error_data.get('user_message') or error_data.get('merchant_message') or 'Error al procesar el pago'
+                raise HTTPException(status_code=400, detail=error_message)
+            
+            charge_result = response.json()
         
         # Actualizar booking
         booking.status = 'reservation_paid'

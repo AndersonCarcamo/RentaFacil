@@ -123,7 +123,7 @@ class WebSocketService {
    */
   sendReadReceipt(messageId: string, conversationId: string): void {
     this.send({
-      type: 'read_receipt',
+      type: 'read',
       message_id: messageId,
       conversation_id: conversationId,
     })

@@ -19,12 +19,12 @@ from app.api.endpoints.subscription_plans import router as subscription_plans_ro
 from app.api.endpoints.plans import router as plans_router
 from app.api.endpoints.bookings import router as bookings_router
 from app.api.endpoints.chat import router as chat_router
+from app.api.endpoints.notifications import router as notifications_router
 from app.api.endpoints.scheduled_tasks import router as scheduled_tasks_router
 # Temporarily disabled routers that depend on non-existent database tables:
 # from app.api.endpoints.interactions import router as interactions_router
 # from app.api.endpoints.analytics import router as analytics_router
 # from app.api.endpoints.verifications import router as verifications_router
-# from app.api.endpoints.notifications import router as notifications_router
 # from app.api.endpoints.integrations import router as integrations_router
 # from app.api.endpoints.webhooks import router as webhooks_router
 # from app.api.endpoints.api_keys import router as api_keys_router
@@ -233,9 +233,9 @@ app.include_router(
 )
 
 app.include_router(
-    scheduled_tasks_router,
-    prefix="/v1/scheduled-tasks",
-    tags=["Scheduled Tasks"]
+    notifications_router,
+    prefix="/v1/notifications",
+    tags=["Notifications"]
 )
 
 app.include_router(

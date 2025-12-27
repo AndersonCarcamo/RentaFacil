@@ -29,7 +29,10 @@ export interface SearchFilters {
   petFriendly?: boolean
   verified?: boolean
   rentalMode?: string
+  ageYears?: string
+  airbnbEligible?: boolean
   amenities?: string[]
+  agencyId?: string
 }
 
 const FILTERS_STORAGE_KEY = 'rentafacil_search_filters'
@@ -40,21 +43,26 @@ const SearchSidebar: React.FC<SearchSidebarProps> = ({
   initialFilters = {}
 }) => {
   const [isExpanded, setIsExpanded] = useState(false)
-  const [filters, setFilters] = useState<SearchFilters>(() => {
-    // Cargar filtros guardados al inicializar
+  const [filters, setFilters] = useState<SearchFilters>(initialFilters)
+  const [isClient, setIsClient] = useState(false)
+
+  // Detectar cuando estamos en el cliente
+  useEffect(() => {
+    setIsClient(true)
+    
+    // Cargar filtros guardados solo en el cliente
     if (typeof window !== 'undefined') {
       try {
         const savedFilters = localStorage.getItem(FILTERS_STORAGE_KEY)
         if (savedFilters) {
           const parsed = JSON.parse(savedFilters)
-          return { ...parsed, ...initialFilters } // initialFilters tiene prioridad
+          setFilters({ ...parsed, ...initialFilters }) // initialFilters tiene prioridad
         }
       } catch (error) {
         console.error('Error loading saved filters:', error)
       }
     }
-    return initialFilters
-  })
+  }, [])
 
   // Iconos de navegación rápida
   const quickFilters = [
@@ -132,7 +140,7 @@ const SearchSidebar: React.FC<SearchSidebarProps> = ({
               title="Expandir filtros"
             >
               <FunnelIcon className="w-6 h-6 text-gray-700" />
-              {countActiveFilters() > 0 && (
+              {isClient && countActiveFilters() > 0 && (
                 <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
                   {countActiveFilters()}
                 </span>
@@ -164,7 +172,7 @@ const SearchSidebar: React.FC<SearchSidebarProps> = ({
               <div className="flex items-center gap-2">
                 <FunnelIcon className="w-5 h-5 text-gray-700" />
                 <h2 className="font-semibold text-gray-900">Filtros</h2>
-                {countActiveFilters() > 0 && (
+                {isClient && countActiveFilters() > 0 && (
                   <span className="bg-blue-500 text-white text-xs px-2 py-0.5 rounded-full font-medium">
                     {countActiveFilters()}
                   </span>
@@ -311,6 +319,20 @@ const SearchSidebar: React.FC<SearchSidebarProps> = ({
                 </div>
               </div>
 
+              {/* Tipo de Alquiler Airbnb */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={filters.airbnbEligible || false}
+                    onChange={(e) => updateFilter('airbnbEligible', e.target.checked || undefined)}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                  />
+                  <span className="text-sm font-medium text-blue-900">🏖️ Tipo Airbnb (Corta estadía)</span>
+                </label>
+                <p className="text-xs text-blue-700 mt-1 ml-6">Propiedades disponibles para reserva inmediata</p>
+              </div>
+
               {/* Características */}
               <div>
                 <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-3">
@@ -359,11 +381,219 @@ const SearchSidebar: React.FC<SearchSidebarProps> = ({
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                 >
                   <option value="">Todos</option>
-                  <option value="traditional">Tradicional</option>
+                  <option value="traditional">Tradicional (Contrato largo)</option>
                   <option value="shared">Compartido</option>
+                  <option value="private">Habitación Privada</option>
                   <option value="coliving">Coliving</option>
-                  <option value="airbnb">Tipo Airbnb</option>
                 </select>
+              </div>
+
+              {/* Antigüedad de la Propiedad */}
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">
+                  Antigüedad de la Propiedad
+                </label>
+                <select
+                  value={filters.ageYears || ''}
+                  onChange={(e) => updateFilter('ageYears', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                >
+                  <option value="">Cualquier antigüedad</option>
+                  <option value="new">🆕 A estrenar (0 años)</option>
+                  <option value="0-5">0-5 años</option>
+                  <option value="5-10">5-10 años</option>
+                  <option value="10-20">10-20 años</option>
+                  <option value="20+">20+ años</option>
+                </select>
+              </div>
+
+              {/* Amenidades */}
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-3 block">
+                  Amenidades
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="flex items-center gap-2 cursor-pointer text-xs">
+                    <input
+                      type="checkbox"
+                      checked={filters.amenities?.includes('piscina') || false}
+                      onChange={(e) => {
+                        const current = filters.amenities || []
+                        const updated = e.target.checked 
+                          ? [...current, 'piscina']
+                          : current.filter(a => a !== 'piscina')
+                        updateFilter('amenities', updated.length > 0 ? updated : undefined)
+                      }}
+                      className="w-4 h-4 text-blue-500 border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                    />
+                    <span className="text-gray-700">🏊 Piscina</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer text-xs">
+                    <input
+                      type="checkbox"
+                      checked={filters.amenities?.includes('gimnasio') || false}
+                      onChange={(e) => {
+                        const current = filters.amenities || []
+                        const updated = e.target.checked 
+                          ? [...current, 'gimnasio']
+                          : current.filter(a => a !== 'gimnasio')
+                        updateFilter('amenities', updated.length > 0 ? updated : undefined)
+                      }}
+                      className="w-4 h-4 text-blue-500 border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                    />
+                    <span className="text-gray-700">💪 Gimnasio</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer text-xs">
+                    <input
+                      type="checkbox"
+                      checked={filters.amenities?.includes('ascensor') || false}
+                      onChange={(e) => {
+                        const current = filters.amenities || []
+                        const updated = e.target.checked 
+                          ? [...current, 'ascensor']
+                          : current.filter(a => a !== 'ascensor')
+                        updateFilter('amenities', updated.length > 0 ? updated : undefined)
+                      }}
+                      className="w-4 h-4 text-blue-500 border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                    />
+                    <span className="text-gray-700">🛗 Ascensor</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer text-xs">
+                    <input
+                      type="checkbox"
+                      checked={filters.amenities?.includes('balcon') || false}
+                      onChange={(e) => {
+                        const current = filters.amenities || []
+                        const updated = e.target.checked 
+                          ? [...current, 'balcon']
+                          : current.filter(a => a !== 'balcon')
+                        updateFilter('amenities', updated.length > 0 ? updated : undefined)
+                      }}
+                      className="w-4 h-4 text-blue-500 border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                    />
+                    <span className="text-gray-700">🪟 Balcón</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer text-xs">
+                    <input
+                      type="checkbox"
+                      checked={filters.amenities?.includes('terraza') || false}
+                      onChange={(e) => {
+                        const current = filters.amenities || []
+                        const updated = e.target.checked 
+                          ? [...current, 'terraza']
+                          : current.filter(a => a !== 'terraza')
+                        updateFilter('amenities', updated.length > 0 ? updated : undefined)
+                      }}
+                      className="w-4 h-4 text-blue-500 border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                    />
+                    <span className="text-gray-700">🌅 Terraza</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer text-xs">
+                    <input
+                      type="checkbox"
+                      checked={filters.amenities?.includes('jardin') || false}
+                      onChange={(e) => {
+                        const current = filters.amenities || []
+                        const updated = e.target.checked 
+                          ? [...current, 'jardin']
+                          : current.filter(a => a !== 'jardin')
+                        updateFilter('amenities', updated.length > 0 ? updated : undefined)
+                      }}
+                      className="w-4 h-4 text-blue-500 border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                    />
+                    <span className="text-gray-700">🌳 Jardín</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer text-xs">
+                    <input
+                      type="checkbox"
+                      checked={filters.amenities?.includes('garaje') || false}
+                      onChange={(e) => {
+                        const current = filters.amenities || []
+                        const updated = e.target.checked 
+                          ? [...current, 'garaje']
+                          : current.filter(a => a !== 'garaje')
+                        updateFilter('amenities', updated.length > 0 ? updated : undefined)
+                      }}
+                      className="w-4 h-4 text-blue-500 border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                    />
+                    <span className="text-gray-700">🚗 Garaje</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer text-xs">
+                    <input
+                      type="checkbox"
+                      checked={filters.amenities?.includes('seguridad') || false}
+                      onChange={(e) => {
+                        const current = filters.amenities || []
+                        const updated = e.target.checked 
+                          ? [...current, 'seguridad']
+                          : current.filter(a => a !== 'seguridad')
+                        updateFilter('amenities', updated.length > 0 ? updated : undefined)
+                      }}
+                      className="w-4 h-4 text-blue-500 border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                    />
+                    <span className="text-gray-700">🔒 Seguridad 24h</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer text-xs">
+                    <input
+                      type="checkbox"
+                      checked={filters.amenities?.includes('aire_acondicionado') || false}
+                      onChange={(e) => {
+                        const current = filters.amenities || []
+                        const updated = e.target.checked 
+                          ? [...current, 'aire_acondicionado']
+                          : current.filter(a => a !== 'aire_acondicionado')
+                        updateFilter('amenities', updated.length > 0 ? updated : undefined)
+                      }}
+                      className="w-4 h-4 text-blue-500 border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                    />
+                    <span className="text-gray-700">❄️ Aire Acondicionado</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer text-xs">
+                    <input
+                      type="checkbox"
+                      checked={filters.amenities?.includes('calefaccion') || false}
+                      onChange={(e) => {
+                        const current = filters.amenities || []
+                        const updated = e.target.checked 
+                          ? [...current, 'calefaccion']
+                          : current.filter(a => a !== 'calefaccion')
+                        updateFilter('amenities', updated.length > 0 ? updated : undefined)
+                      }}
+                      className="w-4 h-4 text-blue-500 border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                    />
+                    <span className="text-gray-700">🔥 Calefacción</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer text-xs">
+                    <input
+                      type="checkbox"
+                      checked={filters.amenities?.includes('lavanderia') || false}
+                      onChange={(e) => {
+                        const current = filters.amenities || []
+                        const updated = e.target.checked 
+                          ? [...current, 'lavanderia']
+                          : current.filter(a => a !== 'lavanderia')
+                        updateFilter('amenities', updated.length > 0 ? updated : undefined)
+                      }}
+                      className="w-4 h-4 text-blue-500 border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                    />
+                    <span className="text-gray-700">🧺 Lavandería</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer text-xs">
+                    <input
+                      type="checkbox"
+                      checked={filters.amenities?.includes('wifi') || false}
+                      onChange={(e) => {
+                        const current = filters.amenities || []
+                        const updated = e.target.checked 
+                          ? [...current, 'wifi']
+                          : current.filter(a => a !== 'wifi')
+                        updateFilter('amenities', updated.length > 0 ? updated : undefined)
+                      }}
+                      className="w-4 h-4 text-blue-500 border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                    />
+                    <span className="text-gray-700">📶 Internet/WiFi</span>
+                  </label>
+                </div>
               </div>
             </div>
 
@@ -377,7 +607,11 @@ const SearchSidebar: React.FC<SearchSidebarProps> = ({
                 Limpiar filtros
               </button>
               <div className="text-xs text-center text-gray-500">
-                {countActiveFilters()} filtro{countActiveFilters() !== 1 ? 's' : ''} activo{countActiveFilters() !== 1 ? 's' : ''}
+                {isClient ? (
+                  <>{countActiveFilters()} filtro{countActiveFilters() !== 1 ? 's' : ''} activo{countActiveFilters() !== 1 ? 's' : ''}</>
+                ) : (
+                  <>0 filtros activos</>
+                )}
               </div>
             </div>
           </div>

@@ -289,6 +289,7 @@ const HomePage: NextPage = () => {
     verified?: boolean;
     rentalMode?: string;
     petFriendly?: boolean;
+    radius?: number;
   }) => {
     setIsLoading(true)
     setSearchQuery(params.location)
@@ -311,6 +312,7 @@ const HomePage: NextPage = () => {
       ...(params.verified !== undefined && { verified: params.verified.toString() }),
       ...(params.rentalMode && { rentalMode: params.rentalMode }),
       ...(params.petFriendly !== undefined && { petFriendly: params.petFriendly.toString() }),
+      ...(params.radius && { radius: params.radius.toString() }),
     })
     
     // Redirigir a página de resultados

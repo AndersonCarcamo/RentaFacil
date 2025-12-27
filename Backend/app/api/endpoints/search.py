@@ -44,9 +44,10 @@ async def search_listings(
     pet_friendly: Optional[bool] = Query(None, description="Solo propiedades que aceptan mascotas (true) o no (false)"),
     furnished: Optional[bool] = Query(None, description="Solo propiedades amuebladas (true) o no amuebladas (false)"),
     rental_mode: Optional[str] = Query(None, description="Modalidad de alquiler (full_property, private_room, shared_room)"),
+    rental_model: Optional[str] = Query(None, description="Modelo de renta (traditional, airbnb)"),
     airbnb_eligible: Optional[bool] = Query(None, description="Solo propiedades elegibles para Airbnb"),
     min_airbnb_score: Optional[int] = Query(None, ge=0, le=100, description="Score mínimo de elegibilidad Airbnb"),
-    amenities: Optional[List[int]] = Query(None, description="IDs de amenidades"),
+    amenities: Optional[List[str]] = Query(None, description="Nombres de amenidades (ej: piscina, gimnasio)"),
     page: int = Query(1, ge=1, description="Página"),
     limit: int = Query(20, ge=1, le=100, description="Elementos por página"),
     sort_by: Optional[str] = Query("published_at", description="Campo para ordenar"),
@@ -74,7 +75,7 @@ async def search_listings(
             min_bedrooms=min_bedrooms, max_bedrooms=max_bedrooms, min_bathrooms=min_bathrooms, max_bathrooms=max_bathrooms,
             min_area_built=min_area_built, max_area_built=max_area_built, min_area_total=min_area_total, max_area_total=max_area_total,
             min_parking_spots=min_parking_spots, rental_term=rental_term, min_age_years=min_age_years, max_age_years=max_age_years,
-            has_media=has_media, pet_friendly=pet_friendly, furnished=furnished, rental_mode=rental_mode, 
+            has_media=has_media, pet_friendly=pet_friendly, furnished=furnished, rental_mode=rental_mode, rental_model=rental_model,
             airbnb_eligible=airbnb_eligible, min_airbnb_score=min_airbnb_score,
             amenities=amenities, page=page, limit=limit, sort_by=sort_by, sort_order=sort_order
         )
@@ -237,4 +238,17 @@ async def delete_saved_search(
         raise HTTPException(
             status_code=500,
             detail=f"Error deleting saved search: {str(e)}"
+        )
+
+@router.get("/amenities", summary="Obtener catálogo de amenidades")
+async def get_amenities(db: Session = Depends(get_db)):
+    """Obtener la lista de todas las amenidades disponibles"""
+    from app.models.search import Amenity
+    try:
+        amenities = db.query(Amenity).order_by(Amenity.name).all()
+        return [{"id": a.id, "name": a.name, "icon": a.icon} for a in amenities]
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error fetching amenities: {str(e)}"
         )

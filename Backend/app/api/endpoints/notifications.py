@@ -11,7 +11,7 @@ from app.schemas.notifications import (
     NotificationSettingsCreate, NotificationSettingsUpdate, NotificationSettingsResponse,
     NotificationStats, BulkNotificationCreate, BulkNotificationResponse
 )
-from app.schemas.auth import UserResponse
+from app.models.auth import User
 from app.core.exceptions import NotFoundError, ValidationError
 
 router = APIRouter()
@@ -27,7 +27,7 @@ def get_notifications(
     search: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
     size: int = Query(50, ge=1, le=100),
-    current_user: UserResponse = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -37,6 +37,12 @@ def get_notifications(
     - Permite filtrar por tipo, estado, prioridad, etc.
     - Incluye contador de notificaciones no leídas
     """
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    logger.info(f"📬 GET /notifications - User: {current_user.id} ({current_user.email})")
+    logger.info(f"   Filters: type={notification_type}, status={status_filter}, priority={priority}, category={category}, read={read}")
+    
     skip = (page - 1) * size
     
     filters = NotificationFilters(
@@ -59,6 +65,13 @@ def get_notifications(
     # Obtener contador de no leídas
     unread_count = service.get_unread_count(current_user.id)
     
+    logger.info(f"📊 Resultados: {len(notifications)} notificaciones encontradas, {unread_count} no leídas, {total} total")
+    
+    if notifications:
+        logger.info(f"📋 Primeras notificaciones:")
+        for i, notif in enumerate(notifications[:3]):  # Mostrar solo las primeras 3
+            logger.info(f"   {i+1}. ID: {notif.id}, Categoría: {notif.category}, Título: {notif.title[:50]}")
+    
     return NotificationListResponse(
         items=notifications,
         total=total,
@@ -73,7 +86,7 @@ def get_notifications(
 
 @router.get("/unread-count", response_model=dict)
 def get_unread_count(
-    current_user: UserResponse = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -91,7 +104,7 @@ def get_unread_count(
 @router.get("/{notification_id}", response_model=NotificationResponse)
 def get_notification(
     notification_id: UUID = Path(..., description="ID de la notificación"),
-    current_user: UserResponse = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -114,7 +127,7 @@ def get_notification(
 @router.post("/{notification_id}/read", response_model=dict)
 def mark_notification_as_read(
     notification_id: UUID = Path(..., description="ID de la notificación"),
-    current_user: UserResponse = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -137,7 +150,7 @@ def mark_notification_as_read(
 
 @router.post("/read-all", response_model=dict)
 def mark_all_notifications_as_read(
-    current_user: UserResponse = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -158,7 +171,7 @@ def mark_all_notifications_as_read(
 @router.delete("/{notification_id}")
 def delete_notification(
     notification_id: UUID = Path(..., description="ID de la notificación"),
-    current_user: UserResponse = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -180,7 +193,7 @@ def delete_notification(
 
 @router.get("/stats", response_model=NotificationStats)
 def get_notification_stats(
-    current_user: UserResponse = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -196,7 +209,7 @@ def get_notification_stats(
 # Endpoints de configuración
 @router.get("/settings", response_model=NotificationSettingsResponse)
 def get_notification_settings(
-    current_user: UserResponse = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -212,7 +225,7 @@ def get_notification_settings(
 @router.put("/settings", response_model=NotificationSettingsResponse)
 def update_notification_settings(
     settings_update: NotificationSettingsUpdate,
-    current_user: UserResponse = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -252,7 +265,7 @@ def update_notification_settings(
 @router.post("/admin/create", response_model=NotificationResponse)
 def create_notification_admin(
     notification_data: NotificationCreate,
-    current_user: UserResponse = Depends(get_current_admin_user),
+    current_user: User = Depends(get_current_admin_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -275,7 +288,7 @@ def create_notification_admin(
 @router.post("/admin/bulk", response_model=BulkNotificationResponse)
 def create_bulk_notifications(
     bulk_data: BulkNotificationCreate,
-    current_user: UserResponse = Depends(get_current_admin_user),
+    current_user: User = Depends(get_current_admin_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -297,7 +310,7 @@ def create_bulk_notifications(
 
 @router.post("/admin/cleanup/expired")
 def cleanup_expired_notifications(
-    current_user: UserResponse = Depends(get_current_admin_user),
+    current_user: User = Depends(get_current_admin_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -318,7 +331,7 @@ def cleanup_expired_notifications(
 @router.post("/admin/cleanup/old-read")
 def cleanup_old_read_notifications(
     days: int = Query(30, ge=1, le=365, description="Días de antigüedad para eliminar notificaciones leídas"),
-    current_user: UserResponse = Depends(get_current_admin_user),
+    current_user: User = Depends(get_current_admin_user),
     db: Session = Depends(get_db)
 ):
     """

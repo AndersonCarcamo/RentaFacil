@@ -48,3 +48,8 @@ imagehash==4.3.1
 
 # Logging
 loguru==0.7.2
+
+# Payment gateway (Culqi SDK con dependencias RSA)
+culqi==1.0.0
+pycryptodome==3.19.0  # Requerido para encriptación RSA de Culqi
+jsonschema==4.20.0  # Requerido por Culqi SDK

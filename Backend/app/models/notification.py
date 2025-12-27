@@ -13,6 +13,7 @@ class NotificationType(str, Enum):
     SYSTEM = "system"
     VERIFICATION = "verification"
     LISTING = "listing"
+    BOOKING = "booking"
     SUBSCRIPTION = "subscription"
     MESSAGE = "message"
     LEAD = "lead"

@@ -32,9 +32,10 @@ export interface PropertyFilters {
   pet_friendly?: boolean
   furnished?: boolean
   rental_mode?: 'full_property' | 'private_room' | 'shared_room'
+  rental_model?: 'traditional' | 'airbnb'
   airbnb_eligible?: boolean
   min_airbnb_score?: number
-  amenities?: number[]
+  amenities?: string[]
   page?: number
   limit?: number
   sort_by?: string
@@ -57,6 +58,8 @@ export interface PropertyResponse {
   pet_friendly?: boolean
   furnished?: boolean
   rental_mode?: string
+  rental_term?: 'daily' | 'weekly' | 'monthly' | 'yearly'
+  rental_model?: 'traditional' | 'airbnb'
   airbnb_score?: number
   airbnb_eligible?: boolean
   airbnb_opted_out?: boolean

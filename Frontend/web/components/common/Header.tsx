@@ -5,6 +5,7 @@ import { useRouter } from 'next/router'
 import { Dialog, Disclosure, Popover, Transition, Menu } from '@headlessui/react'
 import { useAuth } from '../../lib/hooks/useAuth'
 import { BookingNotifications } from '../BookingNotifications'
+import { Notifications } from '../Notifications'
 import { 
 	Bars3Icon, 
 	XMarkIcon,
@@ -89,9 +90,9 @@ export function Header() {
 	const { user, isLoggedIn, logout, updateUserRole } = useAuth()
 	const router = useRouter()
 	
-	// Log inmediato al obtener user del hook
-	console.log('🎯 Header render - user from useAuth:', user)
-	console.log('🎯 Header render - isLoggedIn:', isLoggedIn)
+	// Log inmediato al obtener user del hook (comentado para evitar spam en consola)
+	// console.log('🎯 Header render - user from useAuth:', user)
+	// console.log('🎯 Header render - isLoggedIn:', isLoggedIn)
 
 	// Debug: Log user role
 	useEffect(() => {
@@ -549,6 +550,11 @@ export function Header() {
 
 								{isLoggedIn ? (
 									<>
+										{/* Notifications */}
+										<div className="hidden sm:inline-flex">
+											<Notifications />
+										</div>
+										
 										{/* Booking Notifications */}
 										<div className="hidden sm:inline-flex">
 											<BookingNotifications />

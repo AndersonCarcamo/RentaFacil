@@ -4,19 +4,21 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import type { Message } from '@/types/chat'
 
-const WS_BASE_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000/api/v1'
+const WS_BASE_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000'
 
 interface UseWebSocketOptions {
   conversationId: string
   onMessage?: (message: Message) => void
   onTyping?: (userId: string) => void
   onPresence?: (userId: string, isOnline: boolean) => void
+  onReadReceipt?: (messageId: string, readBy: string) => void
   onError?: (error: Event) => void
 }
 
 interface WebSocketHook {
   sendMessage: (content: string, type?: 'text' | 'image' | 'document') => void
   sendTyping: () => void
+  sendReadReceipt: (messageId: string) => void
   isConnected: boolean
   reconnect: () => void
 }
@@ -26,6 +28,7 @@ export function useWebSocket({
   onMessage,
   onTyping,
   onPresence,
+  onReadReceipt,
   onError,
 }: UseWebSocketOptions): WebSocketHook {
   const [isConnected, setIsConnected] = useState(false)
@@ -42,7 +45,7 @@ export function useWebSocket({
       return
     }
 
-    const wsUrl = `${WS_BASE_URL}/chat/ws/chat/${conversationId}?token=${token}`
+    const wsUrl = `${WS_BASE_URL}/v1/ws/chat/${conversationId}?token=${token}`
     
     try {
       const ws = new WebSocket(wsUrl)
@@ -59,13 +62,16 @@ export function useWebSocket({
           
           switch (data.type) {
             case 'message':
-              onMessage?.(data.message)
+              onMessage?.(data.data)
               break
             case 'typing':
               onTyping?.(data.user_id)
               break
             case 'presence':
               onPresence?.(data.user_id, data.is_online)
+              break
+            case 'read_receipt':
+              onReadReceipt?.(data.message_id, data.read_by)
               break
             case 'error':
               console.error('WebSocket error:', data.error)
@@ -83,8 +89,12 @@ export function useWebSocket({
         onError?.(error)
       }
 
-      ws.onclose = () => {
-        console.log('WebSocket disconnected')
+      ws.onclose = (event) => {
+        console.log('WebSocket disconnected', {
+          code: event.code,
+          reason: event.reason,
+          wasClean: event.wasClean
+        })
         setIsConnected(false)
         
         // Intentar reconectar
@@ -103,7 +113,7 @@ export function useWebSocket({
     } catch (error) {
       console.error('Error creating WebSocket:', error)
     }
-  }, [conversationId, onMessage, onTyping, onPresence, onError])
+  }, [conversationId, onMessage, onTyping, onPresence, onReadReceipt, onError])
 
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {
@@ -136,6 +146,15 @@ export function useWebSocket({
     }
   }, [])
 
+  const sendReadReceipt = useCallback((messageId: string) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({
+        type: 'read',
+        message_id: messageId,
+      }))
+    }
+  }, [])
+
   const reconnect = useCallback(() => {
     disconnect()
     reconnectAttemptsRef.current = 0
@@ -144,12 +163,22 @@ export function useWebSocket({
 
   useEffect(() => {
     connect()
-    return () => disconnect()
-  }, [connect, disconnect])
+    return () => {
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current)
+      }
+      if (wsRef.current) {
+        wsRef.current.close()
+        wsRef.current = null
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationId])
 
   return {
     sendMessage,
     sendTyping,
+    sendReadReceipt,
     isConnected,
     reconnect,
   }

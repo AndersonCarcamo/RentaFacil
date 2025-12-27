@@ -11,9 +11,13 @@ import type {
   UnreadCountResponse,
 } from '../types/chat'
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
 class ChatService {
+  private getBaseUrl() {
+    return `${API_BASE_URL}/v1`
+  }
+  
   private getAuthHeaders() {
     const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
     return {
@@ -26,7 +30,7 @@ class ChatService {
    */
   async createConversation(data: CreateConversationRequest): Promise<Conversation> {
     const response = await axios.post<Conversation>(
-      `${API_BASE_URL}/chat/conversations`,
+      `${this.getBaseUrl()}/chat/conversations`,
       data,
       { headers: this.getAuthHeaders() }
     )
@@ -42,7 +46,7 @@ class ChatService {
     is_active?: boolean
   }): Promise<ConversationWithDetails[]> {
     const response = await axios.get<ConversationWithDetails[]>(
-      `${API_BASE_URL}/chat/conversations`,
+      `${this.getBaseUrl()}/chat/conversations`,
       {
         headers: this.getAuthHeaders(),
         params,
@@ -56,7 +60,7 @@ class ChatService {
    */
   async getConversation(conversationId: string): Promise<ConversationWithDetails> {
     const response = await axios.get<ConversationWithDetails>(
-      `${API_BASE_URL}/chat/conversations/${conversationId}`,
+      `${this.getBaseUrl()}/chat/conversations/${conversationId}`,
       { headers: this.getAuthHeaders() }
     )
     return response.data
@@ -73,7 +77,7 @@ class ChatService {
     }
   ): Promise<Message[]> {
     const response = await axios.get<Message[]>(
-      `${API_BASE_URL}/chat/conversations/${conversationId}/messages`,
+      `${this.getBaseUrl()}/chat/conversations/${conversationId}/messages`,
       {
         headers: this.getAuthHeaders(),
         params,
@@ -87,7 +91,7 @@ class ChatService {
    */
   async sendMessage(conversationId: string, data: SendMessageRequest): Promise<Message> {
     const response = await axios.post<Message>(
-      `${API_BASE_URL}/chat/conversations/${conversationId}/messages`,
+      `${this.getBaseUrl()}/chat/conversations/${conversationId}/messages`,
       data,
       { headers: this.getAuthHeaders() }
     )
@@ -99,7 +103,7 @@ class ChatService {
    */
   async markAsRead(conversationId: string): Promise<{ messages_marked_read: number }> {
     const response = await axios.patch<{ messages_marked_read: number }>(
-      `${API_BASE_URL}/chat/conversations/${conversationId}/read`,
+      `${this.getBaseUrl()}/chat/conversations/${conversationId}/read`,
       {},
       { headers: this.getAuthHeaders() }
     )
@@ -111,7 +115,7 @@ class ChatService {
    */
   async getUnreadCount(conversationId?: string): Promise<number> {
     const response = await axios.get<UnreadCountResponse>(
-      `${API_BASE_URL}/chat/unread-count`,
+      `${this.getBaseUrl()}/chat/unread-count`,
       {
         headers: this.getAuthHeaders(),
         params: conversationId ? { conversation_id: conversationId } : undefined,
@@ -125,7 +129,7 @@ class ChatService {
    */
   async archiveConversation(conversationId: string): Promise<Conversation> {
     const response = await axios.patch<Conversation>(
-      `${API_BASE_URL}/chat/conversations/${conversationId}/archive`,
+      `${this.getBaseUrl()}/chat/conversations/${conversationId}/archive`,
       {},
       { headers: this.getAuthHeaders() }
     )
@@ -137,7 +141,7 @@ class ChatService {
    */
   async deleteMessage(conversationId: string, messageId: string): Promise<Message> {
     const response = await axios.delete<Message>(
-      `${API_BASE_URL}/chat/conversations/${conversationId}/messages/${messageId}`,
+      `${this.getBaseUrl()}/chat/conversations/${conversationId}/messages/${messageId}`,
       { headers: this.getAuthHeaders() }
     )
     return response.data

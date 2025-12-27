@@ -99,6 +99,10 @@ class ConversationResponse(BaseModel):
     is_active: bool
     archived_by_client: bool = False
     archived_by_owner: bool = False
+    
+    # Campos adicionales del otro usuario (para compatibilidad con frontend)
+    other_user_name: Optional[str] = None
+    other_user_picture: Optional[str] = None
 
     class Config:
         from_attributes = True

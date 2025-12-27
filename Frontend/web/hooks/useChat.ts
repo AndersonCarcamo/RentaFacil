@@ -102,6 +102,11 @@ export function useChat({ conversationId, enabled = true }: UseChatOptions) {
             
             scrollToBottom()
             markAsReadMutation.mutate()
+            
+            // Enviar read receipt por WebSocket si el mensaje es de otro usuario
+            if (newMessage.id && wsMessage.sender_user_id) {
+              sendReadReceipt(newMessage.id, conversationId)
+            }
           }
           break
 
@@ -141,7 +146,7 @@ export function useChat({ conversationId, enabled = true }: UseChatOptions) {
   )
 
   // Configurar WebSocket
-  const { sendTyping, isConnected } = useWebSocket({
+  const { sendTyping, sendReadReceipt, isConnected } = useWebSocket({
     onMessage: handleWebSocketMessage,
     onConnect: () => {
       console.log('Chat WebSocket conectado')

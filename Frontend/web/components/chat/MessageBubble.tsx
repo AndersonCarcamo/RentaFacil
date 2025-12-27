@@ -3,7 +3,7 @@
  */
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { CheckIcon, CheckCheckIcon } from 'lucide-react'
+import { Check, CheckCheck } from 'lucide-react'
 import type { Message } from '../../types/chat'
 
 interface MessageBubbleProps {
@@ -31,14 +31,14 @@ export default function MessageBubble({
 
   const getStatusIcon = () => {
     if (!isOwnMessage) return null
-
+    console.log('Message status:', message.status)
     switch (message.status) {
       case 'sent':
-        return <CheckIcon className="w-4 h-4 text-gray-400" />
+        return <Check className="w-4 h-4 text-gray-400" />
       case 'delivered':
-        return <CheckCheckIcon className="w-4 h-4 text-gray-400" />
+        return <CheckCheck className="w-4 h-4 text-gray-400" />
       case 'read':
-        return <CheckCheckIcon className="w-4 h-4 text-primary-500" />
+        return <CheckCheck className="w-4 h-4 text-blue-500" />
       default:
         return null
     }

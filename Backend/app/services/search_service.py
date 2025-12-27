@@ -275,6 +275,8 @@ class SearchService:
             query = query.filter(Listing.furnished == filters.furnished)
         if filters.rental_mode:
             query = query.filter(Listing.rental_mode == filters.rental_mode)
+        if filters.rental_model:
+            query = query.filter(Listing.rental_model == filters.rental_model)
         
         # Filtros optimizados de Airbnb
         if filters.airbnb_eligible is True:
@@ -303,10 +305,25 @@ class SearchService:
         
         # Filtro de amenidades
         if filters.amenities:
-            amenity_query = self.db.query(ListingAmenity.listing_id).filter(
-                ListingAmenity.amenity_id.in_(filters.amenities)
-            ).subquery()
-            query = query.filter(Listing.id.in_(amenity_query))
+            # Convertir nombres a IDs si es necesario
+            from app.models.search import Amenity
+            amenity_ids = []
+            for amenity in filters.amenities:
+                if isinstance(amenity, int):
+                    amenity_ids.append(amenity)
+                else:
+                    # Buscar por nombre (case-insensitive)
+                    amenity_obj = self.db.query(Amenity).filter(
+                        func.lower(Amenity.name).like(f"%{amenity.lower()}%")
+                    ).first()
+                    if amenity_obj:
+                        amenity_ids.append(amenity_obj.id)
+            
+            if amenity_ids:
+                amenity_query = self.db.query(ListingAmenity.listing_id).filter(
+                    ListingAmenity.amenity_id.in_(amenity_ids)
+                ).subquery()
+                query = query.filter(Listing.id.in_(amenity_query))
         
         # Ordenamiento
         sort_field = getattr(Listing, filters.sort_by, Listing.published_at)
