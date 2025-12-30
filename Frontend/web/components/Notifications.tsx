@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { BellIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 import { useAuth } from '../lib/hooks/useAuth';
@@ -33,14 +33,14 @@ export function Notifications() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [showDropdown, setShowDropdown] = useState(false);
   const [loading, setLoading] = useState(false);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isMountedRef = useRef(true);
 
   const fetchNotifications = useCallback(async () => {
-    if (!isLoggedIn) {
-      console.log('[Notifications] No logged in, skipping fetch');
+    if (!isLoggedIn || !isMountedRef.current) {
       return;
     }
     
-    console.log('[Notifications] Fetching notifications...');
     try {
       const data = await notificationService.getNotifications({
         page: 1,
@@ -48,31 +48,50 @@ export function Notifications() {
         read: false // Solo notificaciones no leídas
       });
       
-      console.log('[Notifications] Received data:', {
-        items: data.items,
-        unreadCount: data.unread_count,
-        total: data.total
-      });
-      
-      setNotifications(data.items);
-      setUnreadCount(data.unread_count);
+      if (isMountedRef.current) {
+        setNotifications(data.items);
+        setUnreadCount(data.unread_count);
+      }
     } catch (err) {
       console.error('[Notifications] Error fetching notifications:', err);
     }
   }, [isLoggedIn]);
 
   useEffect(() => {
-    console.log('[Notifications] useEffect - authLoading:', authLoading, 'isLoggedIn:', isLoggedIn);
-    if (!authLoading && isLoggedIn) {
-      console.log('[Notifications] Starting to fetch notifications and setting interval');
-      fetchNotifications();
-      // Actualizar cada 30 segundos
-      const interval = setInterval(fetchNotifications, 30000);
-      return () => {
-        console.log('[Notifications] Cleaning up interval');
-        clearInterval(interval);
-      };
+    isMountedRef.current = true;
+    
+    return () => {
+      isMountedRef.current = false;
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    // Limpiar intervalo anterior si existe
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
     }
+
+    if (!authLoading && isLoggedIn) {
+      // Fetch inicial
+      fetchNotifications();
+      
+      // Configurar intervalo
+      intervalRef.current = setInterval(() => {
+        fetchNotifications();
+      }, 30000);
+    }
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
   }, [authLoading, isLoggedIn, fetchNotifications]);
 
   const handleMarkAsRead = async (notificationId: string, e: React.MouseEvent) => {
@@ -116,11 +135,8 @@ export function Notifications() {
 
   // No mostrar nada si no está autenticado
   if (authLoading || !isLoggedIn) {
-    console.log('[Notifications] Not rendering - authLoading:', authLoading, 'isLoggedIn:', isLoggedIn);
     return null;
   }
-
-  console.log('[Notifications] Rendering - unreadCount:', unreadCount, 'notifications:', notifications.length);
 
   return (
     <div className="relative">

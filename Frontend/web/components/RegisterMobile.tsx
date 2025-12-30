@@ -46,9 +46,10 @@ interface RegisterMobileProps {
   onSubmit: (data: FormData) => Promise<void>;
   isLoading: boolean;
   generalError?: string;
+  hideHeader?: boolean;
 }
 
-const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, generalError }) => {
+const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, generalError, hideHeader = false }) => {
   const router = useRouter();
   const { type } = router.query;
   
@@ -946,12 +947,12 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <Header />
+      {!hideHeader && <Header />}
       
-      {/* Main Content - Adjust for Header height (96px) */}
-      <div className="flex flex-col" style={{ height: 'calc(100vh - 96px)' }}>
+      {/* Main Content - Adjust for Header height (96px) only if header is shown */}
+      <div className="flex flex-col" style={{ height: hideHeader ? '100vh' : 'calc(100vh - 96px)' }}>
         {/* Progress Bar */}
-        <div className="bg-white border-b sticky top-[96px] z-[900]">
+        <div className="bg-white border-b" style={{ position: 'sticky', top: hideHeader ? '0' : '96px', zIndex: 900 }}>
           <div className="px-4 py-4">
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm font-medium text-gray-900">

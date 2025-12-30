@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solicitud de Pago</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333333;
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .email-header {
+            background: linear-gradient(135deg, #22ACF5 0%, #1D7FAF 100%);
+            padding: 40px 30px;
+            text-align: center;
+            color: white;
+        }
+        
+        .logo {
+            max-width: 200px;
+            height: auto;
+            margin-bottom: 20px;
+            filter: brightness(0) invert(1);
+        }
+        
+        .header-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+        
+        .header-title {
+            color: #ffffff;
+            font-size: 28px;
+            font-weight: 700;
+            margin: 10px 0;
+        }
+        
+        .header-subtitle {
+            color: #E3F2FA;
+            font-size: 16px;
+            font-weight: 500;
+        }
+        
+        .email-content {
+            padding: 40px 30px;
+            background-color: #ffffff;
+        }
+        
+        .greeting {
+            font-size: 18px;
+            color: #0C2D55;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+        
+        .message {
+            font-size: 15px;
+            color: #333333;
+            line-height: 1.8;
+            margin-bottom: 20px;
+        }
+        
+        .details-card {
+            background: #F0F9FD;
+            border-left: 4px solid #22ACF5;
+            border-radius: 8px;
+            padding: 25px;
+            margin: 25px 0;
+        }
+        
+        .details-title {
+            color: #0C2D55;
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 15px;
+        }
+        
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #C5E7F5;
+        }
+        
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+        
+        .detail-label {
+            font-weight: 600;
+            color: #1D7FAF;
+            font-size: 14px;
+        }
+        
+        .detail-value {
+            color: #0C2D55;
+            font-weight: 500;
+            text-align: right;
+            font-size: 14px;
+        }
+        
+        .price-highlight {
+            background: linear-gradient(135deg, #F5C842 0%, #FFE488 100%);
+            padding: 25px;
+            border-radius: 8px;
+            text-align: center;
+            margin: 25px 0;
+            border: 3px solid #D4A926;
+        }
+        
+        .price-label {
+            color: #0C2D55;
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        
+        .price-amount {
+            color: #0C2D55;
+            font-size: 36px;
+            font-weight: 700;
+        }
+        
+        .deadline-box {
+            background: #FFF8E1;
+            border: 2px solid #F5C842;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 25px 0;
+            text-align: center;
+        }
+        
+        .deadline-label {
+            color: #D4A926;
+            font-weight: 700;
+            margin-bottom: 8px;
+            font-size: 15px;
+        }
+        
+        .deadline-date {
+            color: #523A07;
+            font-size: 20px;
+            font-weight: 700;
+        }
+        
+        .cta-container {
+            text-align: center;
+            margin: 30px 0;
+        }
+        
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #F5C842 0%, #D4A926 100%);
+            color: #0C2D55;
+            padding: 16px 40px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 16px;
+            box-shadow: 0 4px 12px rgba(245, 200, 66, 0.4);
+        }
+        
+        .payment-methods {
+            background: #E3F2FA;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 25px 0;
+        }
+        
+        .payment-methods-title {
+            color: #0C2D55;
+            font-weight: 700;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+        
+        .payment-method {
+            background: white;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 10px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .payment-icon {
+            font-size: 24px;
+        }
+        
+        .payment-text {
+            color: #0C2D55;
+            font-size: 14px;
+        }
+        
+        .info-box {
+            background: #E3F2FA;
+            border-left: 4px solid #22ACF5;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 25px 0;
+        }
+        
+        .info-box-text {
+            color: #0C2D55;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        
+        .warning-box {
+            background: #FFF8E1;
+            border-left: 4px solid #F5C842;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 25px 0;
+        }
+        
+        .warning-text {
+            color: #523A07;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        
+        .email-footer {
+            background: #0C2D55;
+            padding: 30px;
+            text-align: center;
+            color: #ffffff;
+        }
+        
+        .footer-logo {
+            max-width: 150px;
+            margin-bottom: 15px;
+            opacity: 0.9;
+            filter: brightness(0) invert(1);
+        }
+        
+        .footer-text {
+            font-size: 13px;
+            color: #C5E7F5;
+            margin: 8px 0;
+        }
+        
+        .footer-links {
+            margin: 15px 0;
+        }
+        
+        .footer-link {
+            color: #F5C842;
+            text-decoration: none;
+            margin: 0 10px;
+            font-size: 13px;
+        }
+        
+        .footer-disclaimer {
+            font-size: 11px;
+            color: #79C8E8;
+            margin-top: 15px;
+            line-height: 1.4;
+        }
+        
+        @media only screen and (max-width: 600px) {
+            .email-container {
+                border-radius: 0;
+            }
+            
+            .email-header,
+            .email-content,
+            .email-footer {
+                padding: 30px 20px;
+            }
+            
+            .header-title {
+                font-size: 24px;
+            }
+            
+            .detail-row {
+                flex-direction: column;
+                gap: 5px;
+            }
+            
+            .detail-value {
+                text-align: left;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <!-- Header -->
+        <div class="email-header">
+            <img src="https://rentafacil.com/images/logo_sin_fondo.png" alt="Renta Fácil" class="logo">
+            <div class="header-icon">💳</div>
+            <h1 class="header-title">Solicitud de Pago</h1>
+            <p class="header-subtitle">Tu reserva está confirmada</p>
+        </div>
+        
+        <!-- Contenido -->
+        <div class="email-content">
+            <p class="greeting">Hola <strong>María García</strong>,</p>
+            
+            <p class="message">
+                ¡Excelentes noticias! Tu reserva ha sido aprobada por el anfitrión. 
+                Para confirmar definitivamente tu estadía, necesitamos que completes el pago.
+            </p>
+            
+            <!-- Detalles de la reserva -->
+            <div class="details-card">
+                <h3 class="details-title">📋 Detalles de tu Reserva</h3>
+                
+                <div class="detail-row">
+                    <span class="detail-label">🏠 Propiedad:</span>
+                    <span class="detail-value">Departamento Moderno en Miraflores</span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">📅 Check-in:</span>
+                    <span class="detail-value">15 de Enero, 2024</span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">📅 Check-out:</span>
+                    <span class="detail-value">20 de Enero, 2024</span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">👥 Huéspedes:</span>
+                    <span class="detail-value">2 persona(s)</span>
+                </div>
+            </div>
+            
+            <!-- Precio destacado -->
+            <div class="price-highlight">
+                <p class="price-label">💰 Total a Pagar</p>
+                <p class="price-amount">S/ 850.00</p>
+            </div>
+            
+            <!-- Fecha límite de pago -->
+            
+            <div class="deadline-box">
+                <p class="deadline-label">⏰ Fecha Límite de Pago</p>
+                <p class="deadline-date">15 de Diciembre, 2023 - 18:00</p>
+            </div>
+            
+            
+            <!-- CTA principal -->
+            <div class="cta-container">
+                <p class="message" style="font-weight: 600; margin-bottom: 20px;">
+                    Completa tu pago de forma segura
+                </p>
+                <a href="https://rentafacil.com/my-bookings/BK-12345" class="cta-button">
+                    💳 Realizar Pago Ahora
+                </a>
+            </div>
+            
+            <!-- Métodos de pago -->
+            <div class="payment-methods">
+                <p class="payment-methods-title">💳 Métodos de Pago Aceptados:</p>
+                <div class="payment-method">
+                    <span class="payment-icon">💳</span>
+                    <span class="payment-text">Tarjetas de crédito y débito (Visa, Mastercard, American Express)</span>
+                </div>
+                <div class="payment-method">
+                    <span class="payment-icon">🏦</span>
+                    <span class="payment-text">Yape, Plin y transferencias bancarias</span>
+                </div>
+            </div>
+            
+            <!-- Advertencia -->
+            <div class="warning-box">
+                <p class="warning-text">
+                    <strong>⚠️ Importante:</strong> Si no realizas el pago antes de la fecha límite, 
+                    tu reserva será cancelada automáticamente y la propiedad estará disponible para otros huéspedes.
+                </p>
+            </div>
+            
+            <!-- Info adicional -->
+            <div class="info-box">
+                <p class="info-box-text">
+                    <strong>🔒 Pago Seguro:</strong> Todos los pagos se procesan de forma segura 
+                    a través de nuestra plataforma. Tu información financiera está protegida con encriptación de última generación.
+                </p>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="email-footer">
+            <img src="https://rentafacil.com/images/logo_sin_fondo.png" alt="Renta Fácil" class="footer-logo">
+            <p class="footer-text"><strong>Renta Fácil</strong> - Tu plataforma de confianza para alquileres</p>
+            
+            <div class="footer-links">
+                <a href="https://rentafacil.com" class="footer-link">Inicio</a>
+                <a href="https://rentafacil.com/ayuda" class="footer-link">Ayuda</a>
+                <a href="https://rentafacil.com/contacto" class="footer-link">Contacto</a>
+            </div>
+            
+            <p class="footer-disclaimer">
+                Este es un correo automático de Renta Fácil. Por favor no respondas a este correo.<br>
+                Si tienes alguna pregunta, visita nuestro <a href="https://rentafacil.com/ayuda" style="color: #F5C842;">centro de ayuda</a> o contáctanos en soporte@rentafacil.com
+            </p>
+        </div>
+    </div>
+</body>
+</html>

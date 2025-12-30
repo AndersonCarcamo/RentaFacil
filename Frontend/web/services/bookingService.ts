@@ -244,7 +244,16 @@ export const bookingService = {
       `${API_BASE_URL}${API_VERSION}/bookings/calendar/${listingId}?year=${year}&month=${month}`,
       { headers: getAuthHeaders() }
     )
-    return handleResponse<DateAvailability[]>(response)
+    const data = await handleResponse<any[]>(response)
+    
+    // Transformar snake_case a camelCase
+    return data.map(item => ({
+      date: item.date,
+      isAvailable: item.is_available,
+      price: item.price,
+      minimumNights: item.minimum_nights,
+      bookingId: item.booking_id
+    }))
   }
 }
 

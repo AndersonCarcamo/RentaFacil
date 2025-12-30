@@ -47,6 +47,17 @@ export default function MessagesPage() {
     return conversation.other_user_picture || null
   }
 
+  const getAvatarUrl = (conversation: any) => {
+    const avatar = getOtherUserAvatar(conversation)
+    const name = getOtherUserName(conversation)
+    
+    if (avatar) {
+      return avatar
+    }
+    // Generar avatar con iniciales usando ui-avatars.com
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=EAB308&color=fff&size=128&bold=true&rounded=true`
+  }
+
   const formatTime = (dateString?: string) => {
     if (!dateString) return ''
     const date = new Date(dateString)
@@ -164,9 +175,13 @@ export default function MessagesPage() {
                       {/* Avatar with status indicator */}
                       <div className="flex-shrink-0 relative">
                         <img
-                          src={getOtherUserAvatar(conversation) || `https://ui-avatars.com/api/?name=${encodeURIComponent(getOtherUserName(conversation))}&background=EAB308&color=fff&size=128&bold=true`}
+                          src={getAvatarUrl(conversation)}
                           alt={getOtherUserName(conversation)}
                           className="h-10 w-10 sm:h-14 sm:w-14 rounded-full object-cover ring-2 ring-white shadow-md"
+                          onError={(e) => {
+                            // Si la imagen falla al cargar, usar el avatar por defecto
+                            e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(getOtherUserName(conversation))}&background=EAB308&color=fff&size=128&bold=true&rounded=true`
+                          }}
                         />
                       </div>
 

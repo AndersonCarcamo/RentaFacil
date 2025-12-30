@@ -7,7 +7,8 @@ import os
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import Optional, List
-from jinja2 import Template
+from jinja2 import Environment, FileSystemLoader, Template
+from pathlib import Path
 from app.core.config import settings
 from app.core.logging import logger
 
@@ -23,6 +24,39 @@ class EmailService:
         self.smtp_user = settings.smtp_username or settings.smtp_user
         self.smtp_password = settings.smtp_password
         self.enabled = settings.email_enabled
+        
+        # Configurar Jinja2 para cargar plantillas
+        template_dir = Path(__file__).parent.parent / "templates" / "email"
+        self.jinja_env = Environment(loader=FileSystemLoader(str(template_dir)))
+        
+        # URL base del frontend y logo
+        self.frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:3000')
+        self.logo_url = f"{self.frontend_url}/images/logo_sin_fondo.png"
+    
+    def render_template(self, template_name: str, **context) -> str:
+        """
+        Renderizar una plantilla Jinja2 con el contexto proporcionado
+        
+        Args:
+            template_name: Nombre del archivo de plantilla (ej: 'booking_request.html')
+            **context: Variables para pasar a la plantilla
+            
+        Returns:
+            str: HTML renderizado
+        """
+        try:
+            template = self.jinja_env.get_template(template_name)
+            
+            # Agregar variables comunes a todas las plantillas
+            context.update({
+                'frontend_url': self.frontend_url,
+                'logo_url': self.logo_url,
+            })
+            
+            return template.render(**context)
+        except Exception as e:
+            logger.error(f"Error rendering template {template_name}: {str(e)}")
+            raise
     
     def send_email(
         self,
@@ -110,160 +144,19 @@ class EmailService:
         """
         subject = f"🏠 Nueva Solicitud de Reserva - {property_title}"
         
-        html_content = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <style>
-                body {{
-                    font-family: Arial, sans-serif;
-                    line-height: 1.6;
-                    color: #333;
-                    max-width: 600px;
-                    margin: 0 auto;
-                }}
-                .header {{
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    color: white;
-                    padding: 30px;
-                    text-align: center;
-                    border-radius: 10px 10px 0 0;
-                }}
-                .content {{
-                    background: #f9f9f9;
-                    padding: 30px;
-                    border: 1px solid #ddd;
-                }}
-                .booking-details {{
-                    background: white;
-                    padding: 20px;
-                    border-radius: 8px;
-                    margin: 20px 0;
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                }}
-                .detail-row {{
-                    display: flex;
-                    justify-content: space-between;
-                    padding: 10px 0;
-                    border-bottom: 1px solid #eee;
-                }}
-                .detail-label {{
-                    font-weight: bold;
-                    color: #666;
-                }}
-                .detail-value {{
-                    color: #333;
-                }}
-                .message-box {{
-                    background: #fff3cd;
-                    padding: 15px;
-                    border-left: 4px solid #ffc107;
-                    margin: 20px 0;
-                    border-radius: 4px;
-                }}
-                .cta-button {{
-                    display: inline-block;
-                    background: #667eea;
-                    color: white;
-                    padding: 15px 30px;
-                    text-decoration: none;
-                    border-radius: 5px;
-                    margin: 20px 0;
-                    font-weight: bold;
-                }}
-                .footer {{
-                    text-align: center;
-                    padding: 20px;
-                    color: #666;
-                    font-size: 12px;
-                }}
-            </style>
-        </head>
-        <body>
-            <div class="header">
-                <h1>🏠 Nueva Solicitud de Reserva</h1>
-            </div>
-            
-            <div class="content">
-                <p>Hola <strong>{owner_name}</strong>,</p>
-                
-                <p>¡Buenas noticias! Has recibido una nueva solicitud de reserva para tu propiedad:</p>
-                
-                <div class="booking-details">
-                    <h3 style="margin-top: 0; color: #667eea;">📋 Detalles de la Reserva</h3>
-                    
-                    <div class="detail-row">
-                        <span class="detail-label">Propiedad:</span>
-                        <span class="detail-value">{property_title}</span>
-                    </div>
-                    
-                    <div class="detail-row">
-                        <span class="detail-label">Huésped:</span>
-                        <span class="detail-value">{guest_name}</span>
-                    </div>
-                    
-                    <div class="detail-row">
-                        <span class="detail-label">Check-in:</span>
-                        <span class="detail-value">{check_in}</span>
-                    </div>
-                    
-                    <div class="detail-row">
-                        <span class="detail-label">Check-out:</span>
-                        <span class="detail-value">{check_out}</span>
-                    </div>
-                    
-                    <div class="detail-row">
-                        <span class="detail-label">Huéspedes:</span>
-                        <span class="detail-value">{guests} persona(s)</span>
-                    </div>
-                    
-                    <div class="detail-row" style="border-bottom: none;">
-                        <span class="detail-label">Precio Total:</span>
-                        <span class="detail-value" style="font-size: 20px; color: #667eea; font-weight: bold;">
-                            S/ {total_price:.2f}
-                        </span>
-                    </div>
-                </div>
-                
-                {f'''
-                <div class="message-box">
-                    <strong>💬 Mensaje del huésped:</strong>
-                    <p style="margin: 10px 0 0 0;">{message}</p>
-                </div>
-                ''' if message else ''}
-                
-                <div style="text-align: center; margin: 30px 0;">
-                    <p style="font-weight: bold; margin-bottom: 20px; font-size: 16px;">
-                        Por favor revisa y gestiona esta solicitud de reserva
-                    </p>
-                    <a href="{os.getenv('FRONTEND_URL', 'http://localhost:3000')}/dashboard/bookings/{booking_id}" 
-                       class="cta-button"
-                       style="display: inline-block; background: #667eea; color: white; padding: 15px 40px; text-decoration: none; border-radius: 5px; margin: 10px 0; font-weight: bold; font-size: 16px;">
-                        📋 Ver Detalles y Gestionar Reserva
-                    </a>
-                </div>
-                
-                <div style="text-align: center; margin: 20px 0;">
-                    <a href="{os.getenv('FRONTEND_URL', 'http://localhost:3000')}/dashboard/bookings" 
-                       style="color: #667eea; text-decoration: none; font-size: 14px;">
-                        Ver todas tus reservas →
-                    </a>
-                </div>
-                
-                <p style="margin-top: 30px; color: #666; font-size: 14px;">
-                    <strong>⏰ Recuerda:</strong> Es importante responder pronto para mantener una buena 
-                    experiencia con tus huéspedes. Puedes confirmar o rechazar la solicitud desde tu panel.
-                </p>
-            </div>
-            
-            <div class="footer">
-                <p>Este es un correo automático de EasyRent</p>
-                <p>Si tienes alguna pregunta, contáctanos en soporte@easyrent.com</p>
-            </div>
-        </body>
-        </html>
-        """
+        # Renderizar con la nueva plantilla
+        html_content = self.render_template(
+            'booking_request.html',
+            owner_name=owner_name,
+            guest_name=guest_name,
+            property_title=property_title,
+            check_in=check_in,
+            check_out=check_out,
+            guests=guests,
+            total_price=total_price,
+            booking_id=booking_id,
+            message=message
+        )
         
         text_content = f"""
         Nueva Solicitud de Reserva
@@ -281,10 +174,10 @@ class EmailService:
         
         {"Mensaje: " + message if message else ""}
         
-        Ver detalles: {os.getenv('FRONTEND_URL', 'http://localhost:3000')}/bookings/{booking_id}
+        Ver detalles: {self.frontend_url}/dashboard/bookings/{booking_id}
         
         Saludos,
-        El equipo de EasyRent
+        El equipo de Renta Fácil
         """
         
         return self.send_email(
@@ -315,246 +208,59 @@ class EmailService:
         """
         subject = f"✅ Reserva Aceptada - Completa tu Pago (50%) - {property_title}"
         
-        html_content = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <style>
-                body {{
-                    font-family: Arial, sans-serif;
-                    line-height: 1.6;
-                    color: #333;
-                    max-width: 600px;
-                    margin: 0 auto;
-                }}
-                .header {{
-                    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-                    color: white;
-                    padding: 30px;
-                    text-align: center;
-                    border-radius: 10px 10px 0 0;
-                }}
-                .content {{
-                    background: #f9f9f9;
-                    padding: 30px;
-                    border: 1px solid #ddd;
-                    border-radius: 0 0 10px 10px;
-                }}
-                .success-icon {{
-                    font-size: 60px;
-                    text-align: center;
-                    margin: 20px 0;
-                }}
-                .urgent-box {{
-                    background: #fff3cd;
-                    border-left: 4px solid #ffc107;
-                    padding: 20px;
-                    margin: 20px 0;
-                    border-radius: 4px;
-                }}
-                .booking-details {{
-                    background: white;
-                    padding: 20px;
-                    border-radius: 8px;
-                    margin: 20px 0;
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                }}
-                .detail-row {{
-                    display: flex;
-                    justify-content: space-between;
-                    padding: 10px 0;
-                    border-bottom: 1px solid #eee;
-                }}
-                .detail-label {{
-                    font-weight: bold;
-                    color: #666;
-                }}
-                .detail-value {{
-                    color: #333;
-                }}
-                .price-box {{
-                    background: #e8f5e9;
-                    padding: 20px;
-                    border-radius: 8px;
-                    text-align: center;
-                    margin: 20px 0;
-                }}
-                .cta-button {{
-                    display: inline-block;
-                    background: #11998e;
-                    color: white;
-                    padding: 15px 40px;
-                    text-decoration: none;
-                    border-radius: 5px;
-                    margin: 20px 0;
-                    font-weight: bold;
-                    font-size: 16px;
-                }}
-                .payment-steps {{
-                    background: white;
-                    padding: 20px;
-                    border-radius: 8px;
-                    margin: 20px 0;
-                }}
-                .step {{
-                    padding: 10px 0;
-                    border-bottom: 1px solid #eee;
-                }}
-                .step:last-child {{
-                    border-bottom: none;
-                }}
-                .footer {{
-                    text-align: center;
-                    padding: 20px;
-                    color: #666;
-                    font-size: 12px;
-                }}
-            </style>
-        </head>
-        <body>
-            <div class="header">
-                <h1>✅ ¡Tu Reserva ha sido Aceptada!</h1>
-            </div>
-            
-            <div class="content">
-                <div class="success-icon">🎉</div>
-                
-                <p>Hola <strong>{guest_name}</strong>,</p>
-                
-                <p>¡Excelentes noticias! <strong>{owner_name}</strong> ha aceptado tu solicitud de reserva para:</p>
-                
-                <div class="booking-details">
-                    <h3 style="margin-top: 0; color: #11998e;">📋 Detalles de tu Reserva</h3>
-                    
-                    <div class="detail-row">
-                        <span class="detail-label">Propiedad:</span>
-                        <span class="detail-value">{property_title}</span>
-                    </div>
-                    
-                    <div class="detail-row">
-                        <span class="detail-label">Anfitrión:</span>
-                        <span class="detail-value">{owner_name}</span>
-                    </div>
-                    
-                    <div class="detail-row">
-                        <span class="detail-label">Check-in:</span>
-                        <span class="detail-value">{check_in}</span>
-                    </div>
-                    
-                    <div class="detail-row">
-                        <span class="detail-label">Check-out:</span>
-                        <span class="detail-value">{check_out}</span>
-                    </div>
-                    
-                    <div class="detail-row">
-                        <span class="detail-label">Noches:</span>
-                        <span class="detail-value">{nights} noche(s)</span>
-                    </div>
-                    
-                    <div class="detail-row" style="border-bottom: none;">
-                        <span class="detail-label">Huéspedes:</span>
-                        <span class="detail-value">{guests} persona(s)</span>
-                    </div>
-                </div>
-                
-                <div class="urgent-box">
-                    <h3 style="margin-top: 0; color: #f57c00;">⏰ Acción Requerida - Plazo: 6 Horas</h3>
-                    <p style="margin: 0; font-size: 15px;">
-                        <strong>Límite para completar el pago:</strong> {payment_deadline}
-                    </p>
-                    <p style="margin: 10px 0 0 0; color: #666; font-size: 14px;">
-                        Si no se recibe el pago en este plazo, la reserva será cancelada automáticamente 
-                        y la propiedad volverá a estar disponible para otras fechas.
-                    </p>
-                </div>
-                
-                <div class="price-box">
-                    <p style="margin: 0; font-size: 14px; color: #666;">Precio Total de la Reserva</p>
-                    <p style="margin: 10px 0; font-size: 24px; color: #333; font-weight: bold;">
-                        S/ {total_price:.2f}
-                    </p>
-                    
-                    <hr style="border: none; border-top: 2px dashed #ccc; margin: 20px 0;">
-                    
-                    <p style="margin: 0; font-size: 14px; color: #666;">Monto a Pagar Ahora (50%)</p>
-                    <p style="margin: 10px 0; font-size: 32px; color: #11998e; font-weight: bold;">
-                        S/ {reservation_amount:.2f}
-                    </p>
-                    <p style="margin: 10px 0 0 0; font-size: 13px; color: #666;">
-                        El 50% restante (S/ {total_price - reservation_amount:.2f}) se pagará al momento del check-in
-                    </p>
-                </div>
-                
-                <div class="payment-steps">
-                    <h3 style="margin-top: 0; color: #11998e;">💳 Pasos para Completar tu Pago</h3>
-                    
-                    <div class="step">
-                        <strong>1. Realiza la transferencia bancaria</strong>
-                        <p style="margin: 5px 0 0 20px; color: #666;">
-                            Banco: BCP<br>
-                            Cuenta Corriente: 123-456789-0-00<br>
-                            CCI: 00212345678900000000<br>
-                            Titular: EasyRent Perú S.A.C.<br>
-                            Monto: <strong>S/ {reservation_amount:.2f}</strong>
-                        </p>
-                    </div>
-                    
-                    <div class="step">
-                        <strong>2. Guarda el comprobante de pago</strong>
-                        <p style="margin: 5px 0 0 20px; color: #666;">
-                            Toma una captura o foto del voucher de transferencia
-                        </p>
-                    </div>
-                    
-                    <div class="step">
-                        <strong>3. Envía el comprobante</strong>
-                        <p style="margin: 5px 0 0 20px; color: #666;">
-                            Sube tu comprobante en la página de tu reserva o envíalo por WhatsApp
-                        </p>
-                    </div>
-                </div>
-                
-                <div style="text-align: center; margin: 30px 0;">
-                    <a href="{os.getenv('FRONTEND_URL', 'http://localhost:3000')}/my-bookings/{booking_id}" 
-                       class="cta-button">
-                        💰 Subir Comprobante de Pago
-                    </a>
-                </div>
-                
-                <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                    <p style="margin: 0; font-size: 14px; color: #1976d2;">
-                        <strong>ℹ️ Nota Importante:</strong> Una vez que subas tu comprobante, 
-                        verificaremos el pago en un máximo de 2 horas. Recibirás una confirmación 
-                        por email cuando tu pago sea verificado y tu reserva quede completamente confirmada.
-                    </p>
-                </div>
-                
-                <p style="margin-top: 30px; color: #666; font-size: 14px;">
-                    Si tienes alguna pregunta, no dudes en contactarnos o comunicarte directamente con el anfitrión.
-                </p>
-                
-                <p style="color: #666; font-size: 14px;">
-                    ¡Esperamos que disfrutes tu estadía! 🏖️
-                </p>
-            </div>
-            
-            <div class="footer">
-                <p>Este es un correo automático de EasyRent</p>
-                <p>Si tienes alguna pregunta, contáctanos en soporte@easyrent.com</p>
-                <p style="margin-top: 10px;">
-                    <a href="{os.getenv('FRONTEND_URL', 'http://localhost:3000')}/my-bookings" 
-                       style="color: #11998e; text-decoration: none;">
-                        Ver Mis Reservas
-                    </a>
-                </p>
-            </div>
-        </body>
-        </html>
-        """
+        # Calcular URL de pago
+        payment_url = f"{self.frontend_url}/my-bookings/{booking_id}"
+        
+        # Renderizar con la nueva plantilla
+        html_content = self.render_template(
+            'payment_request.html',
+            guest_name=guest_name,
+            property_title=property_title,
+            check_in=check_in,
+            check_out=check_out,
+            guests=guests,
+            total_price=total_price,
+            payment_deadline=payment_deadline,
+            payment_url=payment_url,
+            booking_id=booking_id
+        )
         
         text_content = f"""
         ¡Tu Reserva ha sido Aceptada!
+        
+        Hola {guest_name},
+        
+        {owner_name} ha aceptado tu solicitud de reserva para {property_title}.
+        
+        DETALLES DE LA RESERVA:
+        - Propiedad: {property_title}
+        - Check-in: {check_in}
+        - Check-out: {check_out}
+        - Noches: {nights}
+        - Huéspedes: {guests}
+        
+        ACCIÓN REQUERIDA - PLAZO: 6 HORAS
+        Límite para completar el pago: {payment_deadline}
+        
+        PAGO:
+        - Total: S/ {total_price:.2f}
+        - Pagar ahora (50%): S/ {reservation_amount:.2f}
+        - Pagar al check-in (50%): S/ {total_price - reservation_amount:.2f}
+        
+        IMPORTANTE: Si no se recibe el pago en 6 horas, la reserva será cancelada automáticamente.
+        
+        Completa tu pago: {payment_url}
+        
+        Saludos,
+        El equipo de Renta Fácil
+        """
+        
+        return self.send_email(
+            to_email=guest_email,
+            subject=subject,
+            html_content=html_content,
+            text_content=text_content
+        )
         
         Hola {guest_name},
         
@@ -607,132 +313,55 @@ class EmailService:
         guests: int,
         total_price: float,
         owner_name: str,
-        owner_phone: Optional[str] = None
+        owner_phone: Optional[str] = None,
+        booking_id: Optional[str] = None
     ) -> bool:
         """
         Enviar confirmación de reserva al huésped
         """
         subject = f"✅ Reserva Confirmada - {property_title}"
         
-        html_content = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <style>
-                body {{
-                    font-family: Arial, sans-serif;
-                    line-height: 1.6;
-                    color: #333;
-                    max-width: 600px;
-                    margin: 0 auto;
-                }}
-                .header {{
-                    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-                    color: white;
-                    padding: 30px;
-                    text-align: center;
-                    border-radius: 10px 10px 0 0;
-                }}
-                .content {{
-                    background: #f9f9f9;
-                    padding: 30px;
-                    border: 1px solid #ddd;
-                }}
-                .success-icon {{
-                    font-size: 60px;
-                    text-align: center;
-                    margin: 20px 0;
-                }}
-                .booking-details {{
-                    background: white;
-                    padding: 20px;
-                    border-radius: 8px;
-                    margin: 20px 0;
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                }}
-                .detail-row {{
-                    display: flex;
-                    justify-content: space-between;
-                    padding: 10px 0;
-                    border-bottom: 1px solid #eee;
-                }}
-            </style>
-        </head>
-        <body>
-            <div class="header">
-                <h1>✅ ¡Reserva Confirmada!</h1>
-            </div>
-            
-            <div class="content">
-                <div class="success-icon">🎉</div>
-                
-                <p>Hola <strong>{guest_name}</strong>,</p>
-                
-                <p>¡Excelentes noticias! Tu reserva ha sido confirmada por el anfitrión.</p>
-                
-                <div class="booking-details">
-                    <h3 style="margin-top: 0; color: #11998e;">📋 Detalles de tu Reserva</h3>
-                    
-                    <div class="detail-row">
-                        <span><strong>Propiedad:</strong></span>
-                        <span>{property_title}</span>
-                    </div>
-                    
-                    <div class="detail-row">
-                        <span><strong>Check-in:</strong></span>
-                        <span>{check_in}</span>
-                    </div>
-                    
-                    <div class="detail-row">
-                        <span><strong>Check-out:</strong></span>
-                        <span>{check_out}</span>
-                    </div>
-                    
-                    <div class="detail-row">
-                        <span><strong>Huéspedes:</strong></span>
-                        <span>{guests}</span>
-                    </div>
-                    
-                    <div class="detail-row">
-                        <span><strong>Anfitrión:</strong></span>
-                        <span>{owner_name}</span>
-                    </div>
-                    
-                    {f'''
-                    <div class="detail-row">
-                        <span><strong>Teléfono:</strong></span>
-                        <span>{owner_phone}</span>
-                    </div>
-                    ''' if owner_phone else ''}
-                    
-                    <div class="detail-row" style="border-bottom: none;">
-                        <span><strong>Total:</strong></span>
-                        <span style="font-size: 20px; color: #11998e; font-weight: bold;">
-                            S/ {total_price:.2f}
-                        </span>
-                    </div>
-                </div>
-                
-                <p><strong>💳 Próximos pasos:</strong></p>
-                <ol>
-                    <li>Completa el pago del 50% (S/ {total_price/2:.2f}) para asegurar tu reserva</li>
-                    <li>El 50% restante se pagará al momento del check-in</li>
-                    <li>Contacta al anfitrión si tienes preguntas</li>
-                </ol>
-                
-                <p style="margin-top: 30px; color: #666; font-size: 14px;">
-                    ¡Disfruta tu estadía! 🏖️
-                </p>
-            </div>
-        </body>
-        </html>
+        # Renderizar con la nueva plantilla
+        html_content = self.render_template(
+            'booking_confirmation.html',
+            guest_name=guest_name,
+            property_title=property_title,
+            check_in=check_in,
+            check_out=check_out,
+            guests=guests,
+            total_price=total_price,
+            owner_name=owner_name,
+            owner_phone=owner_phone,
+            booking_id=booking_id
+        )
+        
+        text_content = f"""
+        ¡Reserva Confirmada!
+        
+        Hola {guest_name},
+        
+        ¡Excelentes noticias! Tu reserva ha sido confirmada y tu pago ha sido procesado exitosamente.
+        
+        DETALLES DE LA RESERVA:
+        - Propiedad: {property_title}
+        - Check-in: {check_in}
+        - Check-out: {check_out}
+        - Huéspedes: {guests}
+        - Anfitrión: {owner_name}
+        {"- Teléfono: " + owner_phone if owner_phone else ""}
+        - Total Pagado: S/ {total_price:.2f}
+        
+        ¡Disfruta tu estadía!
+        
+        Saludos,
+        El equipo de Renta Fácil
         """
         
         return self.send_email(
             to_email=guest_email,
             subject=subject,
-            html_content=html_content
+            html_content=html_content,
+            text_content=text_content
         )
     
     def send_payment_expired_notification(

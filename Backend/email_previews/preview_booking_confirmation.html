@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reserva Confirmada</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333333;
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .email-header {
+            background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+            padding: 40px 30px;
+            text-align: center;
+            color: white;
+        }
+        
+        .logo {
+            max-width: 200px;
+            height: auto;
+            margin-bottom: 20px;
+            filter: brightness(0) invert(1);
+        }
+        
+        .header-icon {
+            font-size: 60px;
+            margin-bottom: 15px;
+            animation: bounce 1s ease;
+        }
+        
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        .header-title {
+            color: #ffffff;
+            font-size: 32px;
+            font-weight: 700;
+            margin: 10px 0;
+        }
+        
+        .header-subtitle {
+            color: #D1FAE5;
+            font-size: 18px;
+            font-weight: 500;
+        }
+        
+        .email-content {
+            padding: 40px 30px;
+            background-color: #ffffff;
+        }
+        
+        .success-badge {
+            background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 20px;
+            display: inline-block;
+            font-weight: 700;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+        
+        .greeting {
+            font-size: 18px;
+            color: #0C2D55;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+        
+        .message {
+            font-size: 15px;
+            color: #333333;
+            line-height: 1.8;
+            margin-bottom: 20px;
+        }
+        
+        .details-card {
+            background: #F0F9FD;
+            border-left: 4px solid #22ACF5;
+            border-radius: 8px;
+            padding: 25px;
+            margin: 25px 0;
+        }
+        
+        .details-title {
+            color: #0C2D55;
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 15px;
+        }
+        
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #C5E7F5;
+        }
+        
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+        
+        .detail-label {
+            font-weight: 600;
+            color: #1D7FAF;
+            font-size: 14px;
+        }
+        
+        .detail-value {
+            color: #0C2D55;
+            font-weight: 500;
+            text-align: right;
+            font-size: 14px;
+        }
+        
+        .price-paid {
+            background: linear-gradient(135deg, #F5C842 0%, #FFE488 100%);
+            padding: 25px;
+            border-radius: 8px;
+            text-align: center;
+            margin: 25px 0;
+        }
+        
+        .price-label {
+            color: #0C2D55;
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        
+        .price-amount {
+            color: #0C2D55;
+            font-size: 36px;
+            font-weight: 700;
+        }
+        
+        .host-info {
+            background: #FFF8E1;
+            border-left: 4px solid #F5C842;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 25px 0;
+        }
+        
+        .host-title {
+            color: #D4A926;
+            font-weight: 700;
+            margin-bottom: 12px;
+            font-size: 16px;
+        }
+        
+        .host-detail {
+            color: #523A07;
+            font-size: 14px;
+            margin: 8px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .cta-container {
+            text-align: center;
+            margin: 30px 0;
+        }
+        
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #F5C842 0%, #D4A926 100%);
+            color: #0C2D55;
+            padding: 16px 40px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 16px;
+            box-shadow: 0 4px 12px rgba(245, 200, 66, 0.4);
+        }
+        
+        .info-box {
+            background: #E3F2FA;
+            border-left: 4px solid #22ACF5;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 25px 0;
+        }
+        
+        .info-box-title {
+            color: #0C2D55;
+            font-weight: 700;
+            margin-bottom: 10px;
+            font-size: 15px;
+        }
+        
+        .info-box-text {
+            color: #0C2D55;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        
+        .info-list {
+            margin: 10px 0;
+            padding-left: 0;
+            list-style: none;
+        }
+        
+        .info-list li {
+            padding: 6px 0;
+            padding-left: 25px;
+            position: relative;
+        }
+        
+        .info-list li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #10B981;
+            font-weight: bold;
+        }
+        
+        .success-highlight {
+            background: #ECFDF5;
+            border: 2px solid #10B981;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 25px 0;
+            text-align: center;
+        }
+        
+        .success-text {
+            color: #065F46;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .email-footer {
+            background: #0C2D55;
+            padding: 30px;
+            text-align: center;
+            color: #ffffff;
+        }
+        
+        .footer-logo {
+            max-width: 150px;
+            margin-bottom: 15px;
+            opacity: 0.9;
+            filter: brightness(0) invert(1);
+        }
+        
+        .footer-text {
+            font-size: 13px;
+            color: #C5E7F5;
+            margin: 8px 0;
+        }
+        
+        .footer-links {
+            margin: 15px 0;
+        }
+        
+        .footer-link {
+            color: #F5C842;
+            text-decoration: none;
+            margin: 0 10px;
+            font-size: 13px;
+        }
+        
+        .footer-disclaimer {
+            font-size: 11px;
+            color: #79C8E8;
+            margin-top: 15px;
+            line-height: 1.4;
+        }
+        
+        @media only screen and (max-width: 600px) {
+            .email-container {
+                border-radius: 0;
+            }
+            
+            .email-header,
+            .email-content,
+            .email-footer {
+                padding: 30px 20px;
+            }
+            
+            .header-title {
+                font-size: 26px;
+            }
+            
+            .detail-row {
+                flex-direction: column;
+                gap: 5px;
+            }
+            
+            .detail-value {
+                text-align: left;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <!-- Header -->
+        <div class="email-header">
+            <img src="https://rentafacil.com/images/logo_sin_fondo.png" alt="Renta Fácil" class="logo">
+            <div class="header-icon">🎉</div>
+            <h1 class="header-title">¡Reserva Confirmada!</h1>
+            <p class="header-subtitle">Tu alojamiento está asegurado</p>
+        </div>
+        
+        <!-- Contenido -->
+        <div class="email-content">
+            <div style="text-align: center;">
+                <span class="success-badge">✓ CONFIRMADO</span>
+            </div>
+            
+            <p class="greeting">Hola <strong>María García</strong>,</p>
+            
+            <p class="message">
+                ¡Excelentes noticias! Tu reserva ha sido confirmada y tu pago ha sido procesado exitosamente. 
+                Estás listo para disfrutar de tu estadía.
+            </p>
+            
+            <div class="success-highlight">
+                <p class="success-text">
+                    ✨ Todo está listo para tu viaje ✨
+                </p>
+            </div>
+            
+            <!-- Detalles de la reserva -->
+            <div class="details-card">
+                <h3 class="details-title">📋 Detalles de tu Reserva</h3>
+                
+                <div class="detail-row">
+                    <span class="detail-label">🏠 Propiedad:</span>
+                    <span class="detail-value">Departamento Moderno en Miraflores</span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">📅 Check-in:</span>
+                    <span class="detail-value">15 de Enero, 2024</span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">📅 Check-out:</span>
+                    <span class="detail-value">20 de Enero, 2024</span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">👥 Huéspedes:</span>
+                    <span class="detail-value">2 persona(s)</span>
+                </div>
+            </div>
+            
+            <!-- Precio pagado -->
+            <div class="price-paid">
+                <p class="price-label">💰 Total Pagado</p>
+                <p class="price-amount">S/ 850.00</p>
+            </div>
+            
+            <!-- Información del anfitrión -->
+            <div class="host-info">
+                <p class="host-title">👤 Información del Anfitrión</p>
+                <div class="host-detail">
+                    <strong>Nombre:</strong> Carlos Rodríguez
+                </div>
+                
+                <div class="host-detail">
+                    <strong>📞 Teléfono:</strong> +51 987 654 321
+                </div>
+                
+                <p style="margin-top: 15px; font-size: 13px; color: #7A590D;">
+                    Tu anfitrión se pondrá en contacto contigo antes de tu llegada con los detalles de check-in.
+                </p>
+            </div>
+            
+            <!-- CTA principal -->
+            <div class="cta-container">
+                <a href="https://rentafacil.com/dashboard/bookings/BK-12345" class="cta-button">
+                    📱 Ver Detalles de la Reserva
+                </a>
+            </div>
+            
+            <!-- Preparativos -->
+            <div class="info-box">
+                <p class="info-box-title">📝 Prepárate para tu estadía</p>
+                <ul class="info-list">
+                    <li>Revisa las reglas de la casa y políticas de la propiedad</li>
+                    <li>Coordina con tu anfitrión la hora exacta de check-in</li>
+                    <li>Ten a mano tu identificación y confirmación de reserva</li>
+                    <li>Si tienes alguna pregunta, contacta a tu anfitrión directamente</li>
+                </ul>
+            </div>
+            
+            <!-- Información adicional -->
+            <div class="info-box">
+                <p class="info-box-text">
+                    <strong>🔔 Recordatorio:</strong> Te enviaremos recordatorios antes de tu check-in. 
+                    Si necesitas cancelar o modificar tu reserva, revisa nuestra política de cancelación en tu panel de reservas.
+                </p>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="email-footer">
+            <img src="https://rentafacil.com/images/logo_sin_fondo.png" alt="Renta Fácil" class="footer-logo">
+            <p class="footer-text"><strong>Renta Fácil</strong> - Tu plataforma de confianza para alquileres</p>
+            
+            <div class="footer-links">
+                <a href="https://rentafacil.com" class="footer-link">Inicio</a>
+                <a href="https://rentafacil.com/ayuda" class="footer-link">Ayuda</a>
+                <a href="https://rentafacil.com/contacto" class="footer-link">Contacto</a>
+            </div>
+            
+            <p class="footer-disclaimer">
+                Este es un correo automático de Renta Fácil. Por favor no respondas a este correo.<br>
+                Si tienes alguna pregunta, visita nuestro <a href="https://rentafacil.com/ayuda" style="color: #F5C842;">centro de ayuda</a> o contáctanos en soporte@rentafacil.com
+            </p>
+        </div>
+    </div>
+</body>
+</html>

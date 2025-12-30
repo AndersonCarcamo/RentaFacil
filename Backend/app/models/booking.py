@@ -1,7 +1,7 @@
 """
 Modelos para el sistema de reservas Airbnb
 """
-from sqlalchemy import Column, String, Integer, Numeric, Text, TIMESTAMP, ForeignKey, CheckConstraint, Enum as SQLEnum
+from sqlalchemy import Column, String, Integer, Numeric, Text, TIMESTAMP, ForeignKey, CheckConstraint, Enum as SQLEnum, Boolean
 from sqlalchemy.dialects.postgresql import UUID, JSONB, DATE
 from sqlalchemy.orm import relationship
 from datetime import datetime
@@ -133,14 +133,16 @@ class BookingCalendar(Base):
     # Identificadores
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     listing_id = Column(UUID(as_uuid=True), nullable=False)
+    listing_created_at = Column(TIMESTAMP(timezone=True), nullable=False)
     date = Column(DATE, nullable=False)
 
     # Disponibilidad
-    is_available = Column(Integer, nullable=False, default=1)  # 1 = disponible, 0 = no disponible
+    is_available = Column(Boolean, nullable=False, default=True)
     booking_id = Column(UUID(as_uuid=True), nullable=True)
 
-    # Precio
-    price = Column(Numeric(10, 2), nullable=True)
+    # Precios dinámicos
+    price_override = Column(Numeric(10, 2), nullable=True)
+    minimum_nights = Column(Integer, nullable=True)
     
     # Notas
     notes = Column(Text, nullable=True)

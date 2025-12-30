@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ subject }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333333;
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Header con gradiente de marca */
+        .email-header {
+            background: linear-gradient(135deg, #F5C842 0%, #FFE488 50%, #F5C842 100%);
+            padding: 40px 30px;
+            text-align: center;
+        }
+        
+        .logo-container {
+            margin-bottom: 20px;
+        }
+        
+        .logo {
+            max-width: 200px;
+            height: auto;
+        }
+        
+        .header-title {
+            color: #0C2D55;
+            font-size: 28px;
+            font-weight: 700;
+            margin: 10px 0;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header-subtitle {
+            color: #1D7FAF;
+            font-size: 16px;
+            font-weight: 500;
+        }
+        
+        /* Contenido principal */
+        .email-content {
+            padding: 40px 30px;
+            background-color: #ffffff;
+        }
+        
+        .greeting {
+            font-size: 18px;
+            color: #0C2D55;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+        
+        .message {
+            font-size: 15px;
+            color: #333333;
+            line-height: 1.8;
+            margin-bottom: 20px;
+        }
+        
+        /* Bloque de contenido específico */
+        .content-block {
+            {% block content_block_styles %}{% endblock %}
+        }
+        
+        /* Botón CTA */
+        .cta-container {
+            text-align: center;
+            margin: 30px 0;
+        }
+        
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #F5C842 0%, #D4A926 100%);
+            color: #0C2D55;
+            padding: 16px 40px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 16px;
+            box-shadow: 0 4px 12px rgba(245, 200, 66, 0.4);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(245, 200, 66, 0.6);
+        }
+        
+        /* Detalles en tarjeta */
+        .details-card {
+            background: #F0F9FD;
+            border-left: 4px solid #22ACF5;
+            border-radius: 8px;
+            padding: 25px;
+            margin: 25px 0;
+        }
+        
+        .details-title {
+            color: #0C2D55;
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #C5E7F5;
+        }
+        
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+        
+        .detail-label {
+            font-weight: 600;
+            color: #1D7FAF;
+            font-size: 14px;
+        }
+        
+        .detail-value {
+            color: #0C2D55;
+            font-weight: 500;
+            text-align: right;
+            font-size: 14px;
+        }
+        
+        /* Precio destacado */
+        .price-highlight {
+            background: linear-gradient(135deg, #F5C842 0%, #FFE488 100%);
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            margin: 25px 0;
+        }
+        
+        .price-label {
+            color: #0C2D55;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .price-amount {
+            color: #0C2D55;
+            font-size: 32px;
+            font-weight: 700;
+        }
+        
+        /* Cuadro de mensaje */
+        .message-box {
+            background: #FFF8E1;
+            border-left: 4px solid #F5C842;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 25px 0;
+        }
+        
+        .message-box-title {
+            color: #D4A926;
+            font-weight: 700;
+            margin-bottom: 10px;
+            font-size: 15px;
+        }
+        
+        .message-box-content {
+            color: #523A07;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        
+        /* Cuadro de alerta/información */
+        .info-box {
+            background: #E3F2FA;
+            border-left: 4px solid #22ACF5;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 25px 0;
+        }
+        
+        .info-box-icon {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        
+        .info-box-text {
+            color: #0C2D55;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        
+        /* Footer */
+        .email-footer {
+            background: #0C2D55;
+            padding: 30px;
+            text-align: center;
+            color: #ffffff;
+        }
+        
+        .footer-logo {
+            max-width: 150px;
+            margin-bottom: 15px;
+            opacity: 0.9;
+        }
+        
+        .footer-text {
+            font-size: 13px;
+            color: #C5E7F5;
+            margin: 8px 0;
+        }
+        
+        .footer-links {
+            margin: 15px 0;
+        }
+        
+        .footer-link {
+            color: #F5C842;
+            text-decoration: none;
+            margin: 0 10px;
+            font-size: 13px;
+        }
+        
+        .footer-link:hover {
+            text-decoration: underline;
+        }
+        
+        .footer-social {
+            margin: 20px 0 10px 0;
+        }
+        
+        .social-link {
+            display: inline-block;
+            margin: 0 8px;
+            color: #F5C842;
+            text-decoration: none;
+            font-size: 20px;
+        }
+        
+        .footer-disclaimer {
+            font-size: 11px;
+            color: #79C8E8;
+            margin-top: 15px;
+            line-height: 1.4;
+        }
+        
+        /* Responsividad */
+        @media only screen and (max-width: 600px) {
+            .email-container {
+                border-radius: 0;
+            }
+            
+            .email-header,
+            .email-content,
+            .email-footer {
+                padding: 30px 20px;
+            }
+            
+            .header-title {
+                font-size: 24px;
+            }
+            
+            .detail-row {
+                flex-direction: column;
+                gap: 5px;
+            }
+            
+            .detail-value {
+                text-align: left;
+            }
+            
+            .cta-button {
+                padding: 14px 30px;
+                font-size: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <!-- Header -->
+        <div class="email-header">
+            <div class="logo-container">
+                <!-- Logo de Renta Fácil -->
+                <img src="{{ logo_url }}" alt="Renta Fácil" class="logo">
+            </div>
+            <h1 class="header-title">{{ header_title }}</h1>
+            {% if header_subtitle %}
+            <p class="header-subtitle">{{ header_subtitle }}</p>
+            {% endif %}
+        </div>
+        
+        <!-- Contenido -->
+        <div class="email-content">
+            {% block content %}{% endblock %}
+        </div>
+        
+        <!-- Footer -->
+        <div class="email-footer">
+            <img src="{{ logo_url }}" alt="Renta Fácil" class="footer-logo">
+            <p class="footer-text"><strong>Renta Fácil</strong> - Tu plataforma de confianza para alquileres</p>
+            
+            <div class="footer-links">
+                <a href="{{ frontend_url }}" class="footer-link">Inicio</a>
+                <a href="{{ frontend_url }}/ayuda" class="footer-link">Ayuda</a>
+                <a href="{{ frontend_url }}/contacto" class="footer-link">Contacto</a>
+            </div>
+            
+            <div class="footer-social">
+                <a href="#" class="social-link">📧</a>
+                <a href="#" class="social-link">📱</a>
+                <a href="#" class="social-link">🌐</a>
+            </div>
+            
+            <p class="footer-disclaimer">
+                Este es un correo automático de Renta Fácil. Por favor no respondas a este correo.<br>
+                Si tienes alguna pregunta, visita nuestro <a href="{{ frontend_url }}/ayuda" style="color: #F5C842;">centro de ayuda</a> o contáctanos en soporte@rentafacil.com
+            </p>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nueva Solicitud de Reserva</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333333;
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .email-header {
+            background: linear-gradient(135deg, #F5C842 0%, #FFE488 50%, #F5C842 100%);
+            padding: 40px 30px;
+            text-align: center;
+        }
+        
+        .logo {
+            max-width: 200px;
+            height: auto;
+            margin-bottom: 20px;
+        }
+        
+        .header-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+        
+        .header-title {
+            color: #0C2D55;
+            font-size: 28px;
+            font-weight: 700;
+            margin: 10px 0;
+        }
+        
+        .header-subtitle {
+            color: #1D7FAF;
+            font-size: 16px;
+            font-weight: 500;
+        }
+        
+        .email-content {
+            padding: 40px 30px;
+            background-color: #ffffff;
+        }
+        
+        .greeting {
+            font-size: 18px;
+            color: #0C2D55;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+        
+        .message {
+            font-size: 15px;
+            color: #333333;
+            line-height: 1.8;
+            margin-bottom: 20px;
+        }
+        
+        .details-card {
+            background: #F0F9FD;
+            border-left: 4px solid #22ACF5;
+            border-radius: 8px;
+            padding: 25px;
+            margin: 25px 0;
+        }
+        
+        .details-title {
+            color: #0C2D55;
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 15px;
+        }
+        
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #C5E7F5;
+        }
+        
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+        
+        .detail-label {
+            font-weight: 600;
+            color: #1D7FAF;
+            font-size: 14px;
+        }
+        
+        .detail-value {
+            color: #0C2D55;
+            font-weight: 500;
+            text-align: right;
+            font-size: 14px;
+        }
+        
+        .price-highlight {
+            background: linear-gradient(135deg, #F5C842 0%, #FFE488 100%);
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            margin: 25px 0;
+        }
+        
+        .price-label {
+            color: #0C2D55;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .price-amount {
+            color: #0C2D55;
+            font-size: 32px;
+            font-weight: 700;
+        }
+        
+        .message-box {
+            background: #FFF8E1;
+            border-left: 4px solid #F5C842;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 25px 0;
+        }
+        
+        .message-box-title {
+            color: #D4A926;
+            font-weight: 700;
+            margin-bottom: 10px;
+            font-size: 15px;
+        }
+        
+        .message-box-content {
+            color: #523A07;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        
+        .cta-container {
+            text-align: center;
+            margin: 30px 0;
+        }
+        
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #F5C842 0%, #D4A926 100%);
+            color: #0C2D55;
+            padding: 16px 40px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 16px;
+            box-shadow: 0 4px 12px rgba(245, 200, 66, 0.4);
+        }
+        
+        .info-box {
+            background: #E3F2FA;
+            border-left: 4px solid #22ACF5;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 25px 0;
+        }
+        
+        .info-box-text {
+            color: #0C2D55;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        
+        .secondary-link {
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .secondary-link a {
+            color: #22ACF5;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        
+        .email-footer {
+            background: #0C2D55;
+            padding: 30px;
+            text-align: center;
+            color: #ffffff;
+        }
+        
+        .footer-logo {
+            max-width: 150px;
+            margin-bottom: 15px;
+            opacity: 0.9;
+        }
+        
+        .footer-text {
+            font-size: 13px;
+            color: #C5E7F5;
+            margin: 8px 0;
+        }
+        
+        .footer-links {
+            margin: 15px 0;
+        }
+        
+        .footer-link {
+            color: #F5C842;
+            text-decoration: none;
+            margin: 0 10px;
+            font-size: 13px;
+        }
+        
+        .footer-disclaimer {
+            font-size: 11px;
+            color: #79C8E8;
+            margin-top: 15px;
+            line-height: 1.4;
+        }
+        
+        @media only screen and (max-width: 600px) {
+            .email-container {
+                border-radius: 0;
+            }
+            
+            .email-header,
+            .email-content,
+            .email-footer {
+                padding: 30px 20px;
+            }
+            
+            .header-title {
+                font-size: 24px;
+            }
+            
+            .detail-row {
+                flex-direction: column;
+                gap: 5px;
+            }
+            
+            .detail-value {
+                text-align: left;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <!-- Header -->
+        <div class="email-header">
+            <img src="{{ logo_url }}" alt="Renta Fácil" class="logo">
+            <div class="header-icon">🏠</div>
+            <h1 class="header-title">Nueva Solicitud de Reserva</h1>
+            <p class="header-subtitle">¡Tienes una nueva solicitud!</p>
+        </div>
+        
+        <!-- Contenido -->
+        <div class="email-content">
+            <p class="greeting">Hola <strong>{{ owner_name }}</strong>,</p>
+            
+            <p class="message">
+                ¡Buenas noticias! Has recibido una nueva solicitud de reserva para tu propiedad. 
+                Un huésped está interesado en alojarse en tu lugar.
+            </p>
+            
+            <!-- Detalles de la reserva -->
+            <div class="details-card">
+                <h3 class="details-title">📋 Detalles de la Reserva</h3>
+                
+                <div class="detail-row">
+                    <span class="detail-label">🏠 Propiedad:</span>
+                    <span class="detail-value">{{ property_title }}</span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">👤 Huésped:</span>
+                    <span class="detail-value">{{ guest_name }}</span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">📅 Check-in:</span>
+                    <span class="detail-value">{{ check_in }}</span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">📅 Check-out:</span>
+                    <span class="detail-value">{{ check_out }}</span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">👥 Huéspedes:</span>
+                    <span class="detail-value">{{ guests }} persona(s)</span>
+                </div>
+            </div>
+            
+            <!-- Precio destacado -->
+            <div class="price-highlight">
+                <p class="price-label">💰 Precio Total</p>
+                <p class="price-amount">S/ {{ "%.2f"|format(total_price) }}</p>
+            </div>
+            
+            <!-- Mensaje del huésped -->
+            {% if message %}
+            <div class="message-box">
+                <p class="message-box-title">💬 Mensaje del huésped:</p>
+                <p class="message-box-content">{{ message }}</p>
+            </div>
+            {% endif %}
+            
+            <!-- CTA principal -->
+            <div class="cta-container">
+                <p class="message" style="font-weight: 600; margin-bottom: 20px;">
+                    Revisa los detalles y gestiona esta solicitud
+                </p>
+                <a href="{{ frontend_url }}/dashboard/bookings/{{ booking_id }}" class="cta-button">
+                    📋 Ver y Gestionar Reserva
+                </a>
+            </div>
+            
+            <!-- Link secundario -->
+            <div class="secondary-link">
+                <a href="{{ frontend_url }}/dashboard/bookings">
+                    Ver todas tus reservas →
+                </a>
+            </div>
+            
+            <!-- Info adicional -->
+            <div class="info-box">
+                <p class="info-box-text">
+                    <strong>⏰ Recuerda:</strong> Es importante responder pronto para mantener una buena 
+                    experiencia con tus huéspedes. Puedes confirmar o rechazar la solicitud desde tu panel de control.
+                </p>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="email-footer">
+            <img src="{{ logo_url }}" alt="Renta Fácil" class="footer-logo">
+            <p class="footer-text"><strong>Renta Fácil</strong> - Tu plataforma de confianza para alquileres</p>
+            
+            <div class="footer-links">
+                <a href="{{ frontend_url }}" class="footer-link">Inicio</a>
+                <a href="{{ frontend_url }}/ayuda" class="footer-link">Ayuda</a>
+                <a href="{{ frontend_url }}/contacto" class="footer-link">Contacto</a>
+            </div>
+            
+            <p class="footer-disclaimer">
+                Este es un correo automático de Renta Fácil. Por favor no respondas a este correo.<br>
+                Si tienes alguna pregunta, visita nuestro <a href="{{ frontend_url }}/ayuda" style="color: #F5C842;">centro de ayuda</a> o contáctanos en soporte@rentafacil.com
+            </p>
+        </div>
+    </div>
+</body>
+</html>

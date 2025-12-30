@@ -61,11 +61,6 @@ export default function BookingModal({
     console.log('📆 Fechas seleccionadas:', { checkIn: newCheckIn, checkOut: newCheckOut });
     setCheckIn(newCheckIn)
     setCheckOut(newCheckOut)
-    
-    if (newCheckIn && newCheckOut) {
-      // Auto-avanzar al siguiente paso
-      setTimeout(() => setStep('details'), 300)
-    }
   }
 
   async function handleSubmit() {
@@ -155,18 +150,26 @@ export default function BookingModal({
         </div>
 
         {/* Steps */}
-        <div className="steps-container">
-          <div className={`step ${step === 'dates' ? 'active' : step === 'details' || step === 'confirm' ? 'completed' : ''}`}>
-            <span className="step-number">1</span>
-            <span className="step-label">Fechas</span>
+        <div className="flex items-center justify-between px-4 py-4 border-b border-gray-200 relative">
+          <div className={`flex items-center space-x-2 ${step === 'dates' ? 'text-blue-600' : (step === 'details' || step === 'confirm') ? 'text-green-600' : 'text-gray-400'}`}>
+            <span className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold ${step === 'dates' ? 'bg-blue-600 text-white' : (step === 'details' || step === 'confirm') ? 'bg-green-600 text-white' : 'bg-gray-300 text-gray-600'}`}>
+              1
+            </span>
+            <span className="font-medium text-sm md:text-base">Fechas</span>
           </div>
-          <div className={`step ${step === 'details' ? 'active' : step === 'confirm' ? 'completed' : ''}`}>
-            <span className="step-number">2</span>
-            <span className="step-label">Detalles</span>
+          
+          <div className={`flex items-center space-x-2 ${step === 'details' ? 'text-blue-600' : step === 'confirm' ? 'text-green-600' : 'text-gray-400'}`}>
+            <span className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold ${step === 'details' ? 'bg-blue-600 text-white' : step === 'confirm' ? 'bg-green-600 text-white' : 'bg-gray-300 text-gray-600'}`}>
+              2
+            </span>
+            <span className="font-medium text-sm md:text-base">Detalles</span>
           </div>
-          <div className={`step ${step === 'confirm' ? 'active' : ''}`}>
-            <span className="step-number">3</span>
-            <span className="step-label">Confirmar</span>
+          
+          <div className={`flex items-center space-x-2 ${step === 'confirm' ? 'text-blue-600' : 'text-gray-400'}`}>
+            <span className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold ${step === 'confirm' ? 'bg-blue-600 text-white' : 'bg-gray-300 text-gray-600'}`}>
+              3
+            </span>
+            <span className="font-medium text-sm md:text-base">Confirmar</span>
           </div>
         </div>
 

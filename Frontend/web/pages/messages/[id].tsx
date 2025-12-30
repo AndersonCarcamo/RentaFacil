@@ -207,6 +207,15 @@ export default function ChatPage() {
     return currentDate !== prevDate
   }
 
+  const getAvatarUrl = (user: { name: string; avatar?: string | null }) => {
+    if (user.avatar) {
+      return user.avatar
+    }
+    // Generar avatar con iniciales usando ui-avatars.com
+    const name = user.name || 'Usuario'
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=EAB308&color=fff&size=128&bold=true&rounded=true`
+  }
+
   if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -259,9 +268,13 @@ export default function ChatPage() {
               <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
                 <div className="relative flex-shrink-0">
                   <img
-                    src={otherUser.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(otherUser.name)}&background=EAB308&color=fff&size=128&bold=true`}
+                    src={getAvatarUrl(otherUser)}
                     alt={otherUser.name}
                     className="h-8 w-8 sm:h-12 sm:w-12 rounded-full object-cover ring-2 ring-white shadow-md"
+                    onError={(e) => {
+                      // Si la imagen falla al cargar, usar el avatar por defecto
+                      e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(otherUser.name)}&background=EAB308&color=fff&size=128&bold=true&rounded=true`
+                    }}
                   />
                 </div>
                 <div className="min-w-0">

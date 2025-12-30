@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from typing import List, Optional
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from uuid import UUID
 import logging
 from decimal import Decimal
@@ -76,54 +76,66 @@ async def get_calendar(
         if not listing_exists:
             raise HTTPException(status_code=404, detail="Listing no encontrado")
         
-        # Obtener el calendario del mes
-        result = db.execute(text("""
+        # Obtener precio base del listing
+        listing_data = db.execute(
+            text("SELECT price FROM core.listings WHERE id = :listing_id"),
+            {"listing_id": listing_uuid}
+        ).fetchone()
+        
+        base_price = float(listing_data.price) if listing_data else 0
+        
+        # Generar todas las fechas del mes
+        import calendar as cal
+        _, last_day = cal.monthrange(year, month)
+        
+        # Obtener fechas bloqueadas del calendario
+        blocked_dates_result = db.execute(text("""
             SELECT 
                 c.date,
                 c.is_available,
-                COALESCE(c.price_override, l.price) as price,
+                COALESCE(c.price_override, :base_price) as price,
                 c.booking_id,
                 c.notes
             FROM core.booking_calendar c
-            JOIN core.listings l ON c.listing_id = l.id
             WHERE c.listing_id = :listing_id
                 AND EXTRACT(YEAR FROM c.date) = :year
                 AND EXTRACT(MONTH FROM c.date) = :month
-            ORDER BY c.date
         """), {
             "listing_id": listing_uuid,
             "year": year,
-            "month": month
+            "month": month,
+            "base_price": base_price
         })
         
-        calendar = []
-        for row in result:
-            calendar.append({
-                "date": row.date.isoformat(),
+        # Crear diccionario de fechas bloqueadas
+        blocked_dates = {}
+        for row in blocked_dates_result:
+            blocked_dates[row.date.isoformat()] = {
                 "is_available": row.is_available,
-                "price": float(row.price) if row.price else None,
+                "price": float(row.price) if row.price else base_price,
                 "booking_id": str(row.booking_id) if row.booking_id else None,
                 "notes": row.notes
-            })
+            }
         
-        # Si no hay datos en el calendario, generar fechas disponibles del mes
-        if not calendar:
-            # Obtener el precio base del listing
-            listing_data = db.execute(
-                text("SELECT price FROM core.listings WHERE id = :listing_id"),
-                {"listing_id": listing_uuid}
-            ).fetchone()
+        # Generar calendario completo del mes
+        calendar = []
+        for day in range(1, last_day + 1):
+            date_obj = date(year, month, day)
+            date_str = date_obj.isoformat()
             
-            base_price = float(listing_data.price) if listing_data else 0
-            
-            # Generar fechas del mes
-            import calendar as cal
-            _, last_day = cal.monthrange(year, month)
-            
-            for day in range(1, last_day + 1):
-                date_obj = date(year, month, day)
+            if date_str in blocked_dates:
+                # Usar datos del calendario
                 calendar.append({
-                    "date": date_obj.isoformat(),
+                    "date": date_str,
+                    "is_available": blocked_dates[date_str]["is_available"],
+                    "price": blocked_dates[date_str]["price"],
+                    "booking_id": blocked_dates[date_str]["booking_id"],
+                    "notes": blocked_dates[date_str]["notes"]
+                })
+            else:
+                # Fecha disponible con precio base
+                calendar.append({
+                    "date": date_str,
                     "is_available": True,
                     "price": base_price,
                     "booking_id": None,
@@ -1040,9 +1052,10 @@ async def process_payment(
         
         # Llave privada de Culqi desde configuración
         culqi_secret_key = settings.culqi_secret_key
+        # El frontend ya envía el monto en centavos, no multiplicar de nuevo
         amount_in_cents = int(booking.reservation_amount * 100)
         
-        logger.info(f"🔑 Procesando pago Culqi - Booking: {booking_id}, Monto: {amount_in_cents} centavos")
+        logger.info(f"🔑 Procesando pago Culqi - Booking: {booking_id}, Monto reserva: S/ {booking.reservation_amount:.2f}, Monto en centavos: {amount_in_cents}")
         logger.info(f"🔑 Usando llave: {culqi_secret_key[:15]}...")
         
         # Intentar usar SDK de Culqi
@@ -1053,12 +1066,14 @@ async def process_payment(
             culqi = Culqi(settings.culqi_public_key, settings.culqi_secret_key)
             
             # Preparar datos del cargo
+            # Acortar descripción para cumplir límite de 80 caracteres de Culqi
+            booking_id_short = str(booking.id)[:8]
             charge_data = {
                 'amount': amount_in_cents,
                 'currency_code': 'PEN',
                 'email': current_user.email,
                 'source_id': culqi_token,
-                'description': f'Reserva #{booking.id} - Propiedad {booking.listing_id}',
+                'description': f'Reserva RentaFacil #{booking_id_short}',
                 'capture': True,
             }
             
@@ -1078,11 +1093,17 @@ async def process_payment(
             
             logger.info(f"📡 Respuesta del SDK: {charge_result}")
             
-            # Verificar si hay error en la respuesta
-            if isinstance(charge_result, dict) and charge_result.get('object') == 'error':
-                error_message = charge_result.get('user_message') or charge_result.get('merchant_message') or 'Error al procesar el pago'
-                logger.error(f"❌ Error en Culqi SDK: {charge_result}")
-                raise HTTPException(status_code=400, detail=error_message)
+            # Verificar si hay error en la respuesta (pero no si es REVIEW que es parte del flujo 3DS)
+            if isinstance(charge_result, dict):
+                if charge_result.get('object') == 'error':
+                    error_message = charge_result.get('user_message') or charge_result.get('merchant_message') or 'Error al procesar el pago'
+                    logger.error(f"❌ Error en Culqi SDK: {charge_result}")
+                    raise HTTPException(status_code=400, detail=error_message)
+                
+                # REVIEW significa que requiere autenticación 3DS, pero el cargo está pendiente
+                if charge_result.get('action_code') == 'REVIEW':
+                    logger.info(f"⏳ Cargo requiere autenticación 3DS: {charge_result.get('id')}")
+                    # El cargo está en proceso de autenticación, no es un error
                 
         except ImportError:
             # Fallback: usar requests si el SDK no está instalado
@@ -1093,12 +1114,14 @@ async def process_payment(
                 'Content-Type': 'application/json'
             }
             
+            # Acortar descripción para cumplir límite de 80 caracteres de Culqi
+            booking_id_short = str(booking.id)[:8]
             charge_data = {
                 'amount': amount_in_cents,
                 'currency_code': 'PEN',
                 'email': current_user.email,
                 'source_id': culqi_token,
-                'description': f'Reserva #{booking.id} - Propiedad {booking.listing_id}',
+                'description': f'Reserva RentaFacil #{booking_id_short}',
                 'capture': True,
             }
             
@@ -1113,33 +1136,153 @@ async def process_payment(
             logger.info(f"📡 Respuesta HTTP - Status: {response.status_code}")
             logger.info(f"📡 Respuesta HTTP - Body: {response.text}")
             
-            if response.status_code != 201:
+            # Culqi puede devolver 200 o 201 para cargos exitosos
+            if response.status_code not in [200, 201]:
                 error_data = response.json()
                 logger.error(f"❌ Error HTTP en Culqi: {error_data}")
                 error_message = error_data.get('user_message') or error_data.get('merchant_message') or 'Error al procesar el pago'
                 raise HTTPException(status_code=400, detail=error_message)
             
             charge_result = response.json()
+            
+            # Verificar si hay error en el objeto de respuesta
+            if charge_result.get('object') == 'error':
+                error_message = charge_result.get('user_message') or charge_result.get('merchant_message') or 'Error al procesar el pago'
+                logger.error(f"❌ Error en respuesta Culqi: {charge_result}")
+                raise HTTPException(status_code=400, detail=error_message)
+            
+            # REVIEW significa que requiere autenticación 3DS, pero el cargo está pendiente
+            if charge_result.get('action_code') == 'REVIEW':
+                logger.info(f"⏳ Cargo requiere autenticación 3DS: {charge_result.get('id')}")
+                # El cargo está en proceso de autenticación, no es un error
         
-        # Actualizar booking
-        booking.status = 'reservation_paid'
-        booking.reservation_paid_at = datetime.utcnow()
-        booking.payment_proof_url = f"culqi_charge_{charge_result['id']}"
-        booking.payment_verified_at = datetime.utcnow()
-        booking.payment_verified_by = current_user.id
+        # Verificar el estado del cargo
+        logger.info(f"🔍 Resultado completo de Culqi charge: {charge_result}")
+        charge_outcome = charge_result.get('outcome', {})
+        action_code = charge_result.get('action_code')
+        
+        # Actualizar booking según el resultado
+        charge_id = charge_result.get('id', 'unknown')
+        logger.info(f"🔑 Charge ID: {charge_id}, Action code: {action_code}, Outcome: {charge_outcome}")
+        
+        if action_code == 'REVIEW' or charge_outcome.get('type') == 'pendiente':
+            # Cargo pendiente de autenticación 3DS
+            booking.status = 'pending_payment'
+            booking.payment_proof_url = f"culqi_charge_{charge_id}_pending"
+            logger.info(f"⏳ Pago pendiente de autenticación 3DS para reserva {booking_id}")
+            message = "Pago pendiente de autenticación. Por favor completa la autenticación 3DS."
+        elif charge_outcome.get('type') == 'venta_exitosa':
+            # Cargo exitoso
+            booking.status = 'reservation_paid'
+            booking.reservation_paid_at = datetime.utcnow()
+            booking.payment_proof_url = f"culqi_charge_{charge_id}"
+            booking.payment_verified_at = datetime.utcnow()
+            booking.payment_verified_by = current_user.id
+            logger.info(f"✅ Pago procesado exitosamente para reserva {booking_id}")
+            message = "Pago procesado exitosamente"
+            
+            # --- BLOQUEAR FECHAS EN EL CALENDARIO ---
+            try:
+                logger.info(f"📅 Bloqueando fechas en calendario para reserva {booking_id}")
+                current_date = booking.check_in_date
+                price_per_night = Decimal(str(booking.total_price)) / Decimal(str(booking.nights))
+                
+                # Obtener listing para listing_created_at
+                listing = db.query(Listing).filter(Listing.id == booking.listing_id).first()
+                if not listing:
+                    raise ValueError("Listing no encontrado")
+                
+                while current_date < booking.check_out_date:
+                    # Buscar si ya existe entrada para esta fecha
+                    calendar_entry = db.query(BookingCalendar).filter(
+                        BookingCalendar.listing_id == booking.listing_id,
+                        BookingCalendar.date == current_date
+                    ).first()
+                    
+                    if calendar_entry:
+                        # Actualizar entrada existente
+                        calendar_entry.is_available = False
+                        calendar_entry.booking_id = booking.id
+                    else:
+                        # Crear nueva entrada
+                        calendar_entry = BookingCalendar(
+                            listing_id=booking.listing_id,
+                            listing_created_at=listing.created_at,
+                            date=current_date,
+                            is_available=False,
+                            booking_id=booking.id,
+                            price_override=price_per_night
+                        )
+                        db.add(calendar_entry)
+                    
+                    current_date += timedelta(days=1)
+                
+                db.flush()  # Forzar flush para detectar errores antes del commit
+                logger.info(f"✅ Fechas bloqueadas exitosamente en calendario")
+            except Exception as calendar_error:
+                logger.error(f"❌ Error bloqueando fechas en calendario: {calendar_error}")
+                db.rollback()  # Rollback si hay error
+                raise HTTPException(status_code=500, detail=f"Error bloqueando fechas: {str(calendar_error)}")
+            
+            # --- NOTIFICAR AL PROPIETARIO ---
+            try:
+                logger.info(f"📧 Enviando notificación de pago al propietario")
+                listing = db.query(Listing).filter(Listing.id == booking.listing_id).first()
+                
+                if listing and listing.owner_user_id:
+                    notification_service = NotificationService(db)
+                    owner = db.query(User).filter(User.id == listing.owner_user_id).first()
+                    
+                    if owner:
+                        guest_name = f"{current_user.first_name or ''} {current_user.last_name or ''}".strip() or current_user.email
+                        check_in_formatted = booking.check_in_date.strftime("%d/%m/%Y")
+                        check_out_formatted = booking.check_out_date.strftime("%d/%m/%Y")
+                        
+                        notification_data = NotificationCreate(
+                            user_id=str(listing.owner_user_id),
+                            notification_type=NotificationType.BOOKING,
+                            category="booking_confirmed",
+                            title="💰 Pago de reserva confirmado",
+                            message=f"{guest_name} ha completado el pago de la reserva para '{listing.title}' del {check_in_formatted} al {check_out_formatted}. Monto: S/ {float(booking.reservation_amount):.2f}",
+                            summary=f"Pago confirmado: {guest_name}",
+                            priority=NotificationPriority.HIGH,
+                            related_entity_type="booking",
+                            related_entity_id=str(booking.id),
+                            action_url=f"/dashboard/bookings/{booking.id}",
+                            action_data={
+                                "booking_id": str(booking.id),
+                                "listing_id": str(listing.id),
+                                "guest_name": guest_name,
+                                "amount": float(booking.reservation_amount)
+                            }
+                        )
+                        
+                        notification_service.create_notification(notification_data)
+                        db.flush()  # Forzar flush para la notificación
+                        logger.info(f"🔔 Notificación enviada a propietario {owner.email}")
+            except Exception as notif_error:
+                logger.error(f"❌ Error enviando notificación: {notif_error}")
+                # La notificación no es crítica, continuar sin hacer rollback
+                
+        else:
+            # Otro estado
+            logger.warning(f"⚠️ Estado desconocido de cargo: {charge_result}")
+            booking.status = 'pending_payment'
+            booking.payment_proof_url = f"culqi_charge_{charge_id}_unknown"
+            message = "Pago en proceso de verificación"
         
         db.commit()
-        
-        logger.info(f"Pago procesado exitosamente para reserva {booking_id} con Culqi charge {charge_result['id']}")
         
         # TODO: Enviar email de confirmación de pago
         
         return {
-            "message": "Pago procesado exitosamente",
+            "message": message,
             "booking_id": str(booking.id),
             "charge_id": charge_result['id'],
             "amount": float(booking.reservation_amount),
-            "status": booking.status
+            "status": booking.status,
+            "action_code": action_code,
+            "outcome": charge_outcome
         }
         
     except HTTPException:

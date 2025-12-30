@@ -8,6 +8,9 @@ export const CULQI_CONFIG = {
   test: {
     publicKey: 'pk_test_SsNSbc4aceAySSp3',
     privateKey: 'sk_test_yrsjDrloVOls3E62',
+    rsaId: process.env.NEXT_PUBLIC_CULQI_RSA_ID || '',
+    rsaPublicKey: process.env.NEXT_PUBLIC_CULQI_RSA_PUBLIC_KEY || '',
+    orderId: process.env.NEXT_PUBLIC_CULQI_ORDER_ID || '', // Opcional
     baseUrl: 'https://api.culqi.com',
   },
   
@@ -15,6 +18,9 @@ export const CULQI_CONFIG = {
   production: {
     publicKey: process.env.NEXT_PUBLIC_CULQI_PUBLIC_KEY || '',
     privateKey: process.env.CULQI_PRIVATE_KEY || '',
+    rsaId: process.env.NEXT_PUBLIC_CULQI_RSA_ID || '',
+    rsaPublicKey: process.env.NEXT_PUBLIC_CULQI_RSA_PUBLIC_KEY || '',
+    orderId: process.env.NEXT_PUBLIC_CULQI_ORDER_ID || '', // Opcional
     baseUrl: 'https://api.culqi.com',
   },
 };
@@ -24,9 +30,6 @@ export const getCulqiConfig = () => {
   const env = process.env.NODE_ENV === 'production' ? 'production' : 'test';
   return CULQI_CONFIG[env];
 };
-
-// Culqi script URL
-export const CULQI_SCRIPT_URL = 'https://checkout.culqi.com/js/v4';
 
 // Payment settings
 export const PAYMENT_SETTINGS = {

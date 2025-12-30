@@ -325,6 +325,23 @@ export function getAccessToken(): string | null {
 }
 
 /**
+ * Make public API request (no authentication required)
+ */
+export async function publicRequest(url: string, options: RequestInit = {}): Promise<Response> {
+  const headers = {
+    ...options.headers,
+    'Accept': 'application/json',
+  }
+  
+  const response = await fetch(url, {
+    ...options,
+    headers,
+  })
+  
+  return response
+}
+
+/**
  * Make authenticated API request
  */
 export async function authenticatedRequest(url: string, options: RequestInit = {}): Promise<Response> {

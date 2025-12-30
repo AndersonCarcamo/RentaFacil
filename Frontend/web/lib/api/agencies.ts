@@ -1,5 +1,5 @@
 // API functions for agency management
-import { API_BASE_URL, authenticatedRequest } from './auth';
+import { API_BASE_URL, authenticatedRequest, publicRequest } from './auth';
 
 export interface Agency {
   id: string;
@@ -41,7 +41,7 @@ export async function getMyAgency(): Promise<Agency> {
 }
 
 /**
- * Get all agencies
+ * Get all agencies (public endpoint - no authentication required)
  */
 export async function getAgencies(verified?: boolean): Promise<Agency[]> {
   const url = new URL(`${API_BASE_URL}/v1/agencies`);
@@ -49,7 +49,7 @@ export async function getAgencies(verified?: boolean): Promise<Agency[]> {
     url.searchParams.append('verified', String(verified));
   }
 
-  const response = await authenticatedRequest(url.toString(), {
+  const response = await publicRequest(url.toString(), {
     method: 'GET',
   });
 
@@ -62,10 +62,10 @@ export async function getAgencies(verified?: boolean): Promise<Agency[]> {
 }
 
 /**
- * Get agency by ID
+ * Get agency by ID (public endpoint - no authentication required)
  */
 export async function getAgency(agencyId: string): Promise<Agency> {
-  const response = await authenticatedRequest(
+  const response = await publicRequest(
     `${API_BASE_URL}/v1/agencies/${agencyId}`,
     {
       method: 'GET',
