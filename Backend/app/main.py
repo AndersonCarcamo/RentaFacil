@@ -93,12 +93,18 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",  # React development
         "http://localhost:3001",  # Alternative React port
-        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3000",  # React development (IP)
+        "http://127.0.0.1:3001",  # Alternative React port (IP)
+        "http://localhost:8000",  # Backend mismo origen
+        "http://127.0.0.1:8000",  # Backend mismo origen (IP)
+        "http://localhost:19006",  # Expo development
+        "http://127.0.0.1:19006",
         settings.frontend_url
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 

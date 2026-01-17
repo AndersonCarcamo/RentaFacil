@@ -136,17 +136,39 @@ async def delete_agency(agency_id: str, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error deleting agency: {str(e)}")
 
-@router.get("/{agency_id}/agents", response_model=List[AgencyAgentResponse], summary="Listar agentes de la agencia")
-async def list_agents(agency_id: str, db: Session = Depends(get_db)):
+@router.get("/{agency_id}/agents", summary="Listar agentes de la agencia")
+async def list_agents(
+    agency_id: str, 
+    include_inactive: bool = False,
+    db: Session = Depends(get_db)
+):
+    """
+    Get list of all agents in the agency with full user information.
+    Returns data compatible with AgentListResponse.
+    """
     try:
-        service = AgencyService(db)
-        # First check if agency exists
-        agency = service.get_agency(agency_id)
-        if not agency:
-            raise HTTPException(status_code=404, detail="Agency not found")
+        from app.services.agent_service import AgentService
+        from uuid import UUID
         
-        agents = service.list_agents(agency_id)
-        return [AgencyAgentResponse.from_orm(a) for a in agents]
+        agent_service = AgentService(db)
+        
+        # Get agents with full user data
+        agents = agent_service.get_agency_agents(UUID(agency_id), include_inactive)
+        
+        # Get pending invitations count
+        pending_invitations = agent_service.get_pending_invitations(UUID(agency_id))
+        
+        # Calculate stats
+        active_count = sum(1 for agent in agents if agent["is_active"])
+        inactive_count = len(agents) - active_count
+        
+        return {
+            "agents": agents,
+            "total": len(agents),
+            "active_count": active_count,
+            "inactive_count": inactive_count,
+            "pending_invitations": len(pending_invitations)
+        }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=f"Invalid agency ID: {str(e)}")
     except HTTPException:

@@ -71,6 +71,41 @@ class AuthService:
             self.db.refresh(user)
             logger.info(f"User saved successfully with ID: {user.id}")
             
+            # If user is an agent and has agency_name, create agency automatically
+            if user.role == UserRole.AGENT and user_data.agency_name:
+                logger.info(f"Creating agency automatically for agent: {user_data.agency_name}")
+                try:
+                    from app.models.agency import Agency, AgencyAgent
+                    
+                    # Create agency
+                    agency = Agency(
+                        name=user_data.agency_name,
+                        email=user.email,
+                        phone=user.phone,
+                        description=f"Agencia creada automáticamente para {user.first_name} {user.last_name}",
+                        is_verified=False
+                    )
+                    self.db.add(agency)
+                    self.db.commit()
+                    self.db.refresh(agency)
+                    logger.info(f"Agency created with ID: {agency.id}")
+                    
+                    # Link user to agency as owner
+                    agency_agent = AgencyAgent(
+                        user_id=user.id,
+                        agency_id=agency.id,
+                        role='owner'  # User who creates the agency is the owner
+                    )
+                    self.db.add(agency_agent)
+                    self.db.commit()
+                    logger.info(f"User linked to agency as owner")
+                    
+                except Exception as agency_error:
+                    logger.error(f"Error creating agency: {agency_error}")
+                    # Don't fail user creation if agency creation fails
+                    # User can create/link agency later
+                    self.db.rollback()
+            
             return user
             
         except Exception as e:

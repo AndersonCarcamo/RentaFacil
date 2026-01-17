@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block content_block_styles %}
+    background: linear-gradient(to right, #F5F9FF 0%, #EFF6FF 100%);
+    border-left: 4px solid #1D7FAF;
+    border-radius: 8px;
+    padding: 25px;
+    margin: 25px 0;
+{% endblock %}
+
+{% block email_content %}
+    <div class="greeting">
+        ¡Hola {{ first_name }}!
+    </div>
+    
+    <div class="message">
+        <strong>{{ inviter_name }}</strong> te ha invitado a unirte a la agencia 
+        <strong>{{ agency_name }}</strong> en EasyRent como agente inmobiliario.
+    </div>
+    
+    <div class="content-block">
+        <h3 style="color: #1D7FAF; font-size: 18px; margin-bottom: 15px;">
+            📋 Detalles de la Invitación
+        </h3>
+        
+        <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+                <td style="padding: 10px 0; color: #666; font-size: 14px;">
+                    <strong>Agencia:</strong>
+                </td>
+                <td style="padding: 10px 0; color: #333; font-size: 14px; text-align: right;">
+                    {{ agency_name }}
+                </td>
+            </tr>
+            <tr>
+                <td style="padding: 10px 0; color: #666; font-size: 14px;">
+                    <strong>Invitado por:</strong>
+                </td>
+                <td style="padding: 10px 0; color: #333; font-size: 14px; text-align: right;">
+                    {{ inviter_name }}
+                </td>
+            </tr>
+            <tr>
+                <td style="padding: 10px 0; color: #666; font-size: 14px;">
+                    <strong>Email:</strong>
+                </td>
+                <td style="padding: 10px 0; color: #333; font-size: 14px; text-align: right;">
+                    {{ email }}
+                </td>
+            </tr>
+            <tr>
+                <td style="padding: 10px 0; color: #666; font-size: 14px;">
+                    <strong>Válida hasta:</strong>
+                </td>
+                <td style="padding: 10px 0; color: #333; font-size: 14px; text-align: right;">
+                    {{ expires_at }}
+                </td>
+            </tr>
+        </table>
+    </div>
+    
+    <div class="message">
+        Al aceptar esta invitación, podrás:
+    </div>
+    
+    <ul style="margin: 20px 0 20px 30px; color: #333; font-size: 15px; line-height: 2;">
+        <li>Gestionar propiedades de la agencia</li>
+        <li>Atender consultas y reservas</li>
+        <li>Colaborar con otros agentes del equipo</li>
+        <li>Acceder al panel de control de la agencia</li>
+    </ul>
+    
+    <div class="cta-container">
+        <a href="{{ invitation_url }}" class="cta-button">
+            ✅ Aceptar Invitación
+        </a>
+    </div>
+    
+    <div style="background: #FFF9E6; border-left: 4px solid #F5C842; padding: 15px; border-radius: 4px; margin: 20px 0;">
+        <p style="margin: 0; color: #856404; font-size: 14px;">
+            <strong>⚠️ Importante:</strong> Esta invitación expira el <strong>{{ expires_at }}</strong>. 
+            Si no aceptas la invitación antes de esa fecha, deberás solicitar una nueva.
+        </p>
+    </div>
+    
+    <div class="message" style="font-size: 14px; color: #666; margin-top: 30px;">
+        Si no esperabas esta invitación o no deseas unirte a esta agencia, 
+        puedes ignorar este correo de forma segura.
+    </div>
+{% endblock %}

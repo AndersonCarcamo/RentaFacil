@@ -261,47 +261,6 @@ class EmailService:
             html_content=html_content,
             text_content=text_content
         )
-        
-        Hola {guest_name},
-        
-        {owner_name} ha aceptado tu solicitud de reserva para {property_title}.
-        
-        DETALLES DE LA RESERVA:
-        - Propiedad: {property_title}
-        - Check-in: {check_in}
-        - Check-out: {check_out}
-        - Noches: {nights}
-        - Huéspedes: {guests}
-        
-        ACCIÓN REQUERIDA - PLAZO: 6 HORAS
-        Límite para completar el pago: {payment_deadline}
-        
-        PAGO:
-        - Total: S/ {total_price:.2f}
-        - Pagar ahora (50%): S/ {reservation_amount:.2f}
-        - Pagar al check-in (50%): S/ {total_price - reservation_amount:.2f}
-        
-        DATOS BANCARIOS:
-        Banco: BCP
-        Cuenta: 123-456789-0-00
-        CCI: 00212345678900000000
-        Titular: EasyRent Perú S.A.C.
-        Monto: S/ {reservation_amount:.2f}
-        
-        IMPORTANTE: Si no se recibe el pago en 6 horas, la reserva será cancelada automáticamente.
-        
-        Sube tu comprobante: {os.getenv('FRONTEND_URL', 'http://localhost:3000')}/my-bookings/{booking_id}
-        
-        Saludos,
-        El equipo de EasyRent
-        """
-        
-        return self.send_email(
-            to_email=guest_email,
-            subject=subject,
-            html_content=html_content,
-            text_content=text_content
-        )
     
     def send_booking_confirmation(
         self,
@@ -514,6 +473,85 @@ class EmailService:
             to_email=guest_email,
             subject=subject,
             html_content=html_content
+        )
+    
+    def send_agent_invitation(
+        self,
+        to_email: str,
+        first_name: str,
+        last_name: str,
+        agency_name: str,
+        inviter_name: str,
+        invitation_token: str,
+        expires_at: str
+    ) -> bool:
+        """
+        Enviar invitación para unirse a una agencia como agente
+        
+        Args:
+            to_email: Email del invitado
+            first_name: Nombre del invitado
+            last_name: Apellido del invitado
+            agency_name: Nombre de la agencia
+            inviter_name: Nombre de quien invita
+            invitation_token: Token único de la invitación
+            expires_at: Fecha de expiración en formato legible
+            
+        Returns:
+            bool: True si se envió correctamente
+        """
+        subject = f"🏢 Invitación para Unirte a {agency_name} - EasyRent"
+        
+        # URL de aceptación de invitación
+        invitation_url = f"{self.frontend_url}/agents/accept-invitation?token={invitation_token}"
+        
+        # Renderizar plantilla
+        html_content = self.render_template(
+            'agent_invitation.html',
+            first_name=first_name,
+            last_name=last_name,
+            email=to_email,
+            agency_name=agency_name,
+            inviter_name=inviter_name,
+            invitation_url=invitation_url,
+            expires_at=expires_at
+        )
+        
+        # Texto plano alternativo
+        text_content = f"""
+        ¡Invitación para Unirte a {agency_name}!
+        
+        Hola {first_name},
+        
+        {inviter_name} te ha invitado a unirte a la agencia {agency_name} en EasyRent como agente inmobiliario.
+        
+        DETALLES:
+        - Agencia: {agency_name}
+        - Invitado por: {inviter_name}
+        - Email: {to_email}
+        - Válida hasta: {expires_at}
+        
+        Al aceptar esta invitación, podrás:
+        • Gestionar propiedades de la agencia
+        • Atender consultas y reservas
+        • Colaborar con otros agentes del equipo
+        • Acceder al panel de control de la agencia
+        
+        Acepta tu invitación aquí: {invitation_url}
+        
+        IMPORTANTE: Esta invitación expira el {expires_at}.
+        
+        Si no esperabas esta invitación, puedes ignorar este correo.
+        
+        Saludos,
+        El equipo de EasyRent
+        """
+        
+        return self.send_email(
+            to_email=to_email,
+            subject=subject,
+            html_content=html_content,
+            text_content=text_content
         )
 
 

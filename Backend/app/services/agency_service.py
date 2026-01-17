@@ -55,7 +55,15 @@ class AgencyService:
     def list_agents(self, agency_id: str) -> List[AgencyAgent]:
         return self.db.query(AgencyAgent).filter(AgencyAgent.agency_id == uuid.UUID(agency_id)).all()
 
-    def add_agent(self, agency_id: str, user_id: str) -> AgencyAgent:
+    def add_agent(self, agency_id: str, user_id: str, role: str = 'agent') -> AgencyAgent:
+        """
+        Add an agent to an agency.
+        
+        Args:
+            agency_id: UUID of the agency
+            user_id: UUID of the user
+            role: Role in the agency ('owner', 'agent', 'admin'). Default is 'agent'
+        """
         # Check if relationship already exists
         existing = self.db.query(AgencyAgent).filter(
             AgencyAgent.agency_id == uuid.UUID(agency_id),
@@ -68,7 +76,7 @@ class AgencyService:
         agent = AgencyAgent(
             agency_id=uuid.UUID(agency_id),
             user_id=uuid.UUID(user_id),
-            role='agent'
+            role=role  # Use provided role
         )
         self.db.add(agent)
         self.db.commit()

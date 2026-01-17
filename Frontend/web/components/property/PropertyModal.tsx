@@ -58,6 +58,19 @@ const PropertyModal: React.FC<PropertyModalProps> = ({ propertyId, isOpen, onClo
   const [contactSettings, setContactSettings] = useState<ContactSettings | null>(null);
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
 
+  // Manejar clase modal-open en body para z-index de mapa
+  useEffect(() => {
+    if (isOpen) {
+      document.body.classList.add('modal-open');
+    } else {
+      document.body.classList.remove('modal-open');
+    }
+    
+    return () => {
+      document.body.classList.remove('modal-open');
+    };
+  }, [isOpen]);
+
   // 🔍 DEBUG: Verificar que este modal se está usando
   useEffect(() => {
     if (isOpen && propertyId) {
@@ -193,12 +206,12 @@ const PropertyModal: React.FC<PropertyModalProps> = ({ propertyId, isOpen, onClo
     <>
       {/* Overlay */}
       <div 
-        className="fixed inset-0 bg-black/50 z-[400] transition-opacity"
+        className="fixed inset-0 bg-black/50 z-[9998] transition-opacity"
         onClick={onClose}
       />
       
       {/* Modal */}
-      <div className="fixed inset-0 z-[450] overflow-y-auto">
+      <div className="fixed inset-0 z-[9999] overflow-y-auto">
         <div className="flex min-h-full items-center justify-center p-4">
           <div 
             className="relative bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden"

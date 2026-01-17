@@ -1,3 +1,27 @@
 ./Frontend/web/renta-facil-d04c7-firebase-adminsdk-fbsvc-45eba69a39.json
-
 .\Frontend\web\renta-facil-d04c7-firebase-adminsdk-fbsvc-45eba69a39.json
+
+# Android/React Native
+Frontend/Android/node_modules/
+Frontend/Android/.expo/
+Frontend/Android/.expo-shared/
+Frontend/Android/dist/
+Frontend/Android/npm-debug.*
+Frontend/Android/*.jks
+Frontend/Android/*.p8
+Frontend/Android/*.p12
+Frontend/Android/*.key
+Frontend/Android/*.mobileprovision
+Frontend/Android/*.orig.*
+Frontend/Android/web-build/
+Frontend/Android/.env
+Frontend/Android/.env.local
+Frontend/Android/.env.development.local
+Frontend/Android/.env.test.local
+Frontend/Android/.env.production.local
+
+# macOS
+Frontend/Android/.DS_Store
+
+# Temporary files created by Metro
+Frontend/Android/.metro-health-check*

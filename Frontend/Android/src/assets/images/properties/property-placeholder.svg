@@ -1,0 +1,15 @@
+<!-- Placeholder SVG for properties without images -->
+<svg width="400" height="240" viewBox="0 0 400 240" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="400" height="240" fill="#F3F4F6"/>
+  <g opacity="0.5">
+    <path d="M120 80H280V160H120V80Z" stroke="#9CA3AF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <path d="M140 100H180V140H140V100Z" stroke="#9CA3AF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <path d="M200 100H260V120H200V100Z" stroke="#9CA3AF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <path d="M200 130H240V140H200V130Z" stroke="#9CA3AF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <circle cx="155" cy="110" r="5" fill="#9CA3AF"/>
+    <path d="M180 160L200 140L220 155L240 135L280 160H180Z" fill="#9CA3AF"/>
+  </g>
+  <text x="200" y="190" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="14" fill="#6B7280">
+    Sin imagen disponible
+  </text>
+</svg>

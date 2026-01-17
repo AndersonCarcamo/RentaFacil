@@ -952,7 +952,7 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
       {/* Main Content - Adjust for Header height (96px) only if header is shown */}
       <div className="flex flex-col" style={{ height: hideHeader ? '100vh' : 'calc(100vh - 96px)' }}>
         {/* Progress Bar */}
-        <div className="bg-white border-b" style={{ position: 'sticky', top: hideHeader ? '0' : '96px', zIndex: 900 }}>
+        <div className="bg-white border-b" style={{ position: 'sticky', top: hideHeader ? '0' : '96px', zIndex: 10 }}>
           <div className="px-4 py-4">
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm font-medium text-gray-900">
@@ -987,7 +987,7 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
         </div>
 
         {/* Navigation Buttons */}
-        <div className="bg-white border-t px-4 py-4 sticky bottom-0 z-[900]">
+        <div className="bg-white border-t px-4 py-4 sticky bottom-0 z-10">
           <div className="flex gap-3">
             {currentStep > 1 && (
               <Button
@@ -1002,17 +1002,7 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
               </Button>
             )}
             
-            {currentStep < totalSteps && (formData.role !== 'AGENT' || currentStep !== 3) ? (
-              <Button
-                type="button"
-                variant="primary"
-                onClick={handleNext}
-                className="flex-1"
-              >
-                Siguiente
-                <ChevronRightIcon className="w-5 h-5 ml-1" />
-              </Button>
-            ) : (
+            {currentStep === 5 ? (
               <Button
                 type="button"
                 variant="primary"
@@ -1021,6 +1011,16 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
                 className="flex-1"
               >
                 {isLoading ? 'Creando cuenta...' : 'Crear Cuenta'}
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                variant="primary"
+                onClick={handleNext}
+                className="flex-1"
+              >
+                Siguiente
+                <ChevronRightIcon className="w-5 h-5 ml-1" />
               </Button>
             )}
           </div>

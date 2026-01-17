@@ -427,3 +427,34 @@ input[type="range"]:focus::-webkit-slider-thumb {
 input[type="range"]:focus::-moz-range-thumb {
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
 }
+
+/* ============================================
+   Leaflet Map Controls - Z-Index Override
+   ============================================ */
+   
+/* Controles de Leaflet (zoom, layers, etc.) */
+.leaflet-control-zoom,
+.leaflet-control-layers,
+.leaflet-control-attribution,
+.leaflet-bar,
+.leaflet-control {
+  z-index: 120 !important; /* Mismo nivel que el mapa, debajo de modales */
+}
+
+/* Asegurar que los popups del mapa no interfieran con modales */
+.leaflet-popup-pane {
+  z-index: 130 !important;
+}
+
+/* Tooltips del mapa */
+.leaflet-tooltip-pane {
+  z-index: 140 !important;
+}
+
+/* Cuando hay un modal abierto, reducir aún más el z-index de controles */
+.modal-open .leaflet-control-zoom,
+.modal-open .leaflet-control-layers,
+.modal-open .leaflet-bar,
+.modal-open .leaflet-control {
+  z-index: 100 !important;
+}

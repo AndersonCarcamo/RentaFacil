@@ -29,10 +29,10 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-def require_agency_owner(agency_id: UUID, current_user: dict, db: Session):
+def require_agency_owner(agency_id: UUID, current_user, db: Session):
     """Verify that current user is owner of the agency"""
     service = AgentService(db)
-    if not service.verify_agency_owner(UUID(current_user["user_id"]), agency_id):
+    if not service.verify_agency_owner(current_user.id, agency_id):
         raise http_403_forbidden("You don't have permission to manage this agency")
 
 
@@ -45,31 +45,43 @@ async def invite_agent(
     agency_id: UUID,
     data: AgentInviteRequest,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user = Depends(get_current_user)
 ):
     """
     Send an invitation to a new agent.
     Only agency owners can invite agents.
     """
-    # Verify permissions
-    require_agency_owner(agency_id, current_user, db)
+    logger.info(f"📧 Invite agent request - Agency: {agency_id}, Email: {data.email}")
+    logger.info(f"📧 Current user: {current_user}")
+    logger.info(f"📧 Request data: {data.model_dump()}")
     
-    service = AgentService(db)
-    invitation = service.create_invitation(
-        agency_id=agency_id,
-        invited_by_user_id=UUID(current_user["user_id"]),
-        email=data.email,
-        first_name=data.first_name,
-        last_name=data.last_name,
-        phone=data.phone
-    )
-    
-    # TODO: Send email with invitation link
-    # Email should contain: https://yourapp.com/accept-invitation?token={token}
-    
-    logger.info(f"Agent invitation created for {data.email} by user {current_user['user_id']}")
-    
-    return AgentInvitationResponse(**invitation)
+    try:
+        # Verify permissions
+        logger.info(f"📧 Verifying permissions...")
+        require_agency_owner(agency_id, current_user, db)
+        logger.info(f"📧 Permissions verified ✓")
+        
+        service = AgentService(db)
+        logger.info(f"📧 Creating invitation...")
+        invitation = service.create_invitation(
+            agency_id=agency_id,
+            invited_by_user_id=current_user.id,
+            email=data.email,
+            first_name=data.first_name,
+            last_name=data.last_name,
+            phone=data.phone
+        )
+        logger.info(f"📧 Invitation created: {invitation}")
+        
+        logger.info(f"Agent invitation created for {data.email} by user {current_user.id}")
+        
+        return AgentInvitationResponse(**invitation)
+    except Exception as e:
+        logger.error(f"❌ Error in invite_agent: {e}")
+        logger.error(f"❌ Error type: {type(e).__name__}")
+        import traceback
+        logger.error(f"❌ Traceback: {traceback.format_exc()}")
+        raise
 
 
 @router.get("/{agency_id}/agents",

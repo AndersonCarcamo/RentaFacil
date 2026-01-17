@@ -11,6 +11,7 @@ import logging
 
 from app.models.listing import Listing
 from app.core.exceptions import http_400_bad_request, http_403_forbidden, http_404_not_found
+from app.services.email_service import email_service
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +31,7 @@ class AgentService:
         last_name: str,
         phone: Optional[str] = None
     ) -> Dict[str, Any]:
-        """Create a new agent invitation"""
+        """Create a new agent invitation and send email"""
         try:
             # Check if user already exists with this email
             existing_user = self.db.execute(text("""
@@ -51,6 +52,25 @@ class AgentService:
             
             if existing_invitation:
                 raise http_400_bad_request("Pending invitation already exists for this email")
+            
+            # Get agency name and inviter name for the email
+            agency_info = self.db.execute(text("""
+                SELECT 
+                    a.name as agency_name,
+                    u.first_name || ' ' || u.last_name as inviter_name
+                FROM core.agencies a
+                JOIN core.users u ON u.id = :inviter_id
+                WHERE a.id = :agency_id
+            """), {
+                "agency_id": agency_id,
+                "inviter_id": invited_by_user_id
+            }).fetchone()
+            
+            if not agency_info:
+                raise http_404_not_found("Agency not found")
+            
+            agency_name = agency_info[0]
+            inviter_name = agency_info[1]
             
             # Generate secure token
             token = secrets.token_urlsafe(32)
@@ -76,14 +96,39 @@ class AgentService:
             invitation = result.fetchone()
             self.db.commit()
             
+            # Send invitation email
+            try:
+                email_sent = email_service.send_agent_invitation(
+                    to_email=email,
+                    first_name=first_name,
+                    last_name=last_name,
+                    agency_name=agency_name,
+                    inviter_name=inviter_name,
+                    invitation_token=invitation[1],  # token
+                    expires_at=invitation[2].strftime("%d/%m/%Y %H:%M")  # formato legible
+                )
+                
+                if email_sent:
+                    logger.info(f"✅ Invitation email sent to {email}")
+                else:
+                    logger.warning(f"⚠️ Failed to send invitation email to {email}")
+                    
+            except Exception as email_error:
+                logger.error(f"❌ Error sending invitation email: {email_error}")
+                # No lanzar error, la invitación ya fue creada
+            
             return {
                 "id": invitation[0],
+                "agency_id": agency_id,
                 "token": invitation[1],
                 "expires_at": invitation[2],
                 "created_at": invitation[3],
                 "email": email,
                 "first_name": first_name,
-                "last_name": last_name
+                "last_name": last_name,
+                "phone": phone,
+                "status": "pending",
+                "invited_by_name": inviter_name
             }
             
         except Exception as e:

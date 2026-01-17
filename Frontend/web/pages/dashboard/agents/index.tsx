@@ -29,14 +29,20 @@ export default function AgentsPage() {
 
       // Get user's agency
       try {
+        console.log('🔍 Fetching user agency...');
         const agency = await getMyAgency();
+        console.log('✅ Agency fetched:', agency);
         setAgencyId(agency.id);
 
         // Load agents and invitations
+        console.log('🔍 Fetching agents and invitations...');
         const [agentsData, invitationsData] = await Promise.all([
           getAgents(agency.id, filter !== 'active'),
           getPendingInvitations(agency.id)
         ]);
+        
+        console.log('✅ Agents data:', agentsData);
+        console.log('✅ Invitations data:', invitationsData);
 
         setAgents(agentsData.agents);
         setStats({
@@ -47,6 +53,10 @@ export default function AgentsPage() {
         });
         setPendingInvitations(invitationsData);
       } catch (agencyError: any) {
+        console.error('❌ Error fetching agency:', agencyError);
+        console.error('❌ Error message:', agencyError.message);
+        console.error('❌ Error stack:', agencyError.stack);
+        
         // If user doesn't have an agency, show appropriate message
         if (agencyError.message?.includes('not associated') || 
             agencyError.message?.includes('no está asociado') ||
@@ -61,7 +71,7 @@ export default function AgentsPage() {
       }
 
     } catch (error: any) {
-      console.error('Error loading agents:', error);
+      console.error('❌ Error loading agents:', error);
       setError(error.message || 'Error al cargar los agentes');
     } finally {
       setLoading(false);

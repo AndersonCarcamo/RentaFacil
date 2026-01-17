@@ -352,9 +352,10 @@ export async function authenticatedRequest(url: string, options: RequestInit = {
   }
   
   const headers = {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
     ...options.headers,
     'Authorization': `Bearer ${accessToken}`,
-    'Accept': 'application/json',
   }
   
   let response = await fetch(url, {
@@ -371,9 +372,10 @@ export async function authenticatedRequest(url: string, options: RequestInit = {
       response = await fetch(url, {
         ...options,
         headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
           ...options.headers,
           'Authorization': `Bearer ${newAccessToken}`,
-          'Accept': 'application/json',
         },
       })
     } catch (refreshError) {

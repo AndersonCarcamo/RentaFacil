@@ -1,0 +1,16 @@
+<svg width="400" height="300" viewBox="0 0 400 300" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="trujillo-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10B981"/>
+      <stop offset="100%" stop-color="#047857"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="300" fill="url(#trujillo-gradient)"/>
+  <circle cx="200" cy="150" r="80" fill="#FFFFFF" opacity="0.2"/>
+  <circle cx="200" cy="150" r="50" fill="#FFFFFF" opacity="0.3"/>
+  <rect x="180" y="130" width="40" height="40" rx="4" fill="#FFFFFF" opacity="0.8"/>
+  <rect x="190" y="140" width="20" height="20" rx="2" fill="#047857"/>
+  <path d="M50 250 Q200 230 350 250 L350 300 L50 300 Z" fill="#D1FAE5" opacity="0.4"/>
+  <text x="200" y="50" text-anchor="middle" fill="white" font-family="system-ui" font-size="32" font-weight="bold">Trujillo</text>
+  <text x="200" y="80" text-anchor="middle" fill="white" font-family="system-ui" font-size="16" opacity="0.9">Ciudad de la Eterna Primavera</text>
+</svg>

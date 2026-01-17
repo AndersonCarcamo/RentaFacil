@@ -1,0 +1,12 @@
+<svg width="400" height="300" viewBox="0 0 400 300" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="400" height="300" fill="#FEF7ED"/>
+  <rect x="80" y="70" width="240" height="160" rx="8" fill="#FED7AA"/>
+  <polygon points="160,100 200,70 240,100" fill="#FB923C"/>
+  <rect x="180" y="120" width="40" height="60" rx="4" fill="#EA580C"/>
+  <rect x="185" y="130" width="8" height="12" rx="2" fill="#FED7AA"/>
+  <rect x="207" y="130" width="8" height="12" rx="2" fill="#FED7AA"/>
+  <rect x="190" y="160" width="20" height="20" rx="2" fill="#92400E"/>
+  <circle cx="195" cy="165" r="2" fill="#FED7AA"/>
+  <text x="200" y="250" text-anchor="middle" fill="#EA580C" font-family="system-ui" font-size="14">Casa Familiar</text>
+  <text x="200" y="270" text-anchor="middle" fill="#FB923C" font-family="system-ui" font-size="12">Miraflores, Lima</text>
+</svg>

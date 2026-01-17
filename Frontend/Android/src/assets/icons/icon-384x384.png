@@ -1,0 +1,8 @@
+<svg width="384" height="384" viewBox="0 0 384 384" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="384" height="384" rx="48" fill="#0C2D55"/>
+  <rect x="48" y="96" width="288" height="192" rx="24" fill="#F5C842"/>
+  <rect x="96" y="144" width="192" height="96" rx="16" fill="#0C2D55"/>
+  <rect x="120" y="168" width="48" height="48" rx="8" fill="#F5C842"/>
+  <rect x="216" y="168" width="48" height="48" rx="8" fill="#F5C842"/>
+  <text x="192" y="320" text-anchor="middle" fill="#0C2D55" font-family="system-ui" font-size="48" font-weight="bold">RF</text>
+</svg>
