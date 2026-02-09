@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import dynamic from 'next/dynamic';
-import { PropertyCardHorizontal, PropertyModal } from '../components/property';
+import { PropertyCardHorizontal } from '../components/property';
 import SearchSidebar, { SearchFilters } from '../components/SearchSidebar';
 import SearchMobileView from '../components/SearchMobileView';
 import { Property, Currency, PropertyType } from '../types/index';
@@ -74,7 +74,114 @@ const convertToProperty = (apiProperty: PropertyResponse): Property => {
 const mapSearchFiltersToPropertyFilters = (filters: SearchFilters): PropertyFilters => {
   const propertyFilters: PropertyFilters = {}
   
-  if (filters.location) propertyFilters.location = filters.location
+  // Procesar búsqueda inteligente
+  if (filters.location) {
+    const searchText = filters.location.toLowerCase()
+    
+    // Detectar tipo de propiedad en la búsqueda
+    const propertyTypeMap: Record<string, string> = {
+      'departamento': 'apartment',
+      'departamentos': 'apartment',
+      'casa': 'house',
+      'casas': 'house',
+      'oficina': 'office',
+      'oficinas': 'office',
+      'local': 'commercial',
+      'terreno': 'land',
+      'estudio': 'studio',
+      'loft': 'apartment',
+    }
+    
+    // Detectar amenidades en la búsqueda
+    const amenityMap: Record<string, string> = {
+      'piscina': 'Piscina',
+      'gimnasio': 'Gimnasio',
+      'jardin': 'Jardín',
+      'jardín': 'Jardín',
+      'garaje': 'Garaje',
+      'terraza': 'Terraza',
+      'ascensor': 'Ascensor',
+      'balcon': 'Balcón',
+      'balcón': 'Balcón',
+      'seguridad': 'Seguridad 24h',
+      'wifi': 'Internet/WiFi',
+      'internet': 'Internet/WiFi',
+      'lavanderia': 'Lavandería',
+      'lavandería': 'Lavandería',
+      'aire acondicionado': 'Aire acondicionado',
+      'calefaccion': 'Calefacción',
+      'calefacción': 'Calefacción',
+      'mascotas': 'Mascotas Permitidas',
+    }
+    
+    // Detectar palabras de características
+    const featureKeywords = ['con', 'amoblado', 'amueblado', 'moderno', 'nuevo', 'vista']
+    const hasFeatures = featureKeywords.some(keyword => searchText.includes(keyword))
+    
+    // Detectar amenidades
+    let detectedAmenities: string[] = []
+    for (const [keyword, amenity] of Object.entries(amenityMap)) {
+      if (searchText.includes(keyword)) {
+        detectedAmenities.push(amenity)
+      }
+    }
+    
+    // Buscar si hay un tipo de propiedad en el texto
+    let detectedPropertyType: string | undefined
+    for (const [spanish, english] of Object.entries(propertyTypeMap)) {
+      if (searchText.includes(spanish)) {
+        detectedPropertyType = english
+        break
+      }
+    }
+    
+    const words = searchText.split(' ')
+    const enIndex = words.indexOf('en')
+    
+    if (detectedAmenities.length > 0) {
+      // Hay amenidades detectadas: agregar al filtro
+      propertyFilters.amenities = detectedAmenities
+      
+      if (detectedPropertyType && !filters.propertyType) {
+        propertyFilters.property_type = detectedPropertyType
+      }
+      
+      // Si hay ubicación después de "en", también agregarla
+      if (enIndex !== -1 && words.length > enIndex + 1) {
+        const locationPart = words.slice(enIndex + 1).join(' ')
+        propertyFilters.location = locationPart
+      }
+    } else if (hasFeatures) {
+      // Búsqueda por características: usar búsqueda de texto completo
+      propertyFilters.q = filters.location
+      
+      if (detectedPropertyType && !filters.propertyType) {
+        propertyFilters.property_type = detectedPropertyType
+      }
+    } else if (enIndex !== -1 && words.length > enIndex + 1) {
+      // Hay "en" seguido de ubicación: "departamento en barranco" -> location=barranco
+      const locationPart = words.slice(enIndex + 1).join(' ')
+      propertyFilters.location = locationPart
+      
+      if (detectedPropertyType && !filters.propertyType) {
+        propertyFilters.property_type = detectedPropertyType
+      }
+    } else if (detectedPropertyType) {
+      // Hay tipo de propiedad sin "en": "departamento barranco"
+      const locationPart = words.filter(w => !Object.keys(propertyTypeMap).includes(w)).join(' ').trim()
+      if (locationPart.length > 2) {
+        propertyFilters.location = locationPart
+        propertyFilters.property_type = detectedPropertyType
+      } else {
+        // Solo tipo de propiedad sin ubicación clara
+        propertyFilters.property_type = detectedPropertyType
+      }
+    } else {
+      // Solo ubicación: "barranco" -> location=barranco
+      propertyFilters.location = filters.location
+    }
+  }
+  
   if (filters.propertyType) propertyFilters.property_type = filters.propertyType
   if (filters.minPrice) propertyFilters.min_price = filters.minPrice
   if (filters.maxPrice) propertyFilters.max_price = filters.maxPrice
@@ -246,141 +353,11 @@ const mapSearchParamsToFilters = (params: any): PropertyFilters => {
   return filters
 }
 
-// Mock data para las propiedades (como fallback)
-const mockProperties: Property[] = [
-  {
-    id: "1",
-    title: "Departamento Moderno en San Isidro",
-    description: "Hermoso departamento completamente amoblado con vista al mar",
-    price: 1800,
-    currency: "PEN",
-    location: "San Isidro, Lima",
-    propertyType: "apartment",
-    bedrooms: 3,
-    bathrooms: 2,
-    area: 120,
-    images: ["https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80"],
-    amenities: ["WiFi", "Cocina equipada", "Aire acondicionado"],
-    rating: 4.8,
-    reviews: 25,
-    isVerified: true,
-    isFavorite: false,
-    views: 150,
-    rental_term: "daily",
-    furnished: true
-  },
-  {
-    id: "2",
-    title: "Casa Familiar en Miraflores",
-    description: "Espaciosa casa con jardín, perfecta para familias",
-    price: 2500,
-    currency: "PEN",
-    location: "Miraflores, Lima",
-    propertyType: "house",
-    bedrooms: 4,
-    bathrooms: 3,
-    area: 180,
-    images: ["https://images.unsplash.com/photo-1564013799919-ab600027ffc6?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80"],
-    amenities: ["Jardín", "Garaje", "WiFi", "Lavandería"],
-    rating: 4.9,
-    reviews: 18,
-    isVerified: true,
-    isFavorite: false,
-    views: 230,
-    rental_term: "monthly"
-  },
-  {
-    id: "3",
-    title: "Estudio Céntrico en Barranco",
-    description: "Moderno estudio en el corazón de Barranco",
-    price: 1200,
-    currency: "PEN",
-    location: "Barranco, Lima",
-    propertyType: "studio",
-    bedrooms: 1,
-    bathrooms: 1,
-    area: 45,
-    images: ["https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80"],
-    amenities: ["WiFi", "Cocina equipada"],
-    rating: 4.6,
-    reviews: 12,
-    isVerified: false,
-    isFavorite: false,
-    views: 89,
-    rental_term: "daily"
-  },
-  {
-    id: "4",
-    title: "Penthouse con Terraza en Surco",
-    description: "Exclusivo penthouse con terraza y vista panorámica",
-    price: 3500,
-    currency: "PEN",
-    location: "Santiago de Surco, Lima",
-    propertyType: "apartment",
-    bedrooms: 3,
-    bathrooms: 3,
-    area: 200,
-    images: ["https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80"],
-    amenities: ["Terraza", "Jacuzzi", "Gimnasio", "WiFi", "Aire acondicionado"],
-    rating: 4.95,
-    reviews: 32,
-    isVerified: true,
-    isFavorite: false,
-    views: 450,
-    rental_term: "daily",
-    furnished: true
-  },
-  {
-    id: "5",
-    title: "Departamento Económico en Los Olivos",
-    description: "Departamento cómodo y accesible en zona tranquila",
-    price: 800,
-    currency: "PEN",
-    location: "Los Olivos, Lima",
-    propertyType: "apartment",
-    bedrooms: 2,
-    bathrooms: 1,
-    area: 65,
-    images: ["https://images.unsplash.com/photo-1493809842364-78817add7ffb?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80"],
-    amenities: ["WiFi", "Cocina básica"],
-    rating: 4.2,
-    reviews: 8,
-    isVerified: true,
-    isFavorite: false,
-    views: 95,
-    rental_term: "daily"
-  },
-  {
-    id: "6",
-    title: "Casa con Piscina en La Molina",
-    description: "Hermosa casa con piscina y amplio jardín",
-    price: 3000,
-    currency: "PEN",
-    location: "La Molina, Lima",
-    propertyType: "house",
-    bedrooms: 5,
-    bathrooms: 4,
-    area: 280,
-    images: ["https://images.unsplash.com/photo-1613490493576-7fde63acd811?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80"],
-    amenities: ["Piscina", "Jardín", "Garaje", "WiFi", "Barbacoa"],
-    rating: 4.85,
-    reviews: 22,
-    isVerified: true,
-    isFavorite: false,
-    views: 380,
-    rental_term: "daily",
-    furnished: true
-  }
-];
-
 const SearchPage = () => {
   const router = useRouter();
   const [properties, setProperties] = useState<Property[]>([]);
   const [apiProperties, setApiProperties] = useState<PropertyResponse[]>([]); // Para el mapa
   const [loading, setLoading] = useState(true);
-  const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
-  const [selectedPropertyData, setSelectedPropertyData] = useState<PropertyResponse | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   
   // Inicializar filtros desde URL params
   const [currentFilters, setCurrentFilters] = useState<SearchFilters>(() => {
@@ -428,11 +405,10 @@ const SearchPage = () => {
 
   const openPropertyModal = (propertyId: string) => {
     console.log('🏠 ========================================');
-    console.log('🏠 ABRIENDO MODAL DE PROPIEDAD');
+    console.log('🏠 ABRIENDO MODAL/PÁGINA DE PROPIEDAD');
     console.log('🏠 ========================================');
     console.log('🏠 Property ID:', propertyId);
     
-    setSelectedPropertyId(propertyId);
     // Buscar los datos de la propiedad en apiProperties
     const propertyData = apiProperties.find(p => p.id === propertyId);
     
@@ -440,25 +416,17 @@ const SearchPage = () => {
       console.log('🏠 Datos de propiedad encontrados:', {
         id: propertyData.id,
         title: propertyData.title,
-        rental_model: propertyData.rental_model,
-        rental_term: propertyData.rental_term,
-        max_guests: propertyData.max_guests,
-        price: propertyData.price,
-        is_airbnb: propertyData.rental_model === 'airbnb'
+        slug: propertyData.slug
       });
+      
+      // Navegar a la página de la propiedad usando slug o ID
+      const propertySlug = propertyData.slug || propertyId;
+      router.push(`/propiedad/${propertySlug}`, undefined, { shallow: true });
     } else {
-      console.log('⚠️ No se encontraron datos precargados, se cargarán desde API');
+      console.log('⚠️ No se encontraron datos precargados, navegando con ID');
+      router.push(`/propiedad/${propertyId}`, undefined, { shallow: true });
     }
     console.log('🏠 ========================================');
-    
-    setSelectedPropertyData(propertyData || null);
-    setIsModalOpen(true);
-  };
-
-  const closePropertyModal = () => {
-    setIsModalOpen(false);
-    setSelectedPropertyId(null);
-    setSelectedPropertyData(null);
   };
 
   // Cargar propiedades desde la API
@@ -474,9 +442,8 @@ const SearchPage = () => {
       console.log('✅ Propiedades recibidas:', apiPropertiesResponse?.length || 0);
       
       if (!apiPropertiesResponse || apiPropertiesResponse.length === 0) {
-        // Usar mockProperties como fallback
-        console.log('⚠️ No se encontraron propiedades en el backend, usando datos de prueba');
-        setProperties(mockProperties);
+        console.log('⚠️ No se encontraron propiedades en el backend');
+        setProperties([]);
         setApiProperties([]);
         return;
       }
@@ -507,9 +474,7 @@ const SearchPage = () => {
       console.log('✅ Propiedades cargadas exitosamente');
     } catch (error) {
       console.error('❌ Error cargando propiedades:', error);
-      // Usar mockProperties como fallback en caso de error
-      console.log('⚠️ Error de conexión, usando datos de prueba');
-      setProperties(mockProperties);
+      setProperties([]);
       setApiProperties([]);
     } finally {
       setLoading(false);
@@ -545,7 +510,13 @@ const SearchPage = () => {
     };
     
     setCurrentFilters(urlFilters);
-    loadProperties(urlFilters);
+    
+    // Debouncing: esperar 500ms antes de ejecutar la búsqueda
+    const timeoutId = setTimeout(() => {
+      loadProperties(urlFilters);
+    }, 500);
+    
+    return () => clearTimeout(timeoutId);
   }, [router.isReady, router.query]);
 
   // Efecto para drag handle
@@ -740,16 +711,6 @@ const SearchPage = () => {
         </div>
       </div>
         </>
-      )}
-
-      {/* Property Modal - Compartido entre ambas vistas */}
-      {selectedPropertyId && (
-        <PropertyModal
-          propertyId={selectedPropertyId}
-          isOpen={isModalOpen}
-          onClose={closePropertyModal}
-          propertyData={selectedPropertyData || undefined}
-        />
       )}
     </>
   );

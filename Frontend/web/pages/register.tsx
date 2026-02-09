@@ -593,9 +593,9 @@ const RegisterPage: React.FC = () => {
         /* Desktop view - Header + 50/50 split with banner */
         <>
           <Header />
-          <div className="min-h-screen flex" style={{ height: 'calc(100vh - 96px)' }}>
+          <div className="flex" style={{ height: 'calc(100vh - 96px)' }}>
           {/* Left side - Registration Form (50%) */}
-          <div className="w-1/2 bg-white overflow-y-auto">
+          <div className="w-1/2 bg-white overflow-hidden">
             <RegisterMobile 
               onSubmit={handleRegistration}
               isLoading={isLoading}
@@ -620,57 +620,57 @@ const RegisterPage: React.FC = () => {
               }}
             />
             
-            <div className="relative z-10 max-w-xl px-12 py-8">
+            <div className="relative z-10 max-w-xl px-8 py-4">
               {/* Logo/Brand */}
-              <div className="mb-12">
-                <div className="inline-block bg-white/25 backdrop-blur-md px-6 py-3 rounded-2xl mb-6 shadow-lg">
-                  <span className="text-white text-2xl font-bold drop-shadow-md">RENTA fácil</span>
+              <div className="mb-6">
+                <div className="inline-block bg-white/25 backdrop-blur-md px-5 py-2 rounded-2xl mb-4 shadow-lg">
+                  <span className="text-white text-xl font-bold drop-shadow-md">RENTA fácil</span>
                 </div>
-                <h1 className="text-5xl font-extrabold text-white mb-4 leading-tight drop-shadow-lg">
+                <h1 className="text-4xl font-extrabold text-white mb-3 leading-tight drop-shadow-lg">
                   Tu hogar ideal<br />te está esperando
                 </h1>
-                <p className="text-xl text-white font-medium drop-shadow-md">
+                <p className="text-lg text-white font-medium drop-shadow-md">
                   Únete a miles de personas que ya encontraron su lugar perfecto
                 </p>
               </div>
 
               {/* Features */}
-              <div className="space-y-5 mb-10">
+              <div className="space-y-3 mb-6">
 
-                <div className="flex items-center gap-4 bg-white/20 backdrop-blur-sm p-4 rounded-xl border border-white/25 hover:bg-white/25 transition-all shadow-lg">
-                  <div className="bg-white p-3 rounded-lg shadow-lg">
-                    <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="flex items-center gap-3 bg-white/20 backdrop-blur-sm p-3 rounded-xl border border-white/25 hover:bg-white/25 transition-all shadow-lg">
+                  <div className="bg-white p-2.5 rounded-lg shadow-lg">
+                    <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                     </svg>
                   </div>
                   <div>
-                    <h3 className="font-bold text-white text-lg drop-shadow-md">100% Seguro</h3>
-                    <p className="text-white/95 text-sm drop-shadow-sm">Propietarios y propiedades verificadas</p>
+                    <h3 className="font-bold text-white text-base drop-shadow-md">100% Seguro</h3>
+                    <p className="text-white/95 text-xs drop-shadow-sm">Propietarios y propiedades verificadas</p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4 bg-white/20 backdrop-blur-sm p-4 rounded-xl border border-white/25 hover:bg-white/25 transition-all shadow-lg">
-                  <div className="bg-white p-3 rounded-lg shadow-lg">
-                    <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="flex items-center gap-3 bg-white/20 backdrop-blur-sm p-3 rounded-xl border border-white/25 hover:bg-white/25 transition-all shadow-lg">
+                  <div className="bg-white p-2.5 rounded-lg shadow-lg">
+                    <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
                     </svg>
                   </div>
                   <div>
-                    <h3 className="font-bold text-white text-lg drop-shadow-md">Chat en vivo</h3>
-                    <p className="text-white/95 text-sm drop-shadow-sm">Contacta directamente con propietarios</p>
+                    <h3 className="font-bold text-white text-base drop-shadow-md">Chat en vivo</h3>
+                    <p className="text-white/95 text-xs drop-shadow-sm">Contacta directamente con propietarios</p>
                   </div>
                 </div>
               </div>
 
               {/* CTA Box */}
-              <div className="bg-white/25 backdrop-blur-md p-6 rounded-2xl shadow-2xl border border-white/30">
-                <div className="flex items-center gap-3 mb-3">
-                  <svg className="w-8 h-8 text-white drop-shadow-lg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="bg-white/25 backdrop-blur-md p-4 rounded-2xl shadow-2xl border border-white/30">
+                <div className="flex items-center gap-2.5 mb-2">
+                  <svg className="w-7 h-7 text-white drop-shadow-lg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
-                  <h4 className="text-white font-bold text-xl drop-shadow-md">¿Eres propietario?</h4>
+                  <h4 className="text-white font-bold text-lg drop-shadow-md">¿Eres propietario?</h4>
                 </div>
-                <p className="text-white text-lg font-semibold leading-relaxed drop-shadow-md">
+                <p className="text-white text-base font-semibold leading-snug drop-shadow-md">
                   Publica GRATIS y llega a miles de inquilinos en todo Perú
                 </p>
               </div>

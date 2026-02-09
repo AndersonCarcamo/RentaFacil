@@ -13,8 +13,8 @@ engine = create_engine(
     settings.database_url,
     pool_pre_ping=True,
     pool_recycle=300,
-    pool_size=10,
-    max_overflow=20,
+    pool_size=50,  # 🚀 Aumentado de 10 a 50 para soportar más conexiones concurrentes
+    max_overflow=100,  # 🚀 Aumentado de 20 a 100 para picos de tráfico
     echo=settings.debug,
     future=True,  # Use SQLAlchemy 2.0 style
     connect_args={

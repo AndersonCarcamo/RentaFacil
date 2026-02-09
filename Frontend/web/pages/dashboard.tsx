@@ -1571,18 +1571,7 @@ const DashboardPage: React.FC = () => {
           )}
 
           {activeTab === 'analytics' && (
-            <div className="bg-white rounded-xl shadow-md border border-gray-100">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h2 className="text-xl font-semibold text-gray-900">Analíticas</h2>
-              </div>
-              <div className="p-12 text-center">
-                <PresentationChartBarIcon className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-semibold text-gray-900">Próximamente</h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  Aquí podrás ver gráficos y métricas detalladas de tus propiedades.
-                </p>
-              </div>
-            </div>
+            <AnalyticsTab />
           )}
 
           {activeTab === 'verification' && (
@@ -1846,6 +1835,142 @@ const DashboardPage: React.FC = () => {
       {/* Modal de Vista Previa */}
       {renderPreviewModal()}
     </>
+  );
+};
+
+// =================== ANALYTICS TAB COMPONENT ===================
+import { 
+  AnalyticsPropertySelector, 
+  AnalyticsMetricsGrid, 
+  AnalyticsDailyChart,
+  AnalyticsLineChart,
+  AnalyticsProjections
+} from '../components/analytics';
+
+const AnalyticsTab: React.FC = () => {
+  const [listings, setListings] = useState<Listing[]>([]);
+  const [selectedListingId, setSelectedListingId] = useState<string | null>(null);
+  const [stats, setStats] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadingStats, setLoadingStats] = useState(false);
+  const [projectedData, setProjectedData] = useState<Array<{ date: string; views: number; contacts: number }>>([]);
+  const { user } = useAuth();
+
+  useEffect(() => {
+    loadListings();
+  }, []);
+
+  const loadListings = async () => {
+    try {
+      setLoading(true);
+      const data = await getMyListings();
+      setListings(data);
+      
+      if (data.length > 0 && !selectedListingId) {
+        setSelectedListingId(data[0].id);
+        loadStats(data[0].id);
+      }
+    } catch (err) {
+      console.error('Error loading listings:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadStats = async (listingId: string) => {
+    try {
+      setLoadingStats(true);
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/v1/analytics/listings/${listingId}/stats`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+        },
+      });
+      const data = await response.json();
+      const listing = listings.find(l => l.id === listingId);
+      setStats({
+        ...data,
+        title: listing?.title || 'Propiedad'
+      });
+    } catch (err) {
+      console.error('Error loading stats:', err);
+    } finally {
+      setLoadingStats(false);
+    }
+  };
+
+  const handleListingChange = (listingId: string) => {
+    setSelectedListingId(listingId);
+    loadStats(listingId);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Cargando estadísticas...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (listings.length === 0) {
+    return (
+      <div className="bg-white rounded-xl shadow-md border border-gray-100 p-12 text-center">
+        <PresentationChartBarIcon className="mx-auto h-12 w-12 text-gray-400" />
+        <h3 className="mt-2 text-lg font-semibold text-gray-900">
+          No tienes propiedades publicadas
+        </h3>
+        <p className="text-gray-600 mt-2">
+          Publica tu primera propiedad para ver estadísticas de rendimiento.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <AnalyticsPropertySelector
+        listings={listings}
+        selectedListingId={selectedListingId}
+        onListingChange={handleListingChange}
+      />
+
+      {loadingStats ? (
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      ) : stats ? (
+        <>
+          <AnalyticsMetricsGrid stats={stats} />
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <AnalyticsDailyChart dailyStats={stats.daily_stats} />
+            <AnalyticsProjections 
+              historicalData={stats.daily_stats.map((day: any) => ({
+                date: day.date,
+                views: day.views,
+                contacts: day.contacts || 0
+              }))}
+              projectionDays={7}
+              onProjectionsCalculated={setProjectedData}
+            />
+          </div>
+
+          <AnalyticsLineChart
+            data={stats.daily_stats.map((day: any) => ({
+              date: day.date,
+              views: day.views,
+              contacts: day.contacts || 0
+            }))}
+            projectedData={projectedData}
+            title="Tendencias de Vistas y Contactos"
+            showViews={true}
+            showContacts={true}
+          />
+        </>
+      ) : null}
+    </div>
   );
 };
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -23,6 +23,7 @@ interface MapPickerProps {
 /**
  * Componente de mapa interactivo para seleccionar ubicación
  * Permite al usuario hacer clic en el mapa para establecer coordenadas
+ * Optimizado para no forzar zoom cuando el usuario está interactuando
  */
 export default function MapPicker({
   latitude,
@@ -34,10 +35,12 @@ export default function MapPicker({
   const mapRef = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [userInteracted, setUserInteracted] = useState(false);
+  const isInitialMount = useRef(true);
 
-  // Coordenadas por defecto: Centro de Lima
-  const defaultLat = latitude || -12.0464;
-  const defaultLng = longitude || -77.0428;
+  // Coordenadas: usar las proporcionadas o default de Lima
+  const centerLat = latitude || -12.0464;
+  const centerLng = longitude || -77.0428;
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -49,7 +52,7 @@ export default function MapPicker({
     }
 
     // Crear mapa
-    const map = L.map(containerRef.current).setView([defaultLat, defaultLng], 13);
+    const map = L.map(containerRef.current).setView([centerLat, centerLng], 13);
 
     // Añadir capa de OpenStreetMap
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -65,6 +68,7 @@ export default function MapPicker({
 
       marker.on('dragend', () => {
         const position = marker.getLatLng();
+        setUserInteracted(true);
         onLocationChange(position.lat, position.lng);
       });
 
@@ -86,16 +90,23 @@ export default function MapPicker({
 
         marker.on('dragend', () => {
           const position = marker.getLatLng();
+          setUserInteracted(true);
           onLocationChange(position.lat, position.lng);
         });
 
         markerRef.current = marker;
       }
 
+      setUserInteracted(true);
       onLocationChange(lat, lng);
     });
 
+    // Detectar interacciones del usuario (zoom, pan)
+    map.on('zoomend', () => setUserInteracted(true));
+    map.on('dragend', () => setUserInteracted(true));
+
     mapRef.current = map;
+    isInitialMount.current = false;
 
     // Cleanup
     return () => {
@@ -111,22 +122,45 @@ export default function MapPicker({
     if (!mapRef.current || !latitude || !longitude) return;
 
     if (markerRef.current) {
+      // Mover marcador a nueva posición
       markerRef.current.setLatLng([latitude, longitude]);
-      mapRef.current.setView([latitude, longitude], 15);
+      
+      // Comportamiento inteligente del mapa:
+      // - Si es la primera vez o el usuario NO ha interactuado: centrar con zoom
+      // - Si el usuario YA interactuó: solo hacer pan suave, mantener zoom
+      if (isInitialMount.current || !userInteracted) {
+        mapRef.current.setView([latitude, longitude], 15, {
+          animate: true,
+          duration: 0.5,
+        });
+      } else {
+        // Solo hacer pan suave, respetar el zoom del usuario
+        mapRef.current.panTo([latitude, longitude], {
+          animate: true,
+          duration: 0.5,
+        });
+      }
     } else {
+      // Crear nuevo marcador si no existe
       const marker = L.marker([latitude, longitude], {
         draggable: true,
       }).addTo(mapRef.current);
 
       marker.on('dragend', () => {
         const position = marker.getLatLng();
+        setUserInteracted(true);
         onLocationChange(position.lat, position.lng);
       });
 
       markerRef.current = marker;
-      mapRef.current.setView([latitude, longitude], 15);
+      
+      // Primera vez: centrar con zoom
+      mapRef.current.setView([latitude, longitude], 15, {
+        animate: true,
+        duration: 0.5,
+      });
     }
-  }, [latitude, longitude]);
+  }, [latitude, longitude, onLocationChange]);
 
   return (
     <div className={className}>

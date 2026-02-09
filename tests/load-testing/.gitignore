@@ -1,0 +1,7 @@
+# k6 results
+*.json
+results/
+reports/
+
+# Logs
+*.log

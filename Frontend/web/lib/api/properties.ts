@@ -72,6 +72,7 @@ export interface PropertyResponse {
   longitude?: number
   status: string
   verification_status: string
+  slug?: string
   owner_user_id: string
   agency_id?: string
   views_count: number
@@ -82,7 +83,11 @@ export interface PropertyResponse {
   updated_at: string
   published_at?: string
   // Nuevos campos
-  amenities?: string[]
+  amenities?: Array<{
+    id: string
+    name: string
+    icon?: string
+  }>
   age_years?: number
   floor_number?: number
   total_floors?: number

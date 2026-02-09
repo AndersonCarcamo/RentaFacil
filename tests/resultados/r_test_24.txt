@@ -1,0 +1,59 @@
+ERRO[0606] TypeError: Cannot read property 'toFixed' of undefined or null
+running at textSummary (file:///D:/Trabajos/benites/tests/load-testing/load-test-search.js:174:67(158))
+default at handleSummary (file:///D:/Trabajos/benites/tests/load-testing/load-test-search.js:145:24(17))  hint="script exception"
+
+
+  █ THRESHOLDS
+
+    errors
+    ✗ 'rate<0.1' rate=100.00%
+
+    http_req_duration
+    ✓ 'p(95)<5000' p(95)=966.86ms
+
+    http_req_failed
+    ✗ 'rate<0.1' rate=40.00%
+
+
+  █ TOTAL RESULTS
+
+    checks_total.......: 58288  96.170425/s
+    checks_succeeded...: 87.50% 51002 out of 58288
+    checks_failed......: 12.50% 7286 out of 58288
+
+    ✓ status is 200
+    ✓ page has content
+    ✗ no error in page
+      ↳  0% — ✓ 0 / ✗ 7286
+    ✓ has map container
+    ✓ map resource loaded
+    ✓ API 0 status 200 or 404
+    ✓ API 1 status 200 or 404
+
+    CUSTOM
+    errors.........................: 100.00% 7286 out of 7286
+    map_load_success...............: 100.00% 14572 out of 14572
+
+    HTTP
+    http_req_duration..............: avg=246ms    min=586.09µs med=61.89ms max=2.9s   p(90)=730.45ms p(95)=966.86ms
+      { expected_response:true }...: avg=195.14ms min=11.96ms  med=58.53ms max=2.9s   p(90)=680.25ms p(95)=958.69ms
+    http_req_failed................: 40.00%  14572 out of 36430
+    http_reqs......................: 36430   60.106516/s
+
+    EXECUTION
+    iteration_duration.............: avg=8.38s    min=5.11s    med=8.37s   max=13.15s p(90)=10.5s    p(95)=11.08s
+    iterations.....................: 7286    12.021303/s
+    vus............................: 1       min=1              max=200
+    vus_max........................: 200     min=200            max=200
+
+    NETWORK
+    data_received..................: 1.4 GB  2.3 MB/s
+    data_sent......................: 6.5 MB  11 kB/s
+
+
+
+                                                                                                                                                                       
+running (10m06.1s), 000/200 VUs, 7286 complete and 0 interrupted iterations                                                                                            
+default ✓ [======================================] 000/200 VUs  10m0s                                                                                                  
+ERRO[0606] thresholds on metrics 'errors, http_req_failed' have been crossed
+PS D:\Trabajos\benites\tests\load-testing> 

@@ -17,6 +17,16 @@ export const FloatingVoiceButton: React.FC = () => {
   const router = useRouter();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  // Ocultar el botón en páginas de autenticación
+  const currentPath = router.pathname || router.asPath || '';
+  const shouldHide = currentPath.startsWith('/registro') || 
+                     currentPath.startsWith('/login') || 
+                     currentPath.includes('/registro') || 
+                     currentPath.includes('/login');
+  
+  // Debug
+  console.log('FloatingVoiceButton - currentPath:', currentPath, 'shouldHide:', shouldHide);
+
   const {
     isSupported,
     isListening,
@@ -116,8 +126,8 @@ export const FloatingVoiceButton: React.FC = () => {
     setIsModalOpen(false);
   };
 
-  // No mostrar el botón si no hay soporte
-  if (!isSupported) {
+  // No mostrar el botón si no hay soporte o si estamos en páginas de autenticación
+  if (!isSupported || shouldHide) {
     return null;
   }
 

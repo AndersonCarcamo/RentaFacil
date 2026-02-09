@@ -11,12 +11,14 @@ import { Header } from '../../components/common/Header';
 import Button from '../../components/ui/Button';
 import AutocompleteInput from '../../components/AutocompleteInput';
 import ImageUploader from '../../components/ImageUploader';
+import { PhoneInput } from '../../components/PhoneInput';
 import { MobileListingPage } from '../../components/dashboard/mobile/listing';
 import {
   getDepartments,
   getProvinces,
   getDistricts,
   getDistrictCoordinates,
+  getDefaultCoordinates,
 } from '../../lib/data/peru-locations';
 import {
   ArrowLeftIcon,
@@ -138,6 +140,7 @@ interface FormData {
   bedrooms: string;
   bathrooms: string;
   parking_spots: string;
+  age_years: string;
   max_guests: string;
   floors: string;
   floor_number: string;
@@ -184,11 +187,13 @@ interface FormData {
 const CreateListingPage: React.FC = () => {
   const router = useRouter();
   const { user, loading } = useAuth();
-  const { geocodeAddress, reverseGeocode, loading: geocoding } = useGeocoding();
+  const { geocodeAddress, reverseGeocode, reverseGeocodeComplete, getCurrentLocation, loading: geocoding } = useGeocoding();
   const [activeSection, setActiveSection] = useState('basic');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [geocodingStatus, setGeocodingStatus] = useState<string>('');
+  const [suggestedAddress, setSuggestedAddress] = useState<string | null>(null);
+  const [geocodingTimeout, setGeocodingTimeout] = useState<NodeJS.Timeout | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingListingId, setEditingListingId] = useState<string | null>(null);
   const [loadingListing, setLoadingListing] = useState(false);
@@ -218,6 +223,7 @@ const CreateListingPage: React.FC = () => {
     bedrooms: '',
     bathrooms: '',
     parking_spots: '',
+    age_years: '',
     max_guests: '2',
     floors: '',
     floor_number: '',
@@ -331,6 +337,7 @@ const CreateListingPage: React.FC = () => {
             bedrooms: listing.bedrooms?.toString() || '',
             bathrooms: listing.bathrooms?.toString() || '',
             parking_spots: listing.parking_spots?.toString() || '',
+            age_years: listing.age_years?.toString() || '',
             max_guests: listing.max_guests?.toString() || '2',
             floors: listing.floors?.toString() || '',
             floor_number: listing.floor_number?.toString() || '',
@@ -410,27 +417,52 @@ const CreateListingPage: React.FC = () => {
             ? '✅ Ubicación exacta encontrada' 
             : '✅ Ubicación del distrito encontrada';
           
+          // Limpiar timeout anterior si existe
+          if (geocodingTimeout) {
+            clearTimeout(geocodingTimeout);
+          }
+          
           setGeocodingStatus(accuracyMsg);
           
-          // Limpiar mensaje después de 3 segundos
-          setTimeout(() => setGeocodingStatus(''), 3000);
+          // Limpiar mensaje después de 2 segundos
+          const newTimeout = setTimeout(() => setGeocodingStatus(''), 2000);
+          setGeocodingTimeout(newTimeout);
         } else {
+          // Limpiar timeout anterior si existe
+          if (geocodingTimeout) {
+            clearTimeout(geocodingTimeout);
+          }
+          
           setGeocodingStatus('⚠️ No se pudo obtener ubicación exacta, ajusta en el mapa');
-          setTimeout(() => setGeocodingStatus(''), 5000);
+          const newTimeout = setTimeout(() => setGeocodingStatus(''), 4000);
+          setGeocodingTimeout(newTimeout);
         }
       }
     };
 
-    // Debounce: esperar 1 segundo después de que el usuario deje de escribir
+    // Debounce: esperar 500ms después de que el usuario deje de escribir (reducido de 1000ms)
     const timeoutId = setTimeout(() => {
       if (formData.district && formData.province && formData.department) {
         getCoordinates();
       }
-    }, 1000);
+    }, 500);
 
     return () => clearTimeout(timeoutId);
   }, [formData.address, formData.district, formData.province, formData.department]);
   // Nota: geocodeAddress removido de las dependencias para evitar loops infinitos
+
+  // Establecer coordenadas default inteligentes cuando cambia el departamento
+  // Solo si el usuario NO ha establecido coordenadas manualmente (no hay distrito seleccionado)
+  useEffect(() => {
+    if (formData.department && !formData.district && !formData.latitude && !formData.longitude) {
+      const defaultCoords = getDefaultCoordinates(formData.department, formData.province, formData.district);
+      setFormData(prev => ({
+        ...prev,
+        latitude: defaultCoords.latitude,
+        longitude: defaultCoords.longitude,
+      }));
+    }
+  }, [formData.department, formData.province]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -489,7 +521,8 @@ const CreateListingPage: React.FC = () => {
         bedrooms: formData.bedrooms ? parseInt(formData.bedrooms) : undefined,
         bathrooms: formData.bathrooms ? parseInt(formData.bathrooms) : undefined,
         parking_spots: formData.parking_spots ? parseInt(formData.parking_spots) : undefined,
-        max_guests: formData.max_guests ? parseInt(formData.max_guests) : undefined,
+        age_years: formData.age_years ? parseInt(formData.age_years) : undefined,
+        max_guests: formData.rental_model === 'airbnb' && formData.max_guests ? parseInt(formData.max_guests) : undefined,
         floors: formData.floors ? parseInt(formData.floors) : undefined,
         floor_number: formData.floor_number ? parseInt(formData.floor_number) : undefined,
         
@@ -545,11 +578,66 @@ const CreateListingPage: React.FC = () => {
         
         // Guardar amenidades para la nueva propiedad
         if (listingId && formData.selectedAmenities.length > 0) {
-          await updateListingAmenities(listingId, formData.selectedAmenities);
+          try {
+            await updateListingAmenities(listingId, formData.selectedAmenities);
+          } catch (amenitiesError: any) {
+            console.error('Error updating amenities, deleting listing:', amenitiesError);
+            // Si falla la actualización de amenidades, eliminar el listing creado
+            try {
+              await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/listings/${listingId}`, {
+                method: 'DELETE',
+                headers: {
+                  'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+                },
+              });
+            } catch (deleteError) {
+              console.error('Failed to rollback listing:', deleteError);
+            }
+            // Re-lanzar el error original para que el catch principal lo maneje
+            throw amenitiesError;
+          }
+        }
+        
+        // Subir imágenes pendientes que se agregaron antes de crear el listing
+        if (listingId && formData.images.length > 0) {
+          try {
+            const token = localStorage.getItem('access_token');
+            
+            for (let i = 0; i < formData.images.length; i++) {
+              const image = formData.images[i];
+              
+              // Solo subir si tiene un archivo (es una imagen nueva, no una ya subida)
+              if (image.file) {
+                const imageFormData = new FormData();
+                imageFormData.append('file', image.file);
+                imageFormData.append('is_main', String(image.isMain || i === 0));
+                imageFormData.append('display_order', String(i));
+
+                const response = await fetch(
+                  `${process.env.NEXT_PUBLIC_API_URL}/v1/listings/${listingId}/images`,
+                  {
+                    method: 'POST',
+                    headers: {
+                      'Authorization': `Bearer ${token}`,
+                    },
+                    body: imageFormData,
+                  }
+                );
+
+                if (!response.ok) {
+                  const error = await response.json();
+                  console.error('Error uploading image:', error);
+                  // No fallar todo el proceso si falla una imagen
+                }
+              }
+            }
+          } catch (imageError) {
+            console.error('Error uploading images:', imageError);
+            // No fallar todo el proceso si fallan las imágenes
+          }
         }
         
         // Si es creación nueva, cambiar a modo edición automáticamente
-        // para que el usuario pueda subir imágenes
         if (!isEditMode && listingId) {
           setIsEditMode(true);
           setEditingListingId(listingId);
@@ -557,9 +645,15 @@ const CreateListingPage: React.FC = () => {
           window.history.replaceState(null, '', `/dashboard/create-listing?edit=${listingId}`);
           setError(null);
           setSubmitting(false);
-          // Mostrar mensaje de éxito y permitir continuar editando
-          alert('✅ Propiedad creada exitosamente. Ahora puedes subir imágenes.');
-          return; // No redirigir aún, dejar que agregue imágenes
+          
+          // Mostrar mensaje según si se subieron imágenes o no
+          const imageCount = formData.images.length;
+          if (imageCount > 0) {
+            alert(`✅ Propiedad creada exitosamente con ${imageCount} imagen(es). Puedes agregar más imágenes o continuar editando.`);
+          } else {
+            alert('✅ Propiedad creada exitosamente. Ahora puedes subir imágenes.');
+          }
+          return; // No redirigir aún, dejar que agregue más imágenes
         }
       }
       
@@ -1083,14 +1177,14 @@ const CreateListingPage: React.FC = () => {
                   <div className="flex items-start gap-3">
                     <InformationCircleIcon className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
                     <div className="text-sm text-blue-800">
-                      <p className="font-medium mb-1">📍 Ubicación Interactiva</p>
-                      <p>
-                        Selecciona la ubicación en el mapa o completa la dirección. Obtendremos 
-                        automáticamente las coordenadas GPS. La dirección exacta solo se mostrará 
-                        a usuarios interesados.
-                      </p>
+                      <p className="font-medium mb-1">📍 Ubicación Inteligente</p>
+                      <ul className="space-y-1 text-xs">
+                        <li>• <strong>Opción 1:</strong> Selecciona departamento/provincia/distrito y completa la dirección</li>
+                        <li>• <strong>Opción 2:</strong> Haz click en "📍 Usar mi ubicación" y detectaremos TODO automáticamente</li>
+                        <li>• <strong>Opción 3:</strong> Arrastra el marcador en el mapa y actualizaremos los datos</li>
+                      </ul>
                       {formData.latitude && formData.longitude && (
-                        <p className="mt-2 text-xs text-blue-700 font-mono">
+                        <p className="mt-2 text-xs text-blue-700 font-mono bg-blue-100 px-2 py-1 rounded">
                           ✓ Coordenadas: {Number(formData.latitude).toFixed(6)}, {Number(formData.longitude).toFixed(6)}
                         </p>
                       )}
@@ -1183,15 +1277,24 @@ const CreateListingPage: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Dirección (opcional)
                   </label>
-                  <input
-                    type="text"
-                    name="address"
-                    value={formData.address}
-                    onChange={handleInputChange}
-                    placeholder="Av. Principal 123, Piso 5"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    disabled={!formData.district}
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      name="address"
+                      value={formData.address}
+                      onChange={handleInputChange}
+                      placeholder="Av. Principal 123, Piso 5"
+                      className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                        geocoding ? 'border-blue-500 pr-10' : 'border-gray-300'
+                      }`}
+                      disabled={!formData.district}
+                    />
+                    {geocoding && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+                      </div>
+                    )}
+                  </div>
                   <p className="text-sm text-gray-500 mt-1">
                     {formData.district 
                       ? '💡 La dirección ayuda a ubicar tu propiedad con más precisión en el mapa'
@@ -1205,15 +1308,103 @@ const CreateListingPage: React.FC = () => {
                   )}
                 </div>
 
+                {/* Sugerencia de dirección detectada */}
+                {suggestedAddress && suggestedAddress !== formData.address && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <p className="text-sm text-blue-800 mb-2">
+                      💡 <strong>Dirección detectada:</strong> {suggestedAddress}
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormData(prev => ({ ...prev, address: suggestedAddress }));
+                          setSuggestedAddress(null);
+                        }}
+                        className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        ✓ Usar esta dirección
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSuggestedAddress(null)}
+                        className="text-xs px-3 py-1.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                      >
+                        × Mantener mi dirección
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Mapa Interactivo */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    📍 Ubicación en el Mapa
-                  </label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      📍 Ubicación en el Mapa
+                    </label>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        setGeocodingStatus('🔍 Obteniendo tu ubicación...');
+                        const coords = await getCurrentLocation();
+                        if (coords) {
+                          // Actualizar coordenadas
+                          setFormData(prev => ({
+                            ...prev,
+                            latitude: coords.latitude,
+                            longitude: coords.longitude,
+                          }));
+                          
+                          // Detectar dirección Y datos administrativos
+                          const geocodeResult = await reverseGeocodeComplete(coords.latitude, coords.longitude);
+                          
+                          if (geocodeResult) {
+                            // Actualizar selectores automáticamente
+                            setFormData(prev => ({
+                              ...prev,
+                              latitude: coords.latitude,
+                              longitude: coords.longitude,
+                              // Solo actualizar si se detectaron datos
+                              ...(geocodeResult.department && { department: geocodeResult.department }),
+                              ...(geocodeResult.province && { province: geocodeResult.province }),
+                              ...(geocodeResult.district && { district: geocodeResult.district }),
+                            }));
+                            
+                            // Sugerir dirección si se detectó
+                            if (geocodeResult.address) {
+                              setSuggestedAddress(geocodeResult.address);
+                            }
+                            
+                            console.log('📍 Ubicación detectada:', geocodeResult);
+                          }
+                          
+                          // Limpiar timeout anterior
+                          if (geocodingTimeout) {
+                            clearTimeout(geocodingTimeout);
+                          }
+                          setGeocodingStatus('✅ Ubicación y dirección detectadas automáticamente');
+                          const newTimeout = setTimeout(() => setGeocodingStatus(''), 3000);
+                          setGeocodingTimeout(newTimeout);
+                        } else {
+                          // Limpiar timeout anterior
+                          if (geocodingTimeout) {
+                            clearTimeout(geocodingTimeout);
+                          }
+                          setGeocodingStatus('⚠️ No se pudo obtener tu ubicación. Verifica los permisos del navegador.');
+                          const newTimeout = setTimeout(() => setGeocodingStatus(''), 4000);
+                          setGeocodingTimeout(newTimeout);
+                        }
+                      }}
+                      className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      📍 Usar mi ubicación
+                    </button>
+                  </div>
                   <p className="text-sm text-gray-600 mb-2">
-                    💡 Haz clic o arrastra el pin para ajustar la ubicación. La dirección se actualizará automáticamente.
+                    💡 Haz clic o arrastra el pin para ajustar la ubicación. <strong>Se detectarán automáticamente</strong> el distrito, provincia y dirección.
                   </p>
                   <MapPicker
+                    key={`map-${formData.latitude}-${formData.longitude}`}
                     latitude={formData.latitude}
                     longitude={formData.longitude}
                     onLocationChange={async (lat, lng) => {
@@ -1224,20 +1415,63 @@ const CreateListingPage: React.FC = () => {
                         longitude: Number(lng),
                       }));
                       
-                      // Obtener dirección desde las coordenadas
-                      setGeocodingStatus('🔍 Detectando dirección desde el mapa...');
-                      const detectedAddress = await reverseGeocode(lat, lng);
+                      // Detectar dirección Y datos administrativos completos
+                      setGeocodingStatus('🔍 Detectando ubicación...');
+                      const geocodeResult = await reverseGeocodeComplete(lat, lng);
                       
-                      if (detectedAddress) {
+                      if (geocodeResult) {
+                        // SIEMPRE actualizar selectores (departamento, provincia, distrito)
                         setFormData(prev => ({
                           ...prev,
-                          address: detectedAddress,
+                          latitude: Number(lat),
+                          longitude: Number(lng),
+                          // Actualizar datos administrativos si se detectaron
+                          ...(geocodeResult.department && { department: geocodeResult.department }),
+                          ...(geocodeResult.province && { province: geocodeResult.province }),
+                          ...(geocodeResult.district && { district: geocodeResult.district }),
                         }));
-                        setGeocodingStatus('✅ Dirección detectada desde el mapa');
-                        setTimeout(() => setGeocodingStatus(''), 3000);
+                        
+                        // Manejo de dirección: respetar entrada del usuario
+                        if (!formData.address || formData.address.trim() === '') {
+                          // Campo vacío: completar directamente
+                          if (geocodeResult.address) {
+                            setFormData(prev => ({
+                              ...prev,
+                              address: geocodeResult.address || '',
+                            }));
+                          }
+                          
+                          // Limpiar timeout anterior
+                          if (geocodingTimeout) {
+                            clearTimeout(geocodingTimeout);
+                          }
+                          setGeocodingStatus('✅ Ubicación y dirección detectadas');
+                          const newTimeout = setTimeout(() => setGeocodingStatus(''), 2000);
+                          setGeocodingTimeout(newTimeout);
+                        } else {
+                          // Campo con valor: ofrecer como sugerencia
+                          if (geocodeResult.address && geocodeResult.address !== formData.address) {
+                            setSuggestedAddress(geocodeResult.address);
+                          }
+                          
+                          // Limpiar timeout anterior
+                          if (geocodingTimeout) {
+                            clearTimeout(geocodingTimeout);
+                          }
+                          setGeocodingStatus('✅ Ubicación actualizada. ' + (geocodeResult.address ? 'Revisa la sugerencia de dirección arriba.' : ''));
+                          const newTimeout = setTimeout(() => setGeocodingStatus(''), 3000);
+                          setGeocodingTimeout(newTimeout);
+                        }
+                        
+                        console.log('🗺️ Ubicación desde mapa:', geocodeResult);
                       } else {
-                        setGeocodingStatus('⚠️ No se pudo detectar la dirección. Complétala manualmente.');
-                        setTimeout(() => setGeocodingStatus(''), 5000);
+                        // Limpiar timeout anterior
+                        if (geocodingTimeout) {
+                          clearTimeout(geocodingTimeout);
+                        }
+                        setGeocodingStatus('⚠️ Coordenadas actualizadas. No se pudo detectar la dirección.');
+                        const newTimeout = setTimeout(() => setGeocodingStatus(''), 3000);
+                        setGeocodingTimeout(newTimeout);
                       }
                     }}
                     height="400px"
@@ -1458,6 +1692,64 @@ const CreateListingPage: React.FC = () => {
                     />
                   </div>
 
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Años de Antigüedad
+                    </label>
+                    <input
+                      type="number"
+                      name="age_years"
+                      value={formData.age_years}
+                      onChange={handleInputChange}
+                      min="0"
+                      placeholder="5"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+
+                {/* Pisos (solo para edificios/departamentos) */}
+                {['apartment', 'penthouse'].includes(formData.property_type) && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Pisos del edificio
+                      </label>
+                      <input
+                        type="number"
+                        name="floors"
+                        value={formData.floors}
+                        onChange={handleInputChange}
+                        min="1"
+                        placeholder="10"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Número total de pisos del edificio
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Piso del departamento
+                      </label>
+                      <input
+                        type="number"
+                        name="floor_number"
+                        value={formData.floor_number}
+                        onChange={handleInputChange}
+                        min="0"
+                        placeholder="5"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        ¿En qué piso está ubicado? (0 = planta baja)
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {formData.rental_model === 'airbnb' && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1563,6 +1855,7 @@ const CreateListingPage: React.FC = () => {
                           value={formData.check_in_time}
                           onChange={handleInputChange}
                           required
+                          lang="es"
                           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                         />
                         <p className="text-xs text-gray-500 mt-1">
@@ -1580,6 +1873,7 @@ const CreateListingPage: React.FC = () => {
                           value={formData.check_out_time}
                           onChange={handleInputChange}
                           required
+                          lang="es"
                           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                         />
                         <p className="text-xs text-gray-500 mt-1">
@@ -2254,44 +2548,20 @@ const CreateListingPage: React.FC = () => {
                   </div>
 
                   {/* Teléfono */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Teléfono de contacto
-                    </label>
-                    <input
-                      type="tel"
-                      value={formData.contact_phone_e164}
-                      onChange={(e) => {
-                        const value = e.target.value.replace(/[^0-9+]/g, '');
-                        setFormData({ ...formData, contact_phone_e164: value });
-                      }}
-                      placeholder="+51987654321"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Formato internacional: +51 seguido del número (9 dígitos)
-                    </p>
-                  </div>
+                  <PhoneInput
+                    value={formData.contact_phone_e164}
+                    onChange={(value) => setFormData({ ...formData, contact_phone_e164: value })}
+                    label="Teléfono de contacto"
+                    helperText="Número donde los interesados pueden contactarte"
+                  />
 
                   {/* WhatsApp */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      WhatsApp (opcional)
-                    </label>
-                    <input
-                      type="tel"
-                      value={formData.contact_whatsapp_phone_e164}
-                      onChange={(e) => {
-                        const value = e.target.value.replace(/[^0-9+]/g, '');
-                        setFormData({ ...formData, contact_whatsapp_phone_e164: value });
-                      }}
-                      placeholder="+51987654321"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Si es diferente al teléfono principal. Formato: +51 seguido del número
-                    </p>
-                  </div>
+                  <PhoneInput
+                    value={formData.contact_whatsapp_phone_e164}
+                    onChange={(value) => setFormData({ ...formData, contact_whatsapp_phone_e164: value })}
+                    label="WhatsApp (opcional)"
+                    helperText="Si es diferente al teléfono principal"
+                  />
 
                   {/* Vista previa de contacto */}
                   {(formData.contact_name || formData.contact_phone_e164 || formData.contact_whatsapp_phone_e164) && (

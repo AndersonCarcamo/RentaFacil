@@ -331,3 +331,179 @@ async def get_realtime_analytics(
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting realtime analytics: {str(e)}")
+
+
+# =================== TRACKING ENDPOINTS ===================
+
+@router.post("/analytics/track/view", status_code=status.HTTP_201_CREATED)
+async def track_view(
+    listing_id: str,
+    session_id: Optional[str] = None,
+    referrer: Optional[str] = None,
+    request: Request = None,
+    db: Session = Depends(get_db),
+    current_user=None  # Opcional, puede ser anónimo
+):
+    """Registra una vista de un listing (no requiere autenticación)"""
+    try:
+        from sqlalchemy import text
+        import json
+        
+        listing_uuid = uuid.UUID(listing_id)
+        user_agent = request.headers.get('user-agent', '') if request else ''
+        ip_address = request.client.host if request and request.client else None
+        
+        # Preparar propiedades como JSON
+        properties_dict = {'referrer': referrer, 'ip_address': ip_address}
+        properties_json = json.dumps(properties_dict)
+        
+        # Registrar evento
+        event_data = {
+            'user_id': getattr(current_user, 'id', None) if current_user else None,
+            'session_id': session_id,
+            'event_type': 'view',
+            'listing_id': listing_uuid,
+            'properties_json': properties_json,
+            'ip_address': ip_address,
+            'user_agent': user_agent,
+            'created_at': datetime.utcnow(),
+        }
+        
+        db.execute(text("""
+            INSERT INTO analytics.events 
+            (user_id, session_id, event_type, listing_id, properties, ip_address, user_agent, created_at)
+            VALUES (:user_id, :session_id, :event_type, :listing_id, CAST(:properties_json AS jsonb), :ip_address, :user_agent, :created_at)
+        """), event_data)
+        
+        # Incrementar contador
+        db.execute(text("UPDATE core.listings SET views_count = views_count + 1 WHERE id = :listing_id"), 
+                  {'listing_id': listing_uuid})
+        
+        db.commit()
+        return {"message": "View tracked"}
+    
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/analytics/track/contact", status_code=status.HTTP_201_CREATED)
+async def track_contact(
+    listing_id: str,
+    contact_type: str,  # 'phone', 'whatsapp', 'email'
+    session_id: Optional[str] = None,
+    request: Request = None,
+    db: Session = Depends(get_db),
+    current_user=None
+):
+    """Registra un contacto/lead de un listing (no requiere autenticación)"""
+    try:
+        from sqlalchemy import text
+        import json
+        
+        listing_uuid = uuid.UUID(listing_id)
+        user_agent = request.headers.get('user-agent', '') if request else ''
+        ip_address = request.client.host if request and request.client else None
+        
+        # Preparar propiedades como JSON
+        properties_dict = {'contact_type': contact_type, 'ip_address': ip_address}
+        properties_json = json.dumps(properties_dict)
+        
+        # Registrar evento
+        event_data = {
+            'user_id': getattr(current_user, 'id', None) if current_user else None,
+            'session_id': session_id,
+            'event_type': 'contact',
+            'listing_id': listing_uuid,
+            'properties_json': properties_json,
+            'ip_address': ip_address,
+            'user_agent': user_agent,
+            'created_at': datetime.utcnow(),
+        }
+        
+        db.execute(text("""
+            INSERT INTO analytics.events 
+            (user_id, session_id, event_type, listing_id, properties, ip_address, user_agent, created_at)
+            VALUES (:user_id, :session_id, :event_type, :listing_id, CAST(:properties_json AS jsonb), :ip_address, :user_agent, :created_at)
+        """), event_data)
+        
+        # Incrementar contador
+        db.execute(text("UPDATE core.listings SET leads_count = leads_count + 1 WHERE id = :listing_id"), 
+                  {'listing_id': listing_uuid})
+        
+        db.commit()
+        return {"message": "Contact tracked"}
+    
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/analytics/listings/{listing_id}/stats")
+async def get_listing_stats(
+    listing_id: str,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    """Obtiene estadísticas detalladas de un listing (solo propietario)"""
+    try:
+        from sqlalchemy import text
+        
+        listing_uuid = uuid.UUID(listing_id)
+        user_id = getattr(current_user, 'id', current_user.get('id') if isinstance(current_user, dict) else None)
+        
+        # Verificar pertenencia
+        listing = db.execute(text("""
+            SELECT owner_user_id, views_count, leads_count, favorites_count
+            FROM core.listings WHERE id = :listing_id
+        """), {'listing_id': listing_uuid}).fetchone()
+        
+        if not listing:
+            raise HTTPException(status_code=404, detail="Listing not found")
+        
+        if listing[0] != user_id:
+            raise HTTPException(status_code=403, detail="Not authorized")
+        
+        # Estadísticas 30 días (días completos solamente - excluir hoy)
+        stats = db.execute(text("""
+            SELECT 
+                COUNT(*) FILTER (WHERE event_type = 'view') as views_30d,
+                COUNT(*) FILTER (WHERE event_type = 'contact') as contacts_30d,
+                COUNT(DISTINCT session_id) FILTER (WHERE event_type = 'view' AND DATE(created_at) <= CURRENT_DATE - 1) as unique_visitors,
+                COUNT(*) FILTER (WHERE event_type = 'view' AND created_at >= NOW() - INTERVAL '7 days') as views_7d
+            FROM analytics.events
+            WHERE listing_id = :listing_id 
+              AND created_at >= NOW() - INTERVAL '30 days'
+              AND DATE(created_at) <= CURRENT_DATE - 1
+        """), {'listing_id': listing_uuid}).fetchone()
+        
+        # Vistas y contactos diarios últimos 30 días (incluir hasta ayer)
+        daily = db.execute(text("""
+            SELECT 
+                DATE(created_at) as date, 
+                COUNT(*) FILTER (WHERE event_type = 'view') as views,
+                COUNT(*) FILTER (WHERE event_type = 'contact') as contacts
+            FROM analytics.events
+            WHERE listing_id = :listing_id 
+              AND created_at >= NOW() - INTERVAL '30 days'
+              AND DATE(created_at) <= CURRENT_DATE - 1
+            GROUP BY DATE(created_at)
+            ORDER BY date ASC
+        """), {'listing_id': listing_uuid}).fetchall()
+        
+        return {
+            "listing_id": listing_id,
+            "total_views": listing[1],
+            "total_leads": listing[2],
+            "total_favorites": listing[3],
+            "last_30_days": {
+                "views": stats[0] if stats else 0,
+                "contacts": stats[1] if stats else 0,
+                "unique_visitors": stats[2] if stats else 0,
+            },
+            "last_7_days": {"views": stats[3] if stats else 0},
+            "daily_stats": [{"date": str(r[0]), "views": r[1], "contacts": r[2]} for r in daily]
+        }
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

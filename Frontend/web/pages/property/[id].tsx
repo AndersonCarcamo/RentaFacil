@@ -1,6 +1,6 @@
 import { NextPage, GetServerSideProps } from 'next'
 import Head from 'next/head'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/router'
@@ -14,6 +14,7 @@ import { useAuth } from '@/lib/hooks/useAuth'
 import { Property } from '@/types'
 import { listingsService } from '@/services/listings'
 import chatService from '@/services/chatService'
+import { analyticsService } from '../../services/analyticsService'
 
 // Utilities
 import { formatPrice } from '@/lib/utils'
@@ -31,21 +32,41 @@ const PropertyDetailPage: NextPage<PropertyDetailPageProps> = ({ property, error
   const { user } = useAuth()
   const router = useRouter()
 
+  // Registrar vista al cargar la página
+  useEffect(() => {
+    if (property?.id) {
+      analyticsService.trackView(property.id)
+    }
+  }, [property?.id])
+
   const handleContact = (type: 'call' | 'whatsapp' | 'email') => {
     if (!user) {
       // Si no hay usuario, redirigir a registro con tipo USER preseleccionado
       router.push('/register?type=user&redirectTo=' + encodeURIComponent(router.asPath))
     } else {
-      // Si hay usuario, proceder con el contacto (implementar después)
+      // Registrar el contacto en analytics
+      if (property?.id) {
+        const contactType = type === 'call' ? 'phone' : type
+        analyticsService.trackContact(property.id, contactType)
+      }
+      
+      // Si hay usuario, proceder con el contacto
       switch (type) {
         case 'call':
-          alert('Llamar al propietario')
+          if (property?.owner_contact_phone) {
+            window.location.href = `tel:${property.owner_contact_phone}`
+          }
           break
         case 'whatsapp':
-          alert('Abrir WhatsApp')
+          if (property?.owner_contact_whatsapp) {
+            const phone = property.owner_contact_whatsapp.replace(/\D/g, '')
+            window.open(`https://wa.me/${phone}`, '_blank')
+          }
           break
         case 'email':
-          alert('Enviar email')
+          if (property?.owner_contact_email) {
+            window.location.href = `mailto:${property.owner_contact_email}`
+          }
           break
       }
     }

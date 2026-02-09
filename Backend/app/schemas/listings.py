@@ -195,6 +195,7 @@ class ListingResponse(BaseModel):
     favorites_count: int
     has_media: bool
     images: List[dict] = []  # Lista de imágenes
+    amenities: List[dict] = []  # Lista de amenidades con {id, name, icon}
     created_at: datetime
     updated_at: datetime
     published_at: Optional[datetime]

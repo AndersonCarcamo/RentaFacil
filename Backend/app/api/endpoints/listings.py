@@ -11,6 +11,7 @@ from app.services.listing_service import ListingService
 from app.api.deps import get_current_user
 from app.models.listing import Listing
 from app.models.media import Image, Video
+from app.models.auth import User
 from app.core.exceptions import http_400_bad_request, http_403_forbidden, http_404_not_found, http_500_internal_error
 from typing import List, Optional, Dict, Any
 from uuid import UUID
@@ -246,7 +247,7 @@ async def update_listing_amenities(
     listing_id: str,
     amenity_ids: List[int] = Body(..., embed=True),
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """
     Actualiza las amenidades de un listing.
@@ -255,12 +256,12 @@ async def update_listing_amenities(
     try:
         listing_uuid = UUID(listing_id)
         
-        # Verificar que el listing existe y pertenece al usuario
+        # Verificar que el listing exists y pertenece al usuario
         listing = db.query(Listing).filter(Listing.id == listing_uuid).first()
         if not listing:
             raise HTTPException(status_code=404, detail="Listing no encontrado")
         
-        if listing.agency_id != current_user["agency_id"]:
+        if listing.owner_user_id != current_user.id:
             raise HTTPException(status_code=403, detail="No tienes permiso")
         
         # Eliminar amenidades existentes
@@ -296,6 +297,66 @@ async def update_listing_amenities(
         raise HTTPException(status_code=500, detail=f"Error al actualizar amenidades: {str(e)}")
 
 
+@router.get("/by-slug/{slug}", response_model=ListingResponse, summary="Obtener propiedad por slug")
+async def get_listing_by_slug(slug: str, db: Session = Depends(get_db)):
+    """
+    Obtener una propiedad por su slug para URLs amigables.
+    Este endpoint es importante para SEO y compartir links.
+    """
+    try:
+        # Buscar listing por slug
+        listing = db.query(Listing).filter(
+            Listing.slug == slug,
+            Listing.status == 'published'
+        ).first()
+        
+        if not listing:
+            raise HTTPException(status_code=404, detail="Listing not found")
+        
+        # Obtener imágenes del listing
+        images = db.query(Image).filter(
+            Image.listing_id == listing.id
+        ).order_by(Image.display_order, Image.created_at).all()
+        
+        # Obtener amenidades del listing
+        amenities_result = db.execute(text("""
+            SELECT a.id, a.name, a.icon
+            FROM core.listing_amenities la
+            JOIN core.amenities a ON la.amenity_id = a.id
+            WHERE la.listing_id = :listing_id
+            ORDER BY a.name
+        """), {"listing_id": listing.id})
+        
+        amenities = [
+            {"id": str(row[0]), "name": row[1], "icon": row[2]}
+            for row in amenities_result.fetchall()
+        ]
+        
+        # Convertir a dict para el response
+        listing_dict = ListingResponse.from_orm(listing).dict()
+        listing_dict['images'] = [{
+            "id": str(img.id),
+            "url": img.original_url,
+            "thumbnail_url": img.thumbnail_url,
+            "medium_url": img.medium_url,
+            "filename": img.filename,
+            "alt_text": img.alt_text,
+            "display_order": img.display_order,
+            "is_main": img.is_main,
+            "width": img.width,
+            "height": img.height,
+            "file_size": img.file_size
+        } for img in images]
+        listing_dict['amenities'] = amenities
+        
+        return listing_dict
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error getting listing by slug: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
 @router.get("/{listing_id}", response_model=ListingResponse, summary="Obtener propiedad por ID")
 async def get_listing(listing_id: str, db: Session = Depends(get_db)):
     service = ListingService(db)
@@ -310,6 +371,20 @@ async def get_listing(listing_id: str, db: Session = Depends(get_db)):
     images = db.query(Image).filter(
         Image.listing_id == listing.id
     ).order_by(Image.display_order, Image.created_at).all()
+    
+    # Obtener amenidades del listing
+    amenities_result = db.execute(text("""
+        SELECT a.id, a.name, a.icon
+        FROM core.listing_amenities la
+        JOIN core.amenities a ON la.amenity_id = a.id
+        WHERE la.listing_id = :listing_id
+        ORDER BY a.name
+    """), {"listing_id": listing.id})
+    
+    amenities = [
+        {"id": str(row[0]), "name": row[1], "icon": row[2]}
+        for row in amenities_result.fetchall()
+    ]
     
     # Convertir a dict para el response
     listing_dict = ListingResponse.from_orm(listing).dict()
@@ -326,6 +401,7 @@ async def get_listing(listing_id: str, db: Session = Depends(get_db)):
         "height": img.height,
         "file_size": img.file_size
     } for img in images]
+    listing_dict['amenities'] = amenities
     
     return listing_dict
 
@@ -480,7 +556,7 @@ async def optimize_for_airbnb(
 @router.post("/{listing_id}/opt-out-airbnb", response_model=ListingResponse, summary="Desactivar Airbnb")
 async def opt_out_airbnb(
     listing_id: UUID,
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -520,7 +596,7 @@ async def opt_out_airbnb(
 @router.post("/{listing_id}/opt-in-airbnb", response_model=ListingResponse, summary="Reactivar Airbnb")
 async def opt_in_airbnb(
     listing_id: UUID,
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -841,7 +917,7 @@ async def upload_listing_video(
     description: Optional[str] = Form(None),
     display_order: int = Form(0),
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """
     Sube un video para un listing específico.
@@ -862,7 +938,7 @@ async def upload_listing_video(
         if not listing:
             raise HTTPException(status_code=404, detail="Listing no encontrado")
         
-        if listing.agency_id != current_user["agency_id"]:
+        if listing.owner_user_id != current_user.id:
             raise HTTPException(status_code=403, detail="No tienes permiso para subir videos a este listing")
         
         # Validar tipo de archivo
@@ -962,7 +1038,7 @@ async def delete_listing_video(
     listing_id: str,
     video_id: str,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """
     Elimina un video del listing (archivo y registro en BD).
@@ -983,7 +1059,7 @@ async def delete_listing_video(
         if not listing:
             raise HTTPException(status_code=404, detail="Listing no encontrado")
         
-        if listing.agency_id != current_user["agency_id"]:
+        if listing.owner_user_id != current_user.id:
             raise HTTPException(status_code=403, detail="No tienes permiso")
         
         # Buscar el video

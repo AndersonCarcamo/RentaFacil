@@ -6,8 +6,8 @@ CREATE OR REPLACE FUNCTION core.ensure_listings_partition(partition_month date)
 RETURNS void LANGUAGE plpgsql AS $partition$
 DECLARE
     partition_name text := 'listings_' || to_char(partition_month, 'YYYY_MM');
-    start_date text := to_char(partition_month, 'YYYY-MM-DD');
-    end_date text := to_char(partition_month + interval '1 month', 'YYYY-MM-DD');
+    start_date text := to_char(partition_month, 'YYYY-MM-DD') || ' 05:00:00+00';
+    end_date text := to_char(partition_month + interval '1 month', 'YYYY-MM-DD') || ' 05:00:00+00';
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM pg_class c
@@ -40,8 +40,8 @@ CREATE OR REPLACE FUNCTION core.ensure_leads_partition(partition_month date)
 RETURNS void LANGUAGE plpgsql AS $partition$
 DECLARE
     partition_name text := 'leads_' || to_char(partition_month, 'YYYY_MM');
-    start_date text := to_char(partition_month, 'YYYY-MM-DD');
-    end_date text := to_char(partition_month + interval '1 month', 'YYYY-MM-DD');
+    start_date text := to_char(partition_month, 'YYYY-MM-DD') || ' 05:00:00+00';
+    end_date text := to_char(partition_month + interval '1 month', 'YYYY-MM-DD') || ' 05:00:00+00';
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM pg_class c
@@ -74,8 +74,8 @@ CREATE OR REPLACE FUNCTION analytics.ensure_events_partition(partition_month dat
 RETURNS void LANGUAGE plpgsql AS $partition$
 DECLARE
     partition_name text := 'events_' || to_char(partition_month, 'YYYY_MM');
-    start_date text := to_char(partition_month, 'YYYY-MM-DD');
-    end_date text := to_char(partition_month + interval '1 month', 'YYYY-MM-DD');
+    start_date text := to_char(partition_month, 'YYYY-MM-DD') || ' 05:00:00+00';
+    end_date text := to_char(partition_month + interval '1 month', 'YYYY-MM-DD') || ' 05:00:00+00';
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM pg_class c

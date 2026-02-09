@@ -36,8 +36,12 @@ class SearchService:
         offset = (filters.page - 1) * filters.limit
         listings = query.offset(offset).limit(filters.limit).all()
         
-        # Convertir listings a dict
-        listings_data = [self._listing_to_dict(listing) for listing in listings]
+        # 🚀 OPTIMIZACIÓN: Cargar todas las amenities en una sola query (evita N+1)
+        listing_ids = [listing.id for listing in listings]
+        amenities_map = self._load_amenities_bulk(listing_ids)
+        
+        # Convertir listings a dict con amenities pre-cargadas
+        listings_data = [self._listing_to_dict(listing, amenities_map.get(listing.id, [])) for listing in listings]
         
         # Calcular tiempo de búsqueda
         search_time = (time.time() - start_time) * 1000  # en ms
@@ -45,8 +49,10 @@ class SearchService:
         # Calcular páginas totales
         total_pages = math.ceil(total_count / filters.limit)
         
-        # Generar facetas
-        facets = self._generate_facets(filters)
+        # 🚀 OPTIMIZACIÓN: Generar facetas solo en la primera página (caché ligero)
+        facets = self._generate_facets(filters) if filters.page == 1 else SearchFacets(
+            cities=[], districts=[], property_types=[], operations=[], price_ranges=[]
+        )
         
         # Crear info de búsqueda
         search_info = SearchInfo(
@@ -188,7 +194,7 @@ class SearchService:
         # Búsqueda por texto
         if filters.q:
             search_query = text(
-                "search_doc @@ plainto_tsquery('spanish_unaccent', :search_text)"
+                "search_doc @@ plainto_tsquery('spanish', :search_text)"
             )
             query = query.filter(search_query).params(search_text=filters.q)
         
@@ -333,7 +339,7 @@ class SearchService:
             # Para búsqueda por texto, añadir ranking de relevancia
             if filters.q:
                 rank_query = text(
-                    "ts_rank(search_doc, plainto_tsquery('spanish_unaccent', :search_text))"
+                    "ts_rank(search_doc, plainto_tsquery('spanish', :search_text))"
                 )
                 query = query.order_by(desc(rank_query), desc(sort_field)).params(search_text=filters.q)
             else:
@@ -352,7 +358,7 @@ class SearchService:
         # Aplicar solo algunos filtros para facetas
         if filters.q:
             search_query = text(
-                "search_doc @@ plainto_tsquery('spanish_unaccent', :search_text)"
+                "search_doc @@ plainto_tsquery('spanish', :search_text)"
             )
             base_query = base_query.filter(search_query).params(search_text=filters.q)
         
@@ -377,6 +383,35 @@ class SearchService:
         ).group_by(field).order_by(desc('count')).limit(20).all()
         
         return [FacetItem(name=f[0], count=f[1]) for f in facets]
+
+    def _load_amenities_bulk(self, listing_ids: List[uuid.UUID]) -> Dict[uuid.UUID, List[Dict[str, Any]]]:
+        """
+        🚀 OPTIMIZACIÓN: Cargar amenities para múltiples listings en una sola query.
+        Esto previene el problema N+1 query.
+        """
+        if not listing_ids:
+            return {}
+        
+        # Una sola query para todas las amenities de todos los listings
+        amenities_result = self.db.execute(text("""
+            SELECT la.listing_id, a.id, a.name, a.icon
+            FROM core.listing_amenities la
+            JOIN core.amenities a ON la.amenity_id = a.id
+            WHERE la.listing_id = ANY(:listing_ids)
+            ORDER BY la.listing_id, a.name
+        """), {"listing_ids": listing_ids})
+        
+        # Agrupar amenities por listing_id
+        amenities_map = {}
+        for row in amenities_result.fetchall():
+            listing_id = row[0]
+            amenity = {"id": str(row[1]), "name": row[2], "icon": row[3]}
+            
+            if listing_id not in amenities_map:
+                amenities_map[listing_id] = []
+            amenities_map[listing_id].append(amenity)
+        
+        return amenities_map
 
     def _get_location_suggestions(self, q: str) -> List[SearchSuggestion]:
         """Obtener sugerencias de ubicación"""
@@ -420,8 +455,13 @@ class SearchService:
             ) for result in results
         ]
 
-    def _listing_to_dict(self, listing: Listing) -> Dict[str, Any]:
+    def _listing_to_dict(self, listing: Listing, amenities: List[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Convertir listing a diccionario para la respuesta"""
+        
+        # 🚀 OPTIMIZACIÓN: Usar amenities pre-cargadas en lugar de hacer query individual
+        if amenities is None:
+            amenities = []
+        
         return {
             'id': str(listing.id),
             'title': listing.title,
@@ -495,5 +535,7 @@ class SearchService:
             'updated_at': listing.updated_at.isoformat() if listing.updated_at else None,
             # Propietario
             'owner_user_id': str(listing.owner_user_id),
-            'agency_id': str(listing.agency_id) if listing.agency_id else None
+            'agency_id': str(listing.agency_id) if listing.agency_id else None,
+            # Amenidades
+            'amenities': amenities
         }

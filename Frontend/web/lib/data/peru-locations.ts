@@ -353,3 +353,39 @@ export const getProvinceCoordinates = (
   const found = provinces.find(p => p.name === province);
   return found?.coordinates || null;
 };
+
+/**
+ * Obtiene coordenadas default inteligentes basadas en la ubicación seleccionada
+ * Prioridad: Distrito > Provincia > Departamento > Lima (default)
+ */
+export const getDefaultCoordinates = (
+  department?: string,
+  province?: string,
+  district?: string
+): { latitude: number; longitude: number } => {
+  // Default: Centro de Lima
+  const defaultCoords = { latitude: -12.0464, longitude: -77.0428 };
+
+  if (!department) return defaultCoords;
+
+  // Si hay distrito, usar sus coordenadas
+  if (district && province) {
+    const districtCoords = getDistrictCoordinates(department, province, district);
+    if (districtCoords) return districtCoords;
+  }
+
+  // Si hay provincia, usar sus coordenadas
+  if (province) {
+    const provinceCoords = getProvinceCoordinates(department, province);
+    if (provinceCoords) return provinceCoords;
+  }
+
+  // Si solo hay departamento, usar coordenadas de su primera provincia
+  const provinces = getProvinces(department);
+  if (provinces.length > 0) {
+    return provinces[0].coordinates;
+  }
+
+  // Fallback
+  return defaultCoords;
+};

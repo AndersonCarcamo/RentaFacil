@@ -5,13 +5,12 @@ import { Toaster } from 'react-hot-toast'
 import { useState } from 'react'
 import Head from 'next/head'
 import { AuthProvider } from '../lib/hooks/useAuth'
-import { FloatingVoiceButton } from '@/components/search'
+
+// Estilos de Leaflet PRIMERO (antes de globals.css)
+import 'leaflet/dist/leaflet.css'
 
 // Estilos globales
 import '@/styles/globals.css'
-
-// Estilos de Leaflet para el mapa
-import 'leaflet/dist/leaflet.css'
 
 // Configuración del cliente de React Query
 const queryClientConfig = {
@@ -71,9 +70,6 @@ export default function App({ Component, pageProps }: AppProps) {
           <AuthProvider>
             {/* Componente principal de la aplicación */}
             <Component {...pageProps} />
-            
-            {/* Botón flotante de búsqueda por voz - Disponible globalmente */}
-            <FloatingVoiceButton />
           </AuthProvider>
           
           {/* Toast notifications globales */}

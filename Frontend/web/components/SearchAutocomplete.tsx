@@ -82,6 +82,22 @@ const POPULAR_LOCATIONS = [
   'Ventanilla',
 ]
 
+// Sugerencias de búsqueda comunes
+const SEARCH_SUGGESTIONS = [
+  'Departamento en Miraflores',
+  'Casa en San Isidro',
+  'Departamento amoblado',
+  'Casa con jardín',
+  'Oficina en San Isidro',
+  'Departamento en Barranco',
+  'Estudio cerca al mar',
+  'Departamento con vista al mar',
+  'Casa para familia',
+  'Departamento moderno',
+  'Local comercial',
+  'Terreno',
+]
+
 export default function SearchAutocomplete({
   value,
   onChange,
@@ -107,17 +123,32 @@ export default function SearchAutocomplete({
     }
   }, [])
 
-  // Filtrar sugerencias basadas en el input
+  // Filtrar sugerencias basadas en el input con debouncing
   useEffect(() => {
-    if (value.trim().length > 0) {
-      const query = value.toLowerCase()
-      const matches = POPULAR_LOCATIONS.filter(location =>
-        location.toLowerCase().includes(query)
-      ).slice(0, 5)
-      setFilteredSuggestions(matches)
-    } else {
-      setFilteredSuggestions([])
-    }
+    // Debouncing: esperar 300ms después de que el usuario deje de escribir
+    const timeoutId = setTimeout(() => {
+      if (value.trim().length > 0) {
+        const query = value.toLowerCase()
+        
+        // Buscar en ubicaciones
+        const locationMatches = POPULAR_LOCATIONS.filter(location =>
+          location.toLowerCase().includes(query)
+        )
+        
+        // Buscar en sugerencias de búsqueda comunes
+        const searchMatches = SEARCH_SUGGESTIONS.filter(suggestion =>
+          suggestion.toLowerCase().includes(query)
+        )
+        
+        // Combinar y limitar resultados
+        const allMatches = [...searchMatches, ...locationMatches].slice(0, 8)
+        setFilteredSuggestions(allMatches)
+      } else {
+        setFilteredSuggestions([])
+      }
+    }, 300)
+    
+    return () => clearTimeout(timeoutId)
   }, [value])
 
   // Cerrar dropdown al hacer click fuera

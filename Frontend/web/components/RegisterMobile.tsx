@@ -400,15 +400,15 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
     switch (currentStep) {
       case 1:
         return (
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold text-gray-900 mb-2">
+          <div>
+            <h2 className="text-base font-bold text-gray-900 mb-1">
               ¿Qué tipo de usuario eres?
             </h2>
-            <p className="text-sm text-gray-600 mb-6">
+            <p className="text-xs text-gray-500 mb-2">
               Selecciona el tipo de cuenta que mejor se adapte a tus necesidades
             </p>
 
-            <div className="space-y-3">
+            <div className="space-y-1.5">
               {[
                 { 
                   value: 'USER', 
@@ -434,7 +434,7 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
                 return (
                   <label
                     key={option.value}
-                    className={`relative cursor-pointer rounded-xl border-2 p-5 transition-all block ${
+                    className={`relative cursor-pointer rounded-lg border-2 p-2 transition-all block ${
                       isSelected
                         ? 'border-blue-500 bg-blue-50 shadow-md'
                         : 'border-gray-200 bg-white hover:border-blue-300 hover:shadow-sm'
@@ -448,22 +448,22 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
                       onChange={(e) => handleInputChange('role', e.target.value as any)}
                       className="sr-only"
                     />
-                    <div className="flex items-center gap-4">
-                      <div className={`flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center ${
+                    <div className="flex items-center gap-2">
+                      <div className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${
                         isSelected ? 'bg-blue-500' : 'bg-gray-100'
                       }`}>
-                        <Icon className={`w-6 h-6 ${isSelected ? 'text-white' : 'text-gray-600'}`} />
+                        <Icon className={`w-4 h-4 ${isSelected ? 'text-white' : 'text-gray-600'}`} />
                       </div>
                       <div className="flex-1">
-                        <div className={`font-semibold mb-1 ${isSelected ? 'text-blue-900' : 'text-gray-900'}`}>
+                        <div className={`font-semibold text-xs ${isSelected ? 'text-blue-900' : 'text-gray-900'}`}>
                           {option.label}
                         </div>
-                        <div className={`text-sm ${isSelected ? 'text-blue-700' : 'text-gray-600'}`}>
+                        <div className={`text-xs leading-tight ${isSelected ? 'text-blue-700' : 'text-gray-500'}`}>
                           {option.desc}
                         </div>
                       </div>
                       {isSelected && (
-                        <CheckCircleIcon className="w-7 h-7 text-blue-600 flex-shrink-0" />
+                        <CheckCircleIcon className="w-4 h-4 text-blue-600 flex-shrink-0" />
                       )}
                     </div>
                   </label>
@@ -475,19 +475,19 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
 
       case 2:
         return (
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold text-gray-900 mb-2">
+          <div className="space-y-1.5">
+            <h2 className="text-lg font-bold text-gray-900">
               Datos Personales
             </h2>
-            <p className="text-sm text-gray-600 mb-6">
+            <p className="text-xs text-gray-600 mb-2">
               {formData.role === 'AGENT' 
                 ? 'Información del representante y de la inmobiliaria'
                 : 'Cuéntanos un poco sobre ti'}
             </p>
 
-            <div className="space-y-4">
+            <div className="space-y-2">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
                   {formData.role === 'AGENT' ? 'Nombre del Representante *' : 'Nombre *'}
                 </label>
                 <div className="relative">
@@ -496,7 +496,7 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
                     type="text"
                     value={formData.firstName}
                     onChange={(e) => handleInputChange('firstName', e.target.value)}
-                    className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    className={`w-full pl-10 pr-4 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                       errors.firstName ? 'border-red-300' : 'border-gray-300'
                     }`}
                     placeholder="Tu nombre"
@@ -504,12 +504,12 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
                   />
                 </div>
                 {errors.firstName && (
-                  <p className="mt-1 text-sm text-red-600">{errors.firstName}</p>
+                  <p className="mt-0.5 text-xs text-red-600">{errors.firstName}</p>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
                   {formData.role === 'AGENT' ? 'Apellido del Representante *' : 'Apellido *'}
                 </label>
                 <div className="relative">
@@ -518,7 +518,7 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
                     type="text"
                     value={formData.lastName}
                     onChange={(e) => handleInputChange('lastName', e.target.value)}
-                    className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    className={`w-full pl-10 pr-4 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                       errors.lastName ? 'border-red-300' : 'border-gray-300'
                     }`}
                     placeholder="Tu apellido"
@@ -526,14 +526,14 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
                   />
                 </div>
                 {errors.lastName && (
-                  <p className="mt-1 text-sm text-red-600">{errors.lastName}</p>
+                  <p className="mt-0.5 text-xs text-red-600">{errors.lastName}</p>
                 )}
               </div>
 
               {formData.role === 'AGENT' && (
                 <>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
                       Nombre de la Inmobiliaria *
                     </label>
                     <div className="relative">
@@ -542,7 +542,7 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
                         type="text"
                         value={formData.agencyName || ''}
                         onChange={(e) => handleInputChange('agencyName', e.target.value)}
-                        className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                        className={`w-full pl-10 pr-4 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                           errors.agencyName ? 'border-red-300' : 'border-gray-300'
                         }`}
                         placeholder="Nombre de tu inmobiliaria"
@@ -550,12 +550,12 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
                       />
                     </div>
                     {errors.agencyName && (
-                      <p className="mt-1 text-sm text-red-600">{errors.agencyName}</p>
+                      <p className="mt-0.5 text-xs text-red-600">{errors.agencyName}</p>
                     )}
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
                       RUC de la Inmobiliaria *
                     </label>
                     <div className="relative">
@@ -564,7 +564,7 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
                         type="text"
                         value={formData.agencyRuc || ''}
                         onChange={(e) => handleInputChange('agencyRuc', e.target.value.replace(/\D/g, ''))}
-                        className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                        className={`w-full pl-10 pr-4 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                           errors.agencyRuc ? 'border-red-300' : 'border-gray-300'
                         }`}
                         placeholder="12345678901"
@@ -572,14 +572,14 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
                       />
                     </div>
                     {errors.agencyRuc && (
-                      <p className="mt-1 text-sm text-red-600">{errors.agencyRuc}</p>
+                      <p className="mt-0.5 text-xs text-red-600">{errors.agencyRuc}</p>
                     )}
                   </div>
                 </>
               )}
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
                   Correo Electrónico *
                 </label>
                 <div className="relative">
@@ -588,7 +588,7 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
                     type="email"
                     value={formData.email}
                     onChange={(e) => handleInputChange('email', e.target.value)}
-                    className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    className={`w-full pl-10 pr-12 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                       errors.email 
                         ? 'border-red-300' 
                         : emailAvailable === false 
@@ -613,7 +613,7 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
                   </div>
                 </div>
                 {errors.email && (
-                  <p className="mt-1 text-sm text-red-600">{errors.email}</p>
+                  <p className="mt-0.5 text-xs text-red-600">{errors.email}</p>
                 )}
                 {!errors.email && emailAvailable === true && formData.email && (
                   <p className="mt-1 text-sm text-green-600">✓ Email disponible</p>
@@ -621,7 +621,7 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
                   Teléfono (Opcional)
                 </label>
                 <div className="relative">
@@ -630,7 +630,7 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
                     type="tel"
                     value={formData.phone}
                     onChange={(e) => handleInputChange('phone', formatPhoneInput(e.target.value))}
-                    className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    className={`w-full pl-10 pr-4 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                       errors.phone ? 'border-red-300' : 'border-gray-300'
                     }`}
                     placeholder="+51987654321"
@@ -638,7 +638,7 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
                   />
                 </div>
                 {errors.phone && (
-                  <p className="mt-1 text-sm text-red-600">{errors.phone}</p>
+                  <p className="mt-0.5 text-xs text-red-600">{errors.phone}</p>
                 )}
               </div>
             </div>
@@ -647,17 +647,17 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
 
       case 3:
         return (
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold text-gray-900 mb-2">
+          <div className="space-y-1.5">
+            <h2 className="text-lg font-bold text-gray-900">
               Crea tu Contraseña
             </h2>
-            <p className="text-sm text-gray-600 mb-6">
+            <p className="text-xs text-gray-600 mb-2">
               Debe tener al menos 8 caracteres, una mayúscula, una minúscula y un número
             </p>
 
-            <div className="space-y-4">
+            <div className="space-y-2">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
                   Contraseña *
                 </label>
                 <div className="relative">
@@ -665,7 +665,7 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
                     type={showPassword ? 'text' : 'password'}
                     value={formData.password}
                     onChange={(e) => handleInputChange('password', e.target.value)}
-                    className={`w-full px-4 py-3 pr-12 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    className={`w-full px-4 py-2 text-sm pr-12 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                       errors.password ? 'border-red-300' : 'border-gray-300'
                     }`}
                     placeholder="Mínimo 8 caracteres"
@@ -683,7 +683,7 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
                   </button>
                 </div>
                 {errors.password && (
-                  <p className="mt-1 text-sm text-red-600">{errors.password}</p>
+                  <p className="mt-0.5 text-xs text-red-600">{errors.password}</p>
                 )}
                 {formData.password && !errors.password && (
                   <div className="mt-2">
@@ -708,7 +708,7 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
                   Confirmar Contraseña *
                 </label>
                 <div className="relative">
@@ -716,7 +716,7 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
                     type={showConfirmPassword ? 'text' : 'password'}
                     value={formData.confirmPassword}
                     onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
-                    className={`w-full px-4 py-3 pr-12 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    className={`w-full px-4 py-2 text-sm pr-12 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                       errors.confirmPassword ? 'border-red-300' : 'border-gray-300'
                     }`}
                     placeholder="Repite tu contraseña"
@@ -734,7 +734,7 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
                   </button>
                 </div>
                 {errors.confirmPassword && (
-                  <p className="mt-1 text-sm text-red-600">{errors.confirmPassword}</p>
+                  <p className="mt-0.5 text-xs text-red-600">{errors.confirmPassword}</p>
                 )}
               </div>
             </div>
@@ -743,36 +743,36 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
 
       case 4:
         return (
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold text-gray-900 mb-2">
+          <div className="space-y-1.5">
+            <h2 className="text-lg font-bold text-gray-900">
               Documento de Identidad
             </h2>
-            <p className="text-sm text-gray-600 mb-6">
+            <p className="text-xs text-gray-600 mb-2">
               {formData.role === 'LANDLORD' 
                 ? 'Como propietario, necesitamos verificar tu identidad para publicar propiedades'
                 : 'Este campo es opcional, pero recomendado para generar más confianza'}
             </p>
 
             {formData.role === 'LANDLORD' && (
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg mb-4">
+              <div className="p-2 bg-amber-50 border border-amber-200 rounded-lg mb-2">
                 <div className="flex items-start gap-2">
-                  <IdentificationIcon className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                  <p className="text-sm text-amber-900">
+                  <IdentificationIcon className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-900">
                     <strong>Verificación requerida:</strong> Tu documento es obligatorio para garantizar la seguridad de la plataforma.
                   </p>
                 </div>
               </div>
             )}
 
-            <div className="space-y-4">
+            <div className="space-y-2">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
                   Tipo de Documento {formData.role === 'LANDLORD' && '*'}
                 </label>
                 <select
                   value={formData.nationalIdType}
                   onChange={(e) => handleInputChange('nationalIdType', e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="DNI">DNI</option>
                   <option value="CE">Carné de Extranjería</option>
@@ -782,7 +782,7 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
                   Número de Documento {formData.role === 'LANDLORD' ? '*' : '(Opcional)'}
                 </label>
                 <div className="relative">
@@ -791,7 +791,7 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
                     type="text"
                     value={formData.nationalId}
                     onChange={(e) => handleInputChange('nationalId', e.target.value)}
-                    className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    className={`w-full pl-10 pr-4 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                       errors.nationalId ? 'border-red-300' : 'border-gray-300'
                     }`}
                     placeholder={
@@ -804,7 +804,7 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
                   />
                 </div>
                 {errors.nationalId && (
-                  <p className="mt-1 text-sm text-red-600">{errors.nationalId}</p>
+                  <p className="mt-0.5 text-xs text-red-600">{errors.nationalId}</p>
                 )}
               </div>
             </div>
@@ -813,16 +813,16 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
 
       case 5:
         return (
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold text-gray-900 mb-2">
+          <div className="space-y-1.5">
+            <h2 className="text-lg font-bold text-gray-900">
               Foto de Perfil
             </h2>
-            <p className="text-sm text-gray-600 mb-6">
+            <p className="text-xs text-gray-600 mb-2">
               Agrega una foto para generar más confianza (opcional)
             </p>
 
             <div 
-              className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+              className={`border-2 border-dashed rounded-lg p-4 text-center transition-colors ${
                 isDragOver 
                   ? 'border-blue-500 bg-blue-50' 
                   : 'border-gray-300'
@@ -832,32 +832,32 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
               onDragLeave={handleDragLeave}
             >
               {imagePreview ? (
-                <div className="space-y-4">
-                  <div className="relative w-32 h-32 mx-auto">
+                <div className="space-y-2">
+                  <div className="relative w-24 h-24 mx-auto">
                     <img 
                       src={imagePreview} 
                       alt="Preview" 
-                      className="w-full h-full object-cover rounded-full border-4 border-white shadow-lg"
+                      className="w-full h-full object-cover rounded-full border-3 border-white shadow-lg"
                     />
                     <button
                       type="button"
                       onClick={removeImage}
-                      className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center"
+                      className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center"
                     >
-                      <XMarkIcon className="w-4 h-4" />
+                      <XMarkIcon className="w-3 h-3" />
                     </button>
                   </div>
                   <button
                     type="button"
                     onClick={() => document.getElementById('file-upload-mobile')?.click()}
-                    className="text-sm text-blue-600 hover:text-blue-800 font-medium underline"
+                    className="text-xs text-blue-600 hover:text-blue-800 font-medium underline"
                   >
                     Cambiar foto
                   </button>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  <CloudArrowUpIcon className="w-12 h-12 text-gray-400 mx-auto" />
+                <div className="space-y-2">
+                  <CloudArrowUpIcon className="w-10 h-10 text-gray-400 mx-auto" />
                   <div>
                     <button
                       type="button"
@@ -888,11 +888,11 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
             </div>
 
             {errors.profilePicture && (
-              <p className="text-sm text-red-600">{errors.profilePicture}</p>
+              <p className="text-xs text-red-600">{errors.profilePicture}</p>
             )}
 
-            <div className="mt-6 space-y-3">
-              <div className="flex items-start gap-3">
+            <div className="mt-4 space-y-2">
+              <div className="flex items-start gap-2">
                 <input
                   type="checkbox"
                   id="acceptTerms"
@@ -900,7 +900,7 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
                   onChange={(e) => handleInputChange('acceptTerms', e.target.checked)}
                   className="mt-0.5 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                 />
-                <label htmlFor="acceptTerms" className="text-sm text-gray-700">
+                <label htmlFor="acceptTerms" className="text-xs text-gray-700">
                   Acepto los{' '}
                   <a href="/terms" className="text-blue-600 underline">
                     términos y condiciones
@@ -909,10 +909,10 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
                 </label>
               </div>
               {errors.acceptTerms && (
-                <p className="text-sm text-red-600 ml-7">{errors.acceptTerms}</p>
+                <p className="text-xs text-red-600 ml-6">{errors.acceptTerms}</p>
               )}
 
-              <div className="flex items-start gap-3">
+              <div className="flex items-start gap-2">
                 <input
                   type="checkbox"
                   id="acceptPrivacy"
@@ -920,7 +920,7 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
                   onChange={(e) => handleInputChange('acceptPrivacy', e.target.checked)}
                   className="mt-0.5 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                 />
-                <label htmlFor="acceptPrivacy" className="text-sm text-gray-700">
+                <label htmlFor="acceptPrivacy" className="text-xs text-gray-700">
                   Acepto la{' '}
                   <a href="/privacy" className="text-blue-600 underline">
                     política de privacidad
@@ -929,7 +929,7 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
                 </label>
               </div>
               {errors.acceptPrivacy && (
-                <p className="text-sm text-red-600 ml-7">{errors.acceptPrivacy}</p>
+                <p className="text-xs text-red-600 ml-6">{errors.acceptPrivacy}</p>
               )}
             </div>
           </div>
@@ -950,11 +950,17 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
       {!hideHeader && <Header />}
       
       {/* Main Content - Adjust for Header height (96px) only if header is shown */}
-      <div className="flex flex-col" style={{ height: hideHeader ? '100vh' : 'calc(100vh - 96px)' }}>
-        {/* Progress Bar */}
-        <div className="bg-white border-b" style={{ position: 'sticky', top: hideHeader ? '0' : '96px', zIndex: 10 }}>
-          <div className="px-4 py-4">
-            <div className="flex items-center justify-between mb-3">
+      <div 
+        className="flex flex-col" 
+        style={{ 
+          minHeight: hideHeader ? '100%' : 'calc(100vh - 96px)', 
+          maxHeight: hideHeader ? '100%' : 'calc(100vh - 96px)',
+          height: hideHeader ? '100%' : 'calc(100vh - 96px)'
+        }}
+      >        {/* Progress Bar - Fixed height */}
+        <div className="bg-white border-b flex-shrink-0">
+          <div className="px-4 py-2">
+            <div className="flex items-center justify-between mb-1.5">
               <span className="text-sm font-medium text-gray-900">
                 Paso {visualStep} de {visualTotalSteps}
               </span>
@@ -973,21 +979,21 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
 
         {/* Error general */}
         {generalError && (
-          <div className="px-4 pt-4">
-            <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
-              <ExclamationCircleIcon className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
-              <span className="text-red-700 text-sm">{generalError}</span>
+          <div className="px-4 pt-2 pb-2 flex-shrink-0">
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
+              <ExclamationCircleIcon className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+              <span className="text-red-700 text-xs">{generalError}</span>
             </div>
           </div>
         )}
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto px-4 py-6">
+        {/* Content - This will take remaining space and scroll if needed */}
+        <div className="flex-1 overflow-y-auto px-4 py-1.5 min-h-0">
           {renderStepContent()}
         </div>
 
-        {/* Navigation Buttons */}
-        <div className="bg-white border-t px-4 py-4 sticky bottom-0 z-10">
+        {/* Navigation Buttons - Fixed at bottom */}
+        <div className="bg-white border-t px-4 py-2.5 flex-shrink-0">
           <div className="flex gap-3">
             {currentStep > 1 && (
               <Button
@@ -1031,3 +1037,7 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
 };
 
 export default RegisterMobile;
+
+
+
+

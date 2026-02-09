@@ -2,9 +2,93 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, text
 from app.models.listing import Listing
 from app.schemas.listings import CreateListingRequest, UpdateListingRequest
+from app.utils.slug_generator import generate_listing_slug, ensure_unique_slug
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
 import uuid
+
+
+def generate_meta_tags(listing: Listing) -> tuple[str, str]:
+    """
+    Genera meta_title y meta_description para SEO basado en los datos del listing.
+    """
+    # Mapeo de tipos de propiedad a texto legible
+    property_types = {
+        'apartment': 'Departamento',
+        'house': 'Casa',
+        'room': 'Habitación',
+        'office': 'Oficina',
+        'commercial': 'Local Comercial',
+        'land': 'Terreno',
+        'warehouse': 'Almacén',
+        'penthouse': 'Penthouse',
+        'studio': 'Estudio',
+    }
+    
+    # Mapeo de operaciones
+    operations = {
+        'sale': 'Venta',
+        'rent': 'Alquiler',
+        'temp_rent': 'Alquiler Temporal',
+    }
+    
+    property_name = property_types.get(listing.property_type, 'Propiedad')
+    operation_name = operations.get(listing.operation, '')
+    
+    # Meta Title (max 60 caracteres óptimo)
+    parts = [property_name]
+    if listing.operation:
+        parts.append('en' if listing.operation == 'sale' else 'para')
+        parts.append(operation_name)
+    if listing.district:
+        parts.append(f'en {listing.district}')
+    if listing.bedrooms:
+        parts.append(f'{listing.bedrooms} dorm.')
+    
+    meta_title = ' '.join(parts)
+    # Agregar precio si está disponible
+    if listing.price:
+        currency = 'S/' if listing.currency == 'PEN' else '$'
+        meta_title += f' - {currency}{listing.price:,.0f}'
+    
+    # Limitar a ~60 caracteres
+    if len(meta_title) > 60:
+        meta_title = meta_title[:57] + '...'
+    
+    # Meta Description (max 160 caracteres óptimo)
+    desc_parts = []
+    desc_parts.append(f'{property_name} en {listing.district or listing.province or listing.department or "Perú"}')
+    
+    if listing.bedrooms or listing.bathrooms:
+        features = []
+        if listing.bedrooms:
+            features.append(f'{listing.bedrooms} dormitorios')
+        if listing.bathrooms:
+            features.append(f'{listing.bathrooms} baños')
+        desc_parts.append('con ' + ' y '.join(features))
+    
+    if listing.area_built or listing.area_total:
+        area = listing.area_built or listing.area_total
+        desc_parts.append(f'de {area}m²')
+    
+    if listing.furnished:
+        desc_parts.append('amoblado')
+    
+    if listing.price:
+        currency = 'S/' if listing.currency == 'PEN' else 'US$'
+        price_text = 'Precio' if listing.operation == 'sale' else 'Alquiler'
+        desc_parts.append(f'{price_text}: {currency}{listing.price:,.0f}')
+        if listing.operation != 'sale':
+            desc_parts[-1] += '/mes'
+    
+    meta_description = '. '.join(desc_parts) + '.'
+    
+    # Limitar a ~155 caracteres
+    if len(meta_description) > 155:
+        meta_description = meta_description[:152] + '...'
+    
+    return meta_title, meta_description
+
 
 class ListingService:
     def __init__(self, db: Session):
@@ -37,6 +121,15 @@ class ListingService:
         return self.db.query(Listing).filter(Listing.id == uuid.UUID(listing_id)).first()
 
     def create_listing(self, data: CreateListingRequest, owner_user_id: str) -> Listing:
+        # Generar slug único antes de crear
+        base_slug = generate_listing_slug(
+            title=data.title,
+            property_type=data.property_type,
+            district=data.district,
+            bedrooms=data.bedrooms
+        )
+        unique_slug = ensure_unique_slug(self.db, base_slug)
+        
         listing = Listing(
             owner_user_id=uuid.UUID(owner_user_id),
             title=data.title,
@@ -45,6 +138,7 @@ class ListingService:
             property_type=data.property_type,
             price=data.price,
             currency=data.currency or 'PEN',
+            slug=unique_slug,  # Agregar slug generado
             area_built=data.area_built,
             area_total=data.area_total,
             bedrooms=data.bedrooms,
@@ -80,9 +174,20 @@ class ListingService:
             house_rules=data.house_rules,
             cancellation_policy=data.cancellation_policy,
             available_from=data.available_from,
+            # Contact information
+            contact_name=data.contact_name,
+            contact_phone_e164=data.contact_phone_e164,
+            contact_whatsapp_phone_e164=data.contact_whatsapp_phone_e164,
+            contact_whatsapp_link=data.contact_whatsapp_link,
             status='draft',
             verification_status='verified'  # Set as verified for testing purposes
         )
+        
+        # Generar meta tags para SEO
+        meta_title, meta_description = generate_meta_tags(listing)
+        listing.meta_title = meta_title
+        listing.meta_description = meta_description
+        
         self.db.add(listing)
         self.db.commit()
         self.db.refresh(listing)
@@ -98,8 +203,30 @@ class ListingService:
         if not listing:
             return None
         
+        # Actualizar campos
         for field, value in data.dict(exclude_unset=True).items():
             setattr(listing, field, value)
+        
+        # Regenerar slug si cambió el título, distrito o tipo de propiedad
+        title_changed = hasattr(data, 'title') and data.title and data.title != listing.title
+        district_changed = hasattr(data, 'district') and data.district and data.district != listing.district
+        type_changed = hasattr(data, 'property_type') and data.property_type and data.property_type != listing.property_type
+        
+        if title_changed or district_changed or type_changed:
+            base_slug = generate_listing_slug(
+                title=listing.title,
+                property_type=listing.property_type,
+                district=listing.district,
+                bedrooms=listing.bedrooms
+            )
+            unique_slug = ensure_unique_slug(self.db, base_slug, str(listing.id))
+            listing.slug = unique_slug
+        
+        # Regenerar meta tags si cambió información relevante
+        if title_changed or district_changed or type_changed or hasattr(data, 'price') or hasattr(data, 'bedrooms') or hasattr(data, 'bathrooms'):
+            meta_title, meta_description = generate_meta_tags(listing)
+            listing.meta_title = meta_title
+            listing.meta_description = meta_description
         
         self.db.commit()
         self.db.refresh(listing)

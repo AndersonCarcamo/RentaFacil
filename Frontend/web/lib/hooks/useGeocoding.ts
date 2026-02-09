@@ -11,6 +11,14 @@ interface GeocodingResult {
   error: string | null;
 }
 
+interface ReverseGeocodeResult {
+  address: string | null;
+  department: string | null;
+  province: string | null;
+  district: string | null;
+  fullData?: any;
+}
+
 /**
  * Hook para obtener coordenadas geográficas a partir de una dirección
  * Usa la API de OpenStreetMap Nominatim (gratuita, sin API key)
@@ -140,6 +148,7 @@ export const useGeocoding = () => {
 
   /**
    * Obtener coordenadas del usuario actual (navegador)
+   * Solicita permisos y usa GPS del dispositivo
    */
   const getCurrentLocation = (): Promise<Coordinates | null> => {
     return new Promise((resolve) => {
@@ -156,28 +165,47 @@ export const useGeocoding = () => {
             latitude: position.coords.latitude,
             longitude: position.coords.longitude,
           };
-          console.log('✅ Ubicación actual obtenida:', coordinates);
+          console.log('✅ Ubicación actual obtenida:', coordinates, 'Precisión:', position.coords.accuracy, 'metros');
           setLoading(false);
           resolve(coordinates);
         },
         (error) => {
           console.error('❌ Error obteniendo ubicación:', error);
-          setError('No se pudo obtener la ubicación actual');
+          let errorMsg = 'No se pudo obtener la ubicación actual';
+          
+          switch(error.code) {
+            case error.PERMISSION_DENIED:
+              errorMsg = 'Permiso denegado. Activa la ubicación en tu navegador.';
+              break;
+            case error.POSITION_UNAVAILABLE:
+              errorMsg = 'Ubicación no disponible. Intenta en exteriores.';
+              break;
+            case error.TIMEOUT:
+              errorMsg = 'Tiempo de espera agotado. Intenta nuevamente.';
+              break;
+          }
+          
+          setError(errorMsg);
           setLoading(false);
           resolve(null);
+        },
+        {
+          enableHighAccuracy: true, // ✅ Solicitar alta precisión GPS
+          timeout: 10000, // 10 segundos de timeout
+          maximumAge: 0 // No usar cache, obtener ubicación fresca
         }
       );
     });
   };
 
   /**
-   * Geocoding inverso: Obtiene la dirección desde coordenadas
+   * Geocoding inverso COMPLETO: Obtiene dirección Y datos administrativos desde coordenadas
    * Útil cuando el usuario arrastra el marcador en el mapa
    */
-  const reverseGeocode = async (
+  const reverseGeocodeComplete = async (
     latitude: number,
     longitude: number
-  ): Promise<string | null> => {
+  ): Promise<ReverseGeocodeResult> => {
     setLoading(true);
     setError(null);
 
@@ -204,42 +232,81 @@ export const useGeocoding = () => {
       const data = await response.json();
       
       if (data && data.address) {
-        // Construir dirección legible
-        const address = data.address;
-        const parts = [];
+        const addressData = data.address;
         
-        // Calle y número
-        if (address.road) {
-          parts.push(address.road);
-          if (address.house_number) {
-            parts[0] = `${address.road} ${address.house_number}`;
+        // Extraer dirección de calle
+        const roadParts = [];
+        if (addressData.road) {
+          roadParts.push(addressData.road);
+          if (addressData.house_number) {
+            roadParts[0] = `${addressData.road} ${addressData.house_number}`;
           }
         }
+        const formattedAddress = roadParts.join(', ');
         
-        // Distrito (suburb o neighbourhood)
-        const district = address.suburb || address.neighbourhood || address.city_district;
+        // Extraer datos administrativos de Perú
+        // Nominatim usa diferentes campos según el país y región
+        const department = addressData.state || addressData.region || null;
+        const province = addressData.county || addressData.province || null;
         
-        // Devolver solo la calle/avenida, el distrito se mantiene en los selectores
-        const formattedAddress = parts.join(', ');
+        // Distrito puede estar en varios campos
+        const district = addressData.suburb || 
+                        addressData.neighbourhood || 
+                        addressData.city_district ||
+                        addressData.municipality ||
+                        addressData.city ||
+                        null;
         
-        console.log('✅ Geocoding inverso exitoso:', {
-          original: data.display_name,
-          formatted: formattedAddress,
-          district: district,
+        console.log('✅ Geocoding inverso completo:', {
+          address: formattedAddress,
+          department,
+          province,
+          district,
+          fullAddress: data.display_name,
+          rawData: addressData
         });
         
-        return formattedAddress || null;
+        setLoading(false);
+        
+        return {
+          address: formattedAddress,
+          department,
+          province,
+          district,
+          fullData: data
+        };
       }
 
-      return null;
+      setLoading(false);
+      return {
+        address: null,
+        department: null,
+        province: null,
+        district: null
+      };
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
       console.error('❌ Error en geocoding inverso:', errorMessage);
       setError(errorMessage);
-      return null;
-    } finally {
       setLoading(false);
+      return {
+        address: null,
+        department: null,
+        province: null,
+        district: null
+      };
     }
+  };
+
+  /**
+   * Geocoding inverso SIMPLE: Solo obtiene la dirección (mantener para compatibilidad)
+   */
+  const reverseGeocode = async (
+    latitude: number,
+    longitude: number
+  ): Promise<string | null> => {
+    const result = await reverseGeocodeComplete(latitude, longitude);
+    return result.address;
   };
 
   return {
@@ -247,7 +314,10 @@ export const useGeocoding = () => {
     geocodeByDistrict,
     getCurrentLocation,
     reverseGeocode,
+    reverseGeocodeComplete,
     loading,
     error,
   };
 };
+
+export type { Coordinates, ReverseGeocodeResult };
