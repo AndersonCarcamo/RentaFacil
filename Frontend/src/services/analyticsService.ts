@@ -69,6 +69,7 @@ export const analyticsService = {
     daily_stats: Array<{
       date: string;
       views: number;
+      contacts: number;
     }>;
   }> {
     try {

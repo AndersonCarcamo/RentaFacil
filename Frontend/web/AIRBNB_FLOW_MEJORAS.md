@@ -23,11 +23,11 @@ Cuando el usuario selecciona "Estilo Airbnb", el sistema automáticamente:
 }
 ```
 
-### 📢 Banner de Requisitos para Airbnb
+### Banner de Requisitos para Airbnb
 Aparece un **banner morado informativo** con:
 
 ```
-📋 Requisitos para Alquiler tipo Airbnb
+Requisitos para Alquiler tipo Airbnb
 
 ✓ Amoblado obligatorio: La propiedad debe estar completamente equipada y lista para habitar
 ✓ Periodo diario o semanal: Ideal para estadías cortas de turistas o viajeros
@@ -39,12 +39,12 @@ Aparece un **banner morado informativo** con:
 descripciones detalladas y respuesta rápida a consultas.
 ```
 
-### 🔒 Campos con Restricciones
+### Campos con Restricciones
 
 #### Periodo de Alquiler (rental_term)
 - **Bloqueado cuando es Airbnb**
 - Solo muestra opciones: "Diario" y "Semanal"
-- Mensaje: ⚠️ Para Airbnb se recomienda periodo diario
+- Mensaje: Para Airbnb se recomienda periodo diario
 
 #### Modalidad (rental_mode)
 - Sigue editable
@@ -57,13 +57,13 @@ descripciones detalladas y respuesta rápida a consultas.
 
 ---
 
-## 💰 Paso 3: Detalles y Precio
+## Paso 3: Detalles y Precio
 
-### 🎨 Sección Especial Airbnb (Fondo Morado)
+### Sección Especial Airbnb (Fondo Morado)
 
 #### Banner Informativo
 ```
-⚠️ Importante: Para alquileres tipo Airbnb debes:
+Importante: Para alquileres tipo Airbnb debes:
 • Definir horarios claros de entrada y salida
 • Establecer una estancia mínima (recomendado: 2-3 noches)
 • Considerar una tarifa de limpieza si no está incluida

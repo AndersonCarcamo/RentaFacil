@@ -43,6 +43,11 @@
   /* Emergency Layer (700+) */
   --z-error: 999;
   --z-dev-tools: 9999;
+  
+  /* Special Cases - Property Modal System (9998-10000+) */
+  --z-property-modal-backdrop: 9998;
+  --z-property-modal-content: 9999;
+  --z-property-modal-nested: 10000;  /* Para ImageViewer y BookingModal dentro de PropertyModal */
 }
 
 /**
@@ -87,6 +92,11 @@
 .z-error { z-index: 999; }
 .z-dev-tools { z-index: 9999; }
 
+/* Special Cases - Property Modal System */
+.z-property-modal-backdrop { z-index: 9998; }
+.z-property-modal-content { z-index: 9999; }
+.z-property-modal-nested { z-index: 10000; }
+
 /**
  * Guía de Uso
  * ===========
@@ -96,11 +106,14 @@
  * Usar: className="z-[500]" para Header
  * Usar: className="z-[450]" para Modal content
  * Usar: className="z-[400]" para Modal backdrop
+ * Usar: className="z-[9999]" para PropertyModal
+ * Usar: className="z-[10000]" para modales dentro de PropertyModal (ImageViewer, BookingModal)
  * 
  * En CSS Modules / styled-jsx:
  * ---------------------------
  * z-index: var(--z-header);
  * z-index: var(--z-modal-content);
+ * z-index: var(--z-property-modal-nested);
  * 
  * Reglas:
  * -------
@@ -110,4 +123,6 @@
  * 4. Header SIEMPRE en z-500 (requerimiento del usuario)
  * 5. Modales sobre contenido pero bajo header
  * 6. Notificaciones sobre todo excepto emergency
+ * 7. PropertyModal es un caso especial: usa z-9999 para estar sobre filtros de búsqueda
+ * 8. Modales anidados dentro de PropertyModal usan z-10000 para estar sobre el PropertyModal padre
  */

@@ -24,11 +24,11 @@ import {
 import AdminPlansManager from './SystemPlansManager';
 import AdminManagement from './AdminManagement';
 import AdminAnalytics from './AdminAnalytics';
-import UsersManager from './UsersManager';
 import ListingsManager from './ListingsManager';
 import ImprovedOverviewTab from './dashboard/ImprovedOverviewTab';
 import FinancesTab from './dashboard/FinancesTab';
 import BookingsTab from './dashboard/BookingsTab';
+import UsersTab from './dashboard/UsersTab';
 
 interface AdminPanelProps {
   userEmail: string;
@@ -139,7 +139,7 @@ export default function AdminPanel({ userEmail }: AdminPanelProps) {
 
       {/* Content */}
       <div className="bg-white rounded-lg p-4 sm:p-5">
-        {activeTab === 'overview' && <ImprovedOverviewTab />}
+        {activeTab === 'overview' && <ImprovedOverviewTab onTabChange={setActiveTab} />}
         {activeTab === 'users' && <UsersTab />}
         {activeTab === 'listings' && <ListingsTab />}
         {activeTab === 'subscriptions' && <SubscriptionsTab />}
@@ -150,10 +150,6 @@ export default function AdminPanel({ userEmail }: AdminPanelProps) {
       </div>
     </div>
   );
-}
-
-function UsersTab() {
-  return <UsersManager />;
 }
 
 function ListingsTab() {

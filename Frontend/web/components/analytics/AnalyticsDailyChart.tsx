@@ -3,6 +3,7 @@ import React from 'react';
 interface DailyStat {
   date: string;
   views: number;
+  contacts: number;
 }
 
 interface AnalyticsDailyChartProps {

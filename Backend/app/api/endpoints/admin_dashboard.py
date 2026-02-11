@@ -6,7 +6,7 @@ Endpoints para el panel de administración con métricas reales del sistema
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import text, func, and_, or_
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Optional, List, Dict, Any
 from app.core.database import get_db
 from app.api.deps import get_current_user
@@ -64,9 +64,15 @@ async def get_admin_overview(
     # Usuarios activos últimos 7 días (con eventos)
     active_users_query = db.execute(
         text("""
-            SELECT COUNT(DISTINCT user_id) as count 
-            FROM analytics.events 
-            WHERE created_at >= :week_ago AND user_id IS NOT NULL
+            SELECT COUNT(DISTINCT user_id) as count FROM (
+                SELECT user_id FROM analytics.listing_views WHERE viewed_at >= :week_ago AND user_id IS NOT NULL
+                UNION
+                SELECT user_id FROM analytics.listing_contacts WHERE contacted_at >= :week_ago AND user_id IS NOT NULL
+                UNION
+                SELECT user_id FROM analytics.searches WHERE searched_at >= :week_ago AND user_id IS NOT NULL
+                UNION
+                SELECT user_id FROM analytics.listing_favorites WHERE actioned_at >= :week_ago AND user_id IS NOT NULL
+            ) active_users
         """),
         {"week_ago": week_ago}
     )
@@ -214,34 +220,35 @@ async def get_admin_overview(
     
     # ==================== ANALYTICS ====================
     
-    # Vistas totales del mes
+    # Vistas últimos 30 días
+    thirty_days_ago = now - timedelta(days=30)
+    sixty_days_ago = now - timedelta(days=60)
+    
     total_views_query = db.execute(
         text("""
             SELECT COUNT(*) as count
-            FROM analytics.events
-            WHERE event_type = 'view'
-            AND created_at >= :month_start
+            FROM analytics.listing_views
+            WHERE viewed_at >= :thirty_days_ago
         """),
-        {"month_start": month_start}
+        {"thirty_days_ago": thirty_days_ago}
     )
     total_views = total_views_query.scalar() or 0
     
-    # Vistas del mes pasado
-    last_month_views_query = db.execute(
+    # Vistas de los 30 días anteriores (para comparación)
+    previous_period_views_query = db.execute(
         text("""
             SELECT COUNT(*) as count
-            FROM analytics.events
-            WHERE event_type = 'view'
-            AND created_at >= :last_month_start
-            AND created_at < :month_start
+            FROM analytics.listing_views
+            WHERE viewed_at >= :sixty_days_ago
+            AND viewed_at < :thirty_days_ago
         """),
         {
-            "last_month_start": last_month_start,
-            "month_start": month_start
+            "sixty_days_ago": sixty_days_ago,
+            "thirty_days_ago": thirty_days_ago
         }
     )
-    last_month_views = last_month_views_query.scalar() or 0
-    views_growth = ((total_views - last_month_views) / last_month_views * 100) if last_month_views > 0 else 0
+    previous_period_views = previous_period_views_query.scalar() or 0
+    views_growth = ((total_views - previous_period_views) / previous_period_views * 100) if previous_period_views > 0 else 0
     
     # ==================== BOOKINGS (Airbnb-style) ====================
     
@@ -258,8 +265,6 @@ async def get_admin_overview(
     active_bookings = active_bookings_query.scalar() or 0
     
     # ==================== DATOS DE TENDENCIA (30 días) ====================
-    
-    thirty_days_ago = now - timedelta(days=30)
     
     # Tendencia de usuarios (registros por día)
     users_trend_query = db.execute(
@@ -396,64 +401,78 @@ async def get_analytics_summary(
         - Conversión vista → contacto
     """
     
-    start_date = datetime.utcnow() - timedelta(days=days)
+    now = datetime.utcnow()
+    start_date = datetime.now(timezone.utc) - timedelta(days=days)
     
     # Eventos por día
     daily_events_query = db.execute(
         text("""
+            WITH date_series AS (
+                SELECT generate_series(
+                    :start_date,
+                    :end_date,
+                    '1 day'::interval
+                )::date AS date
+            )
             SELECT 
-                DATE(created_at) as date,
-                event_type,
-                COUNT(*) as count
-            FROM analytics.events
-            WHERE created_at >= :start_date
-            GROUP BY DATE(created_at), event_type
-            ORDER BY date ASC
+                ds.date,
+                COALESCE(SUM(CASE WHEN event_type = 'view' THEN count ELSE 0 END), 0) as views,
+                COALESCE(SUM(CASE WHEN event_type = 'contact' THEN count ELSE 0 END), 0) as contacts,
+                COALESCE(SUM(CASE WHEN event_type = 'search' THEN count ELSE 0 END), 0) as searches,
+                COALESCE(SUM(CASE WHEN event_type = 'favorite' THEN count ELSE 0 END), 0) as favorites
+            FROM date_series ds
+            LEFT JOIN (
+                SELECT DATE(viewed_at) as date, 'view' as event_type, COUNT(*) as count
+                FROM analytics.listing_views WHERE viewed_at >= :start_date
+                GROUP BY DATE(viewed_at)
+                UNION ALL
+                SELECT DATE(contacted_at) as date, 'contact' as event_type, COUNT(*) as count
+                FROM analytics.listing_contacts WHERE contacted_at >= :start_date
+                GROUP BY DATE(contacted_at)
+                UNION ALL
+                SELECT DATE(searched_at) as date, 'search' as event_type, COUNT(*) as count
+                FROM analytics.searches WHERE searched_at >= :start_date
+                GROUP BY DATE(searched_at)
+                UNION ALL
+                SELECT DATE(actioned_at) as date, 'favorite' as event_type, COUNT(*) as count
+                FROM analytics.listing_favorites WHERE actioned_at >= :start_date
+                GROUP BY DATE(actioned_at)
+            ) events ON ds.date = events.date
+            GROUP BY ds.date
+            ORDER BY ds.date ASC
         """),
-        {"start_date": start_date}
+        {"start_date": start_date, "end_date": now}
     )
-    daily_events_raw = daily_events_query.fetchall()
     
-    # Organizar eventos por día
-    daily_events = {}
-    for row in daily_events_raw:
-        date_str = row.date.isoformat()
-        if date_str not in daily_events:
-            daily_events[date_str] = {
-                "date": date_str,
-                "views": 0,
-                "contacts": 0,
-                "searches": 0,
-                "favorites": 0
-            }
-        
-        if row.event_type == 'view':
-            daily_events[date_str]["views"] = row.count
-        elif row.event_type == 'contact':
-            daily_events[date_str]["contacts"] = row.count
-        elif row.event_type == 'search':
-            daily_events[date_str]["searches"] = row.count
-        elif row.event_type == 'favorite':
-            daily_events[date_str]["favorites"] = row.count
+    daily_events = [
+        {
+            "date": row.date.isoformat(),
+            "views": row.views,
+            "contacts": row.contacts,
+            "searches": row.searches,
+            "favorites": row.favorites
+        }
+        for row in daily_events_query.fetchall()
+    ]
     
-    # Top búsquedas (extraer de metadata)
+    # Top búsquedas (de tabla especializada)
     top_searches_query = db.execute(
         text("""
             SELECT 
-                metadata->>'query' as search_term,
+                query_text,
                 COUNT(*) as count
-            FROM analytics.events
-            WHERE event_type = 'search'
-            AND created_at >= :start_date
-            AND metadata->>'query' IS NOT NULL
-            GROUP BY metadata->>'query'
+            FROM analytics.searches
+            WHERE searched_at >= :start_date
+            AND query_text IS NOT NULL
+            AND query_text != ''
+            GROUP BY query_text 
             ORDER BY count DESC
             LIMIT 10
         """),
         {"start_date": start_date}
     )
     top_searches = [
-        {"term": row.search_term, "count": row.count}
+        {"term": row.query_text, "count": row.count}
         for row in top_searches_query.fetchall()
     ]
     
@@ -461,16 +480,15 @@ async def get_analytics_summary(
     top_listings_query = db.execute(
         text("""
             SELECT 
-                e.listing_id,
+                v.listing_id,
                 l.title,
                 COUNT(*) as views,
-                COUNT(DISTINCT e.user_id) as unique_visitors
-            FROM analytics.events e
-            JOIN core.listings l ON e.listing_id = l.id
-            WHERE e.event_type = 'view'
-            AND e.created_at >= :start_date
-            AND e.listing_id IS NOT NULL
-            GROUP BY e.listing_id, l.title
+                COUNT(DISTINCT v.user_id) as unique_visitors
+            FROM analytics.listing_views v
+            JOIN core.listings l ON v.listing_id = l.id
+            WHERE v.viewed_at >= :start_date
+            AND v.listing_id IS NOT NULL
+            GROUP BY v.listing_id, l.title
             ORDER BY views DESC
             LIMIT 10
         """),
@@ -489,12 +507,13 @@ async def get_analytics_summary(
     # Distribución de eventos por tipo
     event_distribution_query = db.execute(
         text("""
-            SELECT 
-                event_type,
-                COUNT(*) as count
-            FROM analytics.events
-            WHERE created_at >= :start_date
-            GROUP BY event_type
+            SELECT 'view' as event_type, COUNT(*) as count FROM analytics.listing_views WHERE viewed_at >= :start_date
+            UNION ALL
+            SELECT 'contact' as event_type, COUNT(*) as count FROM analytics.listing_contacts WHERE contacted_at >= :start_date
+            UNION ALL
+            SELECT 'search' as event_type, COUNT(*) as count FROM analytics.searches WHERE searched_at >= :start_date
+            UNION ALL
+            SELECT 'favorite' as event_type, COUNT(*) as count FROM analytics.listing_favorites WHERE actioned_at >= :start_date
         """),
         {"start_date": start_date}
     )
@@ -504,17 +523,17 @@ async def get_analytics_summary(
     }
     
     # Tasa de conversión vista → contacto
-    total_views = event_distribution.get('listing_view', 0)
-    total_contacts = event_distribution.get('contact_click', 0)
+    total_views = event_distribution.get('view', 0)
+    total_contacts = event_distribution.get('contact', 0)
     conversion_rate = (total_contacts / total_views * 100) if total_views > 0 else 0
     
     return {
         "period": {
             "days": days,
             "start_date": start_date.date().isoformat(),
-            "end_date": datetime.utcnow().date().isoformat()
+            "end_date": now.date().isoformat()
         },
-        "daily_events": list(daily_events.values()),
+        "daily_events": daily_events,
         "top_searches": top_searches,
         "top_listings": top_listings,
         "event_distribution": event_distribution,
@@ -535,17 +554,16 @@ async def get_finances_summary(
     Resumen financiero completo
     
     Returns:
-        - MRR (Monthly Recurring Revenue)
-        - ARR (Annual Recurring Revenue)
-        - Ingresos por plan
-        - Transacciones recientes
-        - Pagos fallidos
+        - MRR (Monthly Recurring Revenue) con tendencia
+        - MRR por plan
+        - Ingresos totales del mes
         - Churn rate
     """
     
     now = datetime.utcnow()
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     last_month_start = (month_start - timedelta(days=1)).replace(day=1)
+    last_month_end = month_start - timedelta(seconds=1)
     
     # MRR - Suscripciones activas mensuales
     mrr_query = db.execute(
@@ -565,66 +583,101 @@ async def get_finances_summary(
         {"now": now}
     )
     
-    mrr_by_plan = []
+    mrr_by_plan = {}
     total_mrr = 0
+    active_subscriptions = 0
     for row in mrr_query.fetchall():
         plan_mrr = float(row.total_mrr or 0)
         total_mrr += plan_mrr
-        mrr_by_plan.append({
-            "plan_name": row.plan_name,
-            "price": float(row.price),
-            "subscriptions": row.subscription_count,
-            "mrr": plan_mrr
-        })
+        active_subscriptions += row.subscription_count
+        mrr_by_plan[row.plan_name.lower()] = plan_mrr
     
-    # ARR (Annual Recurring Revenue)
-    arr = total_mrr * 12
+    # MRR del mes pasado
+    last_month_mrr_query = db.execute(
+        text("""
+            SELECT COALESCE(SUM(p.price_amount), 0) as total_mrr
+            FROM core.subscriptions s
+            JOIN core.plans p ON s.plan_id = p.id
+            WHERE s.status = 'active'
+            AND s.current_period_start <= :last_month_end
+            AND s.current_period_end >= :last_month_start
+        """),
+        {
+            "last_month_start": last_month_start,
+            "last_month_end": last_month_end
+        }
+    )
+    last_month_mrr = float(last_month_mrr_query.scalar() or 0)
+    mrr_change = total_mrr - last_month_mrr
+    mrr_growth_percentage = (mrr_change / last_month_mrr * 100) if last_month_mrr > 0 else 0
     
-    # Transacciones del mes actual
-    current_month_transactions_query = db.execute(
+    # Tendencia de MRR (últimos 6 meses)
+    mrr_trend_query = db.execute(
+        text("""
+            WITH RECURSIVE months AS (
+                SELECT 
+                    DATE_TRUNC('month', :now - INTERVAL '5 months') as month_date
+                UNION ALL
+                SELECT month_date + INTERVAL '1 month'
+                FROM months
+                WHERE month_date < DATE_TRUNC('month', :now)
+            )
+            SELECT 
+                TO_CHAR(m.month_date, 'YYYY-MM') as month,
+                COALESCE(SUM(p.price_amount), 0) as mrr
+            FROM months m
+            LEFT JOIN core.subscriptions s ON 
+                s.status = 'active' AND
+                DATE_TRUNC('month', s.current_period_start) <= m.month_date AND
+                DATE_TRUNC('month', s.current_period_end) >= m.month_date
+            LEFT JOIN core.plans p ON s.plan_id = p.id
+            GROUP BY m.month_date
+            ORDER BY m.month_date
+        """),
+        {"now": now}
+    )
+    
+    mrr_trend = [
+        {
+            "date": row.month,
+            "value": float(row.mrr or 0)
+        }
+        for row in mrr_trend_query.fetchall()
+    ]
+    
+    # Ingresos totales del mes actual (solo pagos exitosos)
+    current_month_revenue_query = db.execute(
         text("""
             SELECT 
-                COUNT(*) as total_transactions,
-                COUNT(CASE WHEN status = 'succeeded' THEN 1 END) as completed,
-                COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed,
-                COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending,
-                COALESCE(SUM(CASE WHEN status = 'succeeded' THEN amount ELSE 0 END), 0) as total_revenue
+                COUNT(*) as transaction_count,
+                COALESCE(SUM(amount), 0) as total_amount
             FROM core.payments
             WHERE created_at >= :month_start
+            AND status = 'succeeded'
         """),
         {"month_start": month_start}
     )
-    transactions_stats = current_month_transactions_query.fetchone()
+    revenue_data = current_month_revenue_query.fetchone()
+    current_revenue = float(revenue_data.total_amount or 0)
+    current_transaction_count = revenue_data.transaction_count or 0
     
-    # Últimas 10 transacciones
-    recent_transactions_query = db.execute(
+    # Ingresos del mes pasado
+    last_month_revenue_query = db.execute(
         text("""
-            SELECT 
-                p.id,
-                p.amount,
-                p.status,
-                p.payment_method,
-                p.created_at,
-                u.email as user_email,
-                u.full_name as user_name
-            FROM core.payments p
-            LEFT JOIN core.users u ON p.user_id = u.id
-            ORDER BY p.created_at DESC
-            LIMIT 10
-        """)
-    )
-    recent_transactions = [
+            SELECT COALESCE(SUM(amount), 0) as total_amount
+            FROM core.payments
+            WHERE created_at >= :last_month_start
+            AND created_at < :month_start
+            AND status = 'succeeded'
+        """),
         {
-            "id": str(row.id),
-            "amount": float(row.amount),
-            "status": row.status,
-            "payment_method": row.payment_method,
-            "created_at": row.created_at.isoformat(),
-            "user_email": row.user_email,
-            "user_name": row.user_name
+            "last_month_start": last_month_start,
+            "month_start": month_start
         }
-        for row in recent_transactions_query.fetchall()
-    ]
+    )
+    last_month_revenue = float(last_month_revenue_query.scalar() or 0)
+    revenue_change = current_revenue - last_month_revenue
+    revenue_growth_percentage = (revenue_change / last_month_revenue * 100) if last_month_revenue > 0 else 0
     
     # Churn rate (cancelaciones del mes actual)
     churn_query = db.execute(
@@ -659,21 +712,22 @@ async def get_finances_summary(
     return {
         "mrr": {
             "total": round(total_mrr, 2),
-            "by_plan": mrr_by_plan
+            "change": round(mrr_change, 2),
+            "growth_percentage": round(mrr_growth_percentage, 2),
+            "active_subscriptions": active_subscriptions,
+            "trend": mrr_trend
         },
-        "arr": round(arr, 2),
-        "current_month": {
-            "total_transactions": transactions_stats.total_transactions,
-            "completed": transactions_stats.completed,
-            "failed": transactions_stats.failed,
-            "pending": transactions_stats.pending,
-            "revenue": round(float(transactions_stats.total_revenue), 2)
+        "mrr_by_plan": mrr_by_plan,
+        "total_revenue": {
+            "amount": round(current_revenue, 2),
+            "change": round(revenue_change, 2),
+            "growth_percentage": round(revenue_growth_percentage, 2),
+            "transaction_count": current_transaction_count
         },
-        "recent_transactions": recent_transactions,
         "churn": {
-            "rate_percentage": round(churn_rate, 2),
-            "active_at_start": active_at_start,
-            "cancelled_this_month": cancelled
+            "rate": round(churn_rate, 2),
+            "cancelled": cancelled,
+            "active_at_month_start": active_at_start
         }
     }
 
@@ -718,21 +772,21 @@ async def get_bookings_summary(
         for row in bookings_by_status_query.fetchall()
     }
     
-    # Comisiones de plataforma del mes
+    # Comisiones de plataforma del mes (service_fee está en bookings)
     platform_fees_query = db.execute(
         text("""
             SELECT 
-                COALESCE(SUM(platform_fee), 0) as total_fees,
+                COALESCE(SUM(service_fee), 0) as total_fees,
                 COUNT(*) as booking_count
-            FROM core.booking_payments
+            FROM core.bookings
             WHERE created_at >= :month_start
-            AND status = 'completed'
+            AND status IN ('confirmed', 'reservation_paid', 'checked_in', 'completed')
         """),
         {"month_start": month_start}
     )
     fees_data = platform_fees_query.fetchone()
     
-    # Top 10 propiedades por ingresos
+    # Top 10 propiedades por ingresos (sin JOIN a booking_payments que no tiene platform_fee)
     top_properties_query = db.execute(
         text("""
             SELECT 
@@ -740,10 +794,9 @@ async def get_bookings_summary(
                 l.title,
                 COUNT(b.id) as booking_count,
                 COALESCE(SUM(b.total_price), 0) as total_revenue,
-                COALESCE(SUM(bp.platform_fee), 0) as platform_fees
+                COALESCE(SUM(b.service_fee), 0) as platform_fees
             FROM core.listings l
             JOIN core.bookings b ON l.id = b.listing_id
-            LEFT JOIN core.booking_payments bp ON b.id = bp.booking_id
             WHERE b.created_at >= :month_start
             AND b.status IN ('confirmed', 'reservation_paid', 'checked_in', 'completed')
             GROUP BY l.id, l.title
@@ -787,9 +840,340 @@ async def get_bookings_summary(
             "booking_count": fees_data.booking_count
         },
         "top_properties": top_properties,
-        "cancellation": {
-            "rate_percentage": round(cancellation_rate, 2),
-            "total_bookings": total_bookings,
-            "cancelled": cancelled_bookings
+        "cancellation_rate": round(cancellation_rate, 2)
+    }
+
+
+@router.get("/users/stats")
+async def get_users_stats(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin)
+):
+    """
+    Obtener estadísticas de usuarios para el tree de clasificación
+    
+    Returns:
+        - Estadísticas por rol
+        - Estadísticas por estado de verificación
+        - Estadísticas por actividad
+        - Estadísticas por plan de suscripción
+    """
+    
+    now = datetime.now(timezone.utc)
+    today_start = now
+    week_ago = now - timedelta(days=7)
+    month_ago = now - timedelta(days=30)
+    
+    # Total de usuarios
+    total_query = db.execute(text("SELECT COUNT(*) FROM core.users"))
+    total_users = total_query.scalar() or 0
+    
+    # Por rol
+    by_role_query = db.execute(
+        text("""
+            SELECT 
+                role,
+                COUNT(*) as count
+            FROM core.users
+            GROUP BY role
+        """)
+    )
+    by_role = {row.role: row.count for row in by_role_query.fetchall()}
+    
+    # Por estado de verificación
+    verification_query = db.execute(
+        text("""
+            SELECT 
+                COUNT(*) as total,
+                COUNT(CASE WHEN is_verified THEN 1 END) as verified,
+                COUNT(CASE WHEN NOT is_verified THEN 1 END) as not_verified
+            FROM core.users
+        """)
+    )
+    ver_data = verification_query.fetchone()
+    
+    # Por estado activo/suspendido
+    status_query = db.execute(
+        text("""
+            SELECT 
+                COUNT(CASE WHEN is_active THEN 1 END) as active,
+                COUNT(CASE WHEN NOT is_active THEN 1 END) as suspended
+            FROM core.users
+        """)
+    )
+    status_data = status_query.fetchone()
+    
+    # Por actividad reciente
+    activity_query = db.execute(
+        text("""
+            WITH user_activity AS (
+                SELECT DISTINCT user_id FROM analytics.listing_views WHERE viewed_at >= :week_ago AND user_id IS NOT NULL
+                UNION
+                SELECT DISTINCT user_id FROM analytics.listing_contacts WHERE contacted_at >= :week_ago AND user_id IS NOT NULL
+                UNION
+                SELECT DISTINCT user_id FROM analytics.searches WHERE searched_at >= :week_ago AND user_id IS NOT NULL
+                UNION
+                SELECT DISTINCT user_id FROM analytics.listing_favorites WHERE actioned_at >= :week_ago AND user_id IS NOT NULL
+            )
+            SELECT COUNT(DISTINCT user_id) FROM user_activity
+        """),
+        {"week_ago": week_ago}
+    )
+    active_last_week = activity_query.scalar() or 0
+    
+    # Nuevos registros hoy
+    new_today_query = db.execute(
+        text("SELECT COUNT(*) FROM core.users WHERE created_at >= :today"),
+        {"today": today_start}
+    )
+    new_today = new_today_query.scalar() or 0
+    
+    # Nuevos esta semana
+    new_week_query = db.execute(
+        text("SELECT COUNT(*) FROM core.users WHERE created_at >= :week_ago"),
+        {"week_ago": week_ago}
+    )
+    new_week = new_week_query.scalar() or 0
+    
+    # Nuevos este mes
+    new_month_query = db.execute(
+        text("SELECT COUNT(*) FROM core.users WHERE created_at >= :month_ago"),
+        {"month_ago": month_ago}
+    )
+    new_month = new_month_query.scalar() or 0
+    
+    # Por plan de suscripción
+    by_plan_query = db.execute(
+        text("""
+            SELECT 
+                p.name as plan_name,
+                COUNT(DISTINCT s.user_id) as user_count
+            FROM core.subscriptions s
+            JOIN core.plans p ON s.plan_id = p.id
+            WHERE s.status = 'active'
+            AND s.current_period_end > :now
+            GROUP BY p.name
+        """),
+        {"now": now}
+    )
+    by_plan = {row.plan_name: row.user_count for row in by_plan_query.fetchall()}
+    
+    # Usuarios sin suscripción activa
+    no_subscription_query = db.execute(
+        text("""
+            SELECT COUNT(*) FROM core.users u
+            WHERE NOT EXISTS (
+                SELECT 1 FROM core.subscriptions s
+                WHERE s.user_id = u.id
+                AND s.status = 'active'
+                AND s.current_period_end > :now
+            )
+        """),
+        {"now": now}
+    )
+    no_subscription = no_subscription_query.scalar() or 0
+    
+    return {
+        "total": total_users,
+        "by_role": {
+            "user": by_role.get('user', 0),
+            "agent": by_role.get('agent', 0),
+            "admin": by_role.get('admin', 0)
+        },
+        "by_verification": {
+            "verified": ver_data.verified or 0,
+            "not_verified": ver_data.not_verified or 0
+        },
+        "by_status": {
+            "active": status_data.active or 0,
+            "suspended": status_data.suspended or 0
+        },
+        "by_activity": {
+            "active_last_week": active_last_week,
+            "new_today": new_today,
+            "new_this_week": new_week,
+            "new_this_month": new_month
+        },
+        "by_subscription": {
+            **by_plan,
+            "no_subscription": no_subscription
         }
+    }
+
+
+@router.get("/users/list")
+async def get_users_list(
+    role: Optional[str] = Query(None, description="Filtrar por rol: user, agent, admin"),
+    is_active: Optional[bool] = Query(None, description="Filtrar por estado activo"),
+    is_verified: Optional[str] = Query(None, description="Filtrar por verificación: email, phone, full, none"),
+    activity: Optional[str] = Query(None, description="Filtrar por actividad: today, week, month"),
+    plan: Optional[str] = Query(None, description="Filtrar por plan de suscripción"),
+    search: Optional[str] = Query(None, description="Buscar por nombre o email"),
+    page: int = Query(1, ge=1, description="Página"),
+    limit: int = Query(20, ge=1, le=100, description="Resultados por página"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin)
+):
+    """
+    Obtener lista de usuarios con filtros avanzados aplicados en backend
+    
+    Args:
+        role: Filtrar por rol
+        is_active: Filtrar por estado activo/suspendido
+        is_verified: Filtrar por verificación (email, phone, full, none)
+        activity: Filtrar por actividad reciente (today, week, month)
+        plan: Filtrar por plan de suscripción
+        search: Buscar por nombre o email
+        page: Número de página
+        limit: Resultados por página
+    
+    Returns:
+        Lista de usuarios con paginación
+    """
+    
+    now = datetime.now(timezone.utc)
+    offset = (page - 1) * limit
+    
+    # Construir la query base
+    base_conditions = []
+    params = {"offset": offset, "limit": limit, "now": now}
+    
+    # Filtro por rol
+    if role:
+        base_conditions.append("u.role = :role")
+        params["role"] = role
+    
+    # Filtro por estado activo
+    if is_active is not None:
+        base_conditions.append("u.is_active = :is_active")
+        params["is_active"] = is_active
+    
+    # Filtro por verificación
+    if is_verified:
+        if is_verified == "verified":
+            base_conditions.append("u.is_verified = true")
+        elif is_verified == "not_verified":
+            base_conditions.append("u.is_verified = false")
+    
+    # Filtro por búsqueda de texto
+    if search:
+        search_term = f"%{search.lower()}%"
+        base_conditions.append("(LOWER(u.email) LIKE :search OR LOWER(concat_ws(first_name, last_name)) LIKE :search)")
+        params["search"] = search_term
+    
+    # Filtro por plan de suscripción
+    plan_join = ""
+    if plan:
+        if plan == "no_subscription":
+            base_conditions.append("""
+                NOT EXISTS (
+                    SELECT 1 FROM core.subscriptions s
+                    WHERE s.user_id = u.id
+                    AND s.status = 'active'
+                    AND s.current_period_end > :now
+                )
+            """)
+        else:
+            plan_join = """
+                INNER JOIN core.subscriptions s ON u.id = s.user_id
+                INNER JOIN core.plans p ON s.plan_id = p.id
+            """
+            base_conditions.append("p.name = :plan")
+            base_conditions.append("s.status = 'active'")
+            base_conditions.append("s.current_period_end > :now")
+            params["plan"] = plan
+    
+    # Filtro por actividad
+    activity_join = ""
+    if activity:
+        if activity == "today":
+            activity_date = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        elif activity == "week":
+            activity_date = now - timedelta(days=7)
+        elif activity == "month":
+            activity_date = now - timedelta(days=30)
+        else:
+            activity_date = None
+        
+        if activity_date:
+            params["activity_date"] = activity_date
+            activity_join = """
+                INNER JOIN (
+                    SELECT DISTINCT user_id FROM analytics.listing_views WHERE viewed_at >= :activity_date AND user_id IS NOT NULL
+                    UNION
+                    SELECT DISTINCT user_id FROM analytics.listing_contacts WHERE contacted_at >= :activity_date AND user_id IS NOT NULL
+                    UNION
+                    SELECT DISTINCT user_id FROM analytics.searches WHERE searched_at >= :activity_date AND user_id IS NOT NULL
+                    UNION
+                    SELECT DISTINCT user_id FROM analytics.listing_favorites WHERE actioned_at >= :activity_date AND user_id IS NOT NULL
+                ) activity ON u.id = activity.user_id
+            """
+    
+    # Construir WHERE clause
+    where_clause = " AND ".join(base_conditions) if base_conditions else "1=1"
+    
+    # Query de conteo
+    count_query = db.execute(
+        text(f"""
+            SELECT COUNT(DISTINCT u.id)
+            FROM core.users u
+            {plan_join}
+            {activity_join}
+            WHERE {where_clause}
+        """),
+        params
+    )
+    total = count_query.scalar() or 0
+    
+    # Query de datos con paginación
+    users_query = db.execute(
+        text(f"""
+            SELECT DISTINCT
+                u.id,
+                u.email,
+                concat_ws(first_name, last_name) as full_name,
+                u.phone as phone,
+                u.role,
+                u.is_active,
+                u.is_verified,
+                u.created_at,
+                u.last_login_at,
+                u.profile_picture_url,
+                u.first_name,
+                u.last_name
+            FROM core.users u
+            {plan_join}
+            {activity_join}
+            WHERE {where_clause}
+            ORDER BY u.created_at DESC
+            LIMIT :limit OFFSET :offset
+        """),
+        params
+    )
+    
+    users = [
+        {
+            "id": str(row.id),
+            "email": row.email,
+            "full_name": row.full_name,
+            "phone": row.phone,
+            "role": row.role,
+            "is_active": row.is_active,
+            # "is_email_verified": row.is_email_verified,
+            # "is_phone_verified": row.is_phone_verified,
+            "created_at": row.created_at.isoformat() if row.created_at else None,
+            "last_login_at": row.last_login_at.isoformat() if row.last_login_at else None,
+            "avatar_url": row.profile_picture_url,
+            "first_name": row.first_name,
+            "last_name": row.last_name
+        }
+        for row in users_query.fetchall()
+    ]
+    
+    return {
+        "data": users,
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "pages": (total + limit - 1) // limit if total > 0 else 1
     }

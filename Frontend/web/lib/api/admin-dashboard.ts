@@ -142,6 +142,67 @@ export interface BookingsSummary {
   cancellation_rate: number;
 }
 
+export interface UsersStats {
+  total: number;
+  by_role: {
+    user: number;
+    agent: number;
+    admin: number;
+  };
+  by_verification: {
+    email_verified: number;
+    phone_verified: number;
+    fully_verified: number;
+    not_verified: number;
+  };
+  by_status: {
+    active: number;
+    suspended: number;
+  };
+  by_activity: {
+    active_last_week: number;
+    new_today: number;
+    new_this_week: number;
+    new_this_month: number;
+  };
+  by_subscription: Record<string, number>;
+}
+
+export interface UserInList {
+  id: string;
+  email: string;
+  full_name: string;
+  phone: string | null;
+  role: 'user' | 'agent' | 'admin';
+  is_active: boolean;
+  is_email_verified: boolean;
+  is_phone_verified: boolean;
+  created_at: string;
+  last_login: string | null;
+  avatar_url: string | null;
+  first_name: string;
+  last_name: string;
+}
+
+export interface UsersListResponse {
+  data: UserInList[];
+  total: number;
+  page: number;
+  limit: number;
+  pages: number;
+}
+
+export interface UsersListFilters {
+  role?: string;
+  is_active?: boolean;
+  is_verified?: string;
+  activity?: string;
+  plan?: string;
+  search?: string;
+  page?: number;
+  limit?: number;
+}
+
 // ==================== FUNCIONES API ====================
 
 /**
@@ -239,6 +300,57 @@ export async function getBookingsSummary(): Promise<BookingsSummary> {
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: 'Error al cargar bookings' }));
+    throw new Error(error.detail || `HTTP ${response.status}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Obtener estadísticas de usuarios para el tree de clasificación
+ */
+export async function getUsersStats(): Promise<UsersStats> {
+  const response = await fetch(`${API_BASE_URL}/v1/admin/users/stats`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${getAuthToken()}`,
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Error al cargar estadísticas de usuarios' }));
+    throw new Error(error.detail || `HTTP ${response.status}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Obtener lista de usuarios con filtros aplicados en backend
+ */
+export async function getUsersList(filters: UsersListFilters = {}): Promise<UsersListResponse> {
+  const params = new URLSearchParams();
+  
+  if (filters.role) params.append('role', filters.role);
+  if (filters.is_active !== undefined) params.append('is_active', filters.is_active.toString());
+  if (filters.is_verified) params.append('is_verified', filters.is_verified);
+  if (filters.activity) params.append('activity', filters.activity);
+  if (filters.plan) params.append('plan', filters.plan);
+  if (filters.search) params.append('search', filters.search);
+  if (filters.page) params.append('page', filters.page.toString());
+  if (filters.limit) params.append('limit', filters.limit.toString());
+
+  const response = await fetch(`${API_BASE_URL}/v1/admin/users/list?${params}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${getAuthToken()}`,
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Error al cargar usuarios' }));
     throw new Error(error.detail || `HTTP ${response.status}`);
   }
 

@@ -79,26 +79,46 @@ async def get_agent_analytics_stats(
         # Estadísticas agregadas 30 días (días completos)
         stats = db.execute(text("""
             SELECT 
-                COUNT(*) FILTER (WHERE event_type = 'view') as views_30d,
-                COUNT(*) FILTER (WHERE event_type = 'contact') as contacts_30d,
-                COUNT(DISTINCT session_id) FILTER (WHERE event_type = 'view' AND DATE(created_at) < CURRENT_DATE) as unique_visitors
-            FROM analytics.events
-            WHERE listing_id = ANY(:listing_ids::uuid[])
-              AND created_at >= NOW() - INTERVAL '30 days'
-              AND DATE(created_at) < CURRENT_DATE
+                (SELECT COUNT(*) FROM analytics.listing_views 
+                 WHERE listing_id = ANY(:listing_ids::uuid[])
+                   AND viewed_at >= NOW() - INTERVAL '30 days'
+                   AND DATE(viewed_at) < CURRENT_DATE) as views_30d,
+                (SELECT COUNT(*) FROM analytics.listing_contacts 
+                 WHERE listing_id = ANY(:listing_ids::uuid[])
+                   AND contacted_at >= NOW() - INTERVAL '30 days'
+                   AND DATE(contacted_at) < CURRENT_DATE) as contacts_30d,
+                (SELECT COUNT(DISTINCT session_id) FROM analytics.listing_views 
+                 WHERE listing_id = ANY(:listing_ids::uuid[])
+                   AND DATE(viewed_at) < CURRENT_DATE) as unique_visitors
         """), {'listing_ids': listing_ids}).fetchone()
         
         # Vistas y contactos diarios últimos 30 días agregados
         daily = db.execute(text("""
             SELECT 
-                DATE(created_at) as date,
-                COUNT(*) FILTER (WHERE event_type = 'view') as views,
-                COUNT(*) FILTER (WHERE event_type = 'contact') as contacts
-            FROM analytics.events
-            WHERE listing_id = ANY(:listing_ids::uuid[])
-              AND created_at >= NOW() - INTERVAL '30 days'
-              AND DATE(created_at) < CURRENT_DATE
-            GROUP BY DATE(created_at)
+                date,
+                COALESCE(v.views, 0) as views,
+                COALESCE(c.contacts, 0) as contacts
+            FROM generate_series(
+                (NOW() - INTERVAL '30 days')::date,
+                CURRENT_DATE - 1,
+                '1 day'::interval
+            ) date
+            LEFT JOIN (
+                SELECT DATE(viewed_at) as date, COUNT(*) as views
+                FROM analytics.listing_views
+                WHERE listing_id = ANY(:listing_ids::uuid[])
+                  AND viewed_at >= NOW() - INTERVAL '30 days'
+                  AND DATE(viewed_at) < CURRENT_DATE
+                GROUP BY DATE(viewed_at)
+            ) v ON v.date = date::date
+            LEFT JOIN (
+                SELECT DATE(contacted_at) as date, COUNT(*) as contacts
+                FROM analytics.listing_contacts
+                WHERE listing_id = ANY(:listing_ids::uuid[])
+                  AND contacted_at >= NOW() - INTERVAL '30 days'
+                  AND DATE(contacted_at) < CURRENT_DATE
+                GROUP BY DATE(contacted_at)
+            ) c ON c.date = date::date
             ORDER BY date ASC
         """), {'listing_ids': listing_ids}).fetchall()
         
@@ -108,21 +128,29 @@ async def get_agent_analytics_stats(
                 l.id,
                 l.title,
                 l.status,
-                COUNT(*) FILTER (WHERE e.event_type = 'view') as views,
-                COUNT(*) FILTER (WHERE e.event_type = 'contact') as contacts,
-                COUNT(DISTINCT e.session_id) FILTER (WHERE e.event_type = 'view') as unique_visitors,
+                COALESCE(v.views, 0) as views,
+                COALESCE(c.contacts, 0) as contacts,
+                COALESCE(v.unique_visitors, 0) as unique_visitors,
                 CASE 
-                    WHEN COUNT(*) FILTER (WHERE e.event_type = 'view') > 0 
-                    THEN ROUND((COUNT(*) FILTER (WHERE e.event_type = 'contact')::float / 
-                               COUNT(*) FILTER (WHERE e.event_type = 'view')) * 100, 2)
+                    WHEN COALESCE(v.views, 0) > 0 
+                    THEN ROUND((COALESCE(c.contacts, 0)::float / v.views) * 100, 2)
                     ELSE 0 
                 END as conversion_rate
             FROM core.listings l
-            LEFT JOIN analytics.events e ON l.id = e.listing_id 
-                AND e.created_at >= NOW() - INTERVAL '30 days'
+            LEFT JOIN (
+                SELECT listing_id, COUNT(*) as views, COUNT(DISTINCT session_id) as unique_visitors
+                FROM analytics.listing_views
+                WHERE viewed_at >= NOW() - INTERVAL '30 days'
+                GROUP BY listing_id
+            ) v ON l.id = v.listing_id
+            LEFT JOIN (
+                SELECT listing_id, COUNT(*) as contacts
+                FROM analytics.listing_contacts
+                WHERE contacted_at >= NOW() - INTERVAL '30 days'
+                GROUP BY listing_id
+            ) c ON l.id = c.listing_id
             WHERE l.owner_user_id = :agent_id
               AND l.status != 'archived'
-            GROUP BY l.id, l.title, l.status
             ORDER BY views DESC
             LIMIT 10
         """), {'agent_id': agent_uuid}).fetchall()
@@ -211,16 +239,31 @@ async def get_agent_listings_comparison(
                     l.status,
                     l.published_at,
                     EXTRACT(days FROM NOW() - l.published_at) as days_published,
-                    COUNT(*) FILTER (WHERE e.event_type = 'view') as total_views,
-                    COUNT(*) FILTER (WHERE e.event_type = 'contact') as total_contacts,
-                    COUNT(DISTINCT e.session_id) FILTER (WHERE e.event_type = 'view') as unique_visitors,
-                    COUNT(*) FILTER (WHERE e.event_type = 'view' AND e.created_at >= NOW() - INTERVAL '7 days') as views_7d,
-                    COUNT(*) FILTER (WHERE e.event_type = 'contact' AND e.created_at >= NOW() - INTERVAL '7 days') as contacts_7d
+                    COALESCE(v.total_views, 0) as total_views,
+                    COALESCE(c.total_contacts, 0) as total_contacts,
+                    COALESCE(v.unique_visitors, 0) as unique_visitors,
+                    COALESCE(v.views_7d, 0) as views_7d,
+                    COALESCE(c.contacts_7d, 0) as contacts_7d
                 FROM core.listings l
-                LEFT JOIN analytics.events e ON l.id = e.listing_id
+                LEFT JOIN (
+                    SELECT 
+                        listing_id, 
+                        COUNT(*) as total_views,
+                        COUNT(DISTINCT session_id) as unique_visitors,
+                        COUNT(*) FILTER (WHERE viewed_at >= NOW() - INTERVAL '7 days') as views_7d
+                    FROM analytics.listing_views
+                    GROUP BY listing_id
+                ) v ON l.id = v.listing_id
+                LEFT JOIN (
+                    SELECT 
+                        listing_id, 
+                        COUNT(*) as total_contacts,
+                        COUNT(*) FILTER (WHERE contacted_at >= NOW() - INTERVAL '7 days') as contacts_7d
+                    FROM analytics.listing_contacts
+                    GROUP BY listing_id
+                ) c ON l.id = c.listing_id
                 WHERE l.owner_user_id = :agent_id
                   AND l.status != 'archived'
-                GROUP BY l.id, l.title, l.district, l.operation, l.property_type, l.price, l.status, l.published_at
             )
             SELECT 
                 id,
@@ -350,15 +393,32 @@ async def get_agency_analytics_overview(
         # Tendencia diaria agregada (últimos 30 días)
         daily_trend = db.execute(text("""
             SELECT 
-                DATE(e.created_at) as date,
-                COUNT(*) FILTER (WHERE e.event_type = 'view') as views,
-                COUNT(*) FILTER (WHERE e.event_type = 'contact') as contacts
-            FROM analytics.events e
-            JOIN core.listings l ON e.listing_id = l.id
-            WHERE l.agency_id = :agency_id
-              AND e.created_at >= NOW() - INTERVAL '30 days'
-              AND DATE(e.created_at) < CURRENT_DATE
-            GROUP BY DATE(e.created_at)
+                date,
+                COALESCE(v.views, 0) as views,
+                COALESCE(c.contacts, 0) as contacts
+            FROM generate_series(
+                (NOW() - INTERVAL '30 days')::date,
+                CURRENT_DATE - 1,
+                '1 day'::interval
+            ) date
+            LEFT JOIN (
+                SELECT DATE(viewed_at) as date, COUNT(*) as views
+                FROM analytics.listing_views lv
+                JOIN core.listings l ON lv.listing_id = l.id
+                WHERE l.agency_id = :agency_id
+                  AND lv.viewed_at >= NOW() - INTERVAL '30 days'
+                  AND DATE(lv.viewed_at) < CURRENT_DATE
+                GROUP BY DATE(lv.viewed_at)
+            ) v ON v.date = date::date
+            LEFT JOIN (
+                SELECT DATE(contacted_at) as date, COUNT(*) as contacts
+                FROM analytics.listing_contacts lc
+                JOIN core.listings l ON lc.listing_id = l.id
+                WHERE l.agency_id = :agency_id
+                  AND lc.contacted_at >= NOW() - INTERVAL '30 days'
+                  AND DATE(lc.contacted_at) < CURRENT_DATE
+                GROUP BY DATE(contacted_at)
+            ) c ON c.date = date::date
             ORDER BY date ASC
         """), {'agency_id': agency_uuid}).fetchall()
         

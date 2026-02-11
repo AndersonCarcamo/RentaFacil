@@ -234,19 +234,44 @@ export default function AdminAnalytics() {
         </h4>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {Object.entries(analytics.event_distribution).map(([type, count]) => {
-            const eventLabels: Record<string, { label: string; color: string }> = {
-              listing_view: { label: 'Vistas', color: 'blue' },
-              contact_click: { label: 'Contactos', color: 'green' },
-              search: { label: 'Búsquedas', color: 'purple' },
-              favorite: { label: 'Favoritos', color: 'yellow' },
+            const eventLabels: Record<string, { label: string; bgColor: string; textColor: string; borderColor: string }> = {
+              view: { 
+                label: 'Vistas', 
+                bgColor: 'bg-blue-50', 
+                textColor: 'text-blue-600',
+                borderColor: 'border-blue-200'
+              },
+              contact: { 
+                label: 'Contactos', 
+                bgColor: 'bg-green-50', 
+                textColor: 'text-green-600',
+                borderColor: 'border-green-200'
+              },
+              search: { 
+                label: 'Búsquedas', 
+                bgColor: 'bg-purple-50', 
+                textColor: 'text-purple-600',
+                borderColor: 'border-purple-200'
+              },
+              favorite: { 
+                label: 'Favoritos', 
+                bgColor: 'bg-yellow-50', 
+                textColor: 'text-yellow-600',
+                borderColor: 'border-yellow-200'
+              },
             };
             
-            const eventInfo = eventLabels[type] || { label: type, color: 'gray' };
+            const eventInfo = eventLabels[type] || { 
+              label: type, 
+              bgColor: 'bg-gray-50',
+              textColor: 'text-gray-600',
+              borderColor: 'border-gray-200'
+            };
             
             return (
-              <div key={type} className={`p-4 bg-${eventInfo.color}-50 border border-${eventInfo.color}-200 rounded-lg`}>
+              <div key={type} className={`p-4 ${eventInfo.bgColor} border ${eventInfo.borderColor} rounded-lg`}>
                 <p className="text-xs text-gray-600 mb-1">{eventInfo.label}</p>
-                <p className={`text-2xl font-bold text-${eventInfo.color}-600`}>
+                <p className={`text-2xl font-bold ${eventInfo.textColor}`}>
                   {(count as number).toLocaleString()}
                 </p>
               </div>

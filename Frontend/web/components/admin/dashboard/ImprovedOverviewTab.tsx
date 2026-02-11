@@ -31,7 +31,11 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 
-export default function ImprovedOverviewTab() {
+interface ImprovedOverviewTabProps {
+  onTabChange?: (tab: 'analytics' | 'finances' | 'bookings' | 'users') => void;
+}
+
+export default function ImprovedOverviewTab({ onTabChange }: ImprovedOverviewTabProps) {
   const [data, setData] = useState<AdminOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -45,6 +49,9 @@ export default function ImprovedOverviewTab() {
       setLoading(true);
       setError(null);
       const overview = await getAdminOverview();
+      console.log('Admin Overview Data:', overview);
+      console.log('Analytics:', overview.analytics);
+      console.log('Total Views Month:', overview.analytics?.total_views_month);
       setData(overview);
     } catch (err: any) {
       console.error('Error loading overview:', err);
@@ -379,7 +386,7 @@ export default function ImprovedOverviewTab() {
               <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center shadow-sm">
                 <EyeIcon className="w-5 h-5 text-white" />
               </div>
-              <p className="text-sm font-semibold text-gray-700">Vistas del Mes</p>
+              <p className="text-sm font-semibold text-gray-700">Vistas (30 días)</p>
             </div>
             <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${
               data.analytics.views_growth_percentage > 0 
@@ -394,7 +401,7 @@ export default function ImprovedOverviewTab() {
             {data.analytics.total_views_month.toLocaleString()}
           </p>
           <p className="text-xs text-green-600 font-medium">
-            Crecimiento mes anterior
+            vs. 30 días anteriores
           </p>
         </div>
 
@@ -431,7 +438,7 @@ export default function ImprovedOverviewTab() {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <button
-            onClick={() => console.log('Navigate to Analytics')}
+            onClick={() => onTabChange?.('analytics')}
             className="group px-4 py-3 bg-white border border-primary-300 rounded-lg hover:bg-gradient-to-br hover:from-blue-50 hover:to-primary-50 hover:border-primary-400 transition-all duration-200 shadow-sm hover:shadow-md"
           >
             <div className="text-2xl mb-1 group-hover:scale-110 transition-transform duration-300">📊</div>
@@ -439,7 +446,7 @@ export default function ImprovedOverviewTab() {
             <p className="text-xs text-gray-500 mt-0.5">Ver estadísticas</p>
           </button>
           <button
-            onClick={() => console.log('Navigate to Finances')}
+            onClick={() => onTabChange?.('finances')}
             className="group px-4 py-3 bg-white border border-primary-300 rounded-lg hover:bg-gradient-to-br hover:from-green-50 hover:to-emerald-50 hover:border-green-400 transition-all duration-200 shadow-sm hover:shadow-md"
           >
             <div className="text-2xl mb-1 group-hover:scale-110 transition-transform duration-300">💰</div>
@@ -447,7 +454,7 @@ export default function ImprovedOverviewTab() {
             <p className="text-xs text-gray-500 mt-0.5">MRR, ARR, Churn</p>
           </button>
           <button
-            onClick={() => console.log('Navigate to Bookings')}
+            onClick={() => onTabChange?.('bookings')}
             className="group px-4 py-3 bg-white border border-primary-300 rounded-lg hover:bg-gradient-to-br hover:from-amber-50 hover:to-yellow-50 hover:border-secondary-400 transition-all duration-200 shadow-sm hover:shadow-md"
           >
             <div className="text-2xl mb-1 group-hover:scale-110 transition-transform duration-300">📅</div>
@@ -455,7 +462,7 @@ export default function ImprovedOverviewTab() {
             <p className="text-xs text-gray-500 mt-0.5">Sistema bookings</p>
           </button>
           <button
-            onClick={() => console.log('Navigate to Users')}
+            onClick={() => onTabChange?.('users')}
             className="group px-4 py-3 bg-white border border-primary-300 rounded-lg hover:bg-gradient-to-br hover:from-orange-50 hover:to-amber-50 hover:border-orange-400 transition-all duration-200 shadow-sm hover:shadow-md"
           >
             <div className="text-2xl mb-1 group-hover:scale-110 transition-transform duration-300">👥</div>
