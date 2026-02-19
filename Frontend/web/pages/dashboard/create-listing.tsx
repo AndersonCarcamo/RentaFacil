@@ -89,30 +89,6 @@ const CANCELLATION_POLICIES = [
   { value: 'strict', label: 'Estricta - Reembolso hasta 30 días antes' },
 ];
 
-// Amenidades mock (esto debería venir del backend)
-const AMENITIES = [
-  { id: 1, name: 'WiFi', icon: '📶' },
-  { id: 2, name: 'Piscina', icon: '🏊' },
-  { id: 3, name: 'Gimnasio', icon: '💪' },
-  { id: 4, name: 'Ascensor', icon: '🛗' },
-  { id: 5, name: 'Estacionamiento', icon: '🚗' },
-  { id: 6, name: 'Seguridad 24/7', icon: '🔒' },
-  { id: 7, name: 'Aire Acondicionado', icon: '❄️' },
-  { id: 8, name: 'Calefacción', icon: '🔥' },
-  { id: 9, name: 'Lavandería', icon: '🧺' },
-  { id: 10, name: 'Jardín', icon: '🌳' },
-  { id: 11, name: 'Terraza/Balcón', icon: '🏡' },
-  { id: 12, name: 'Cocina Equipada', icon: '🍳' },
-  { id: 13, name: 'TV Cable', icon: '📺' },
-  { id: 14, name: 'Amoblado', icon: '🛋️' },
-  { id: 15, name: 'Sala de Juegos', icon: '🎮' },
-  { id: 16, name: 'BBQ/Parrilla', icon: '🍖' },
-  { id: 17, name: 'Vista al Mar', icon: '🌊' },
-  { id: 18, name: 'Pet-Friendly', icon: '🐕' },
-  { id: 19, name: 'Acceso Discapacitados', icon: '♿' },
-  { id: 20, name: 'Zona de Coworking', icon: '💼' },
-];
-
 interface FormData {
   title: string;
   description: string;
@@ -188,6 +164,7 @@ const CreateListingPage: React.FC = () => {
   const router = useRouter();
   const { user, loading } = useAuth();
   const { geocodeAddress, reverseGeocode, reverseGeocodeComplete, getCurrentLocation, loading: geocoding } = useGeocoding();
+  const isMobile = useIsMobile(768);
   const [activeSection, setActiveSection] = useState('basic');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -264,7 +241,7 @@ const CreateListingPage: React.FC = () => {
     }
   }, [user, loading, router]);
 
-  // Cargar amenidades disponibles
+  // Cargar amenidades disponibles desde la base de datos
   useEffect(() => {
     const loadAmenities = async () => {
       try {
@@ -272,14 +249,9 @@ const CreateListingPage: React.FC = () => {
         const amenities = await getAmenities();
         setAvailableAmenities(amenities);
       } catch (error) {
-        console.error('Error loading amenities:', error);
-        // Si falla, usar las amenidades mock
-        const mockAmenities: Amenity[] = AMENITIES.map(a => ({
-          id: a.id,
-          name: a.name,
-          icon: a.icon
-        }));
-        setAvailableAmenities(mockAmenities);
+        console.error('Error loading amenities from database:', error);
+        // Si falla, dejar el array vacío - el usuario verá que no hay amenidades disponibles
+        setAvailableAmenities([]);
       } finally {
         setLoadingAmenities(false);
       }
@@ -739,8 +711,6 @@ const CreateListingPage: React.FC = () => {
       </>
     );
   }
-
-  const isMobile = useIsMobile(768);
 
   // Mobile view
   if (isMobile) {
@@ -2021,13 +1991,15 @@ const CreateListingPage: React.FC = () => {
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                       <span className="ml-3 text-gray-600">Cargando amenidades...</span>
                     </div>
+                  ) : availableAmenities.length === 0 ? (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                      <p className="text-sm text-yellow-800">
+                        ⚠️ No se pudieron cargar las amenidades. Por favor, intenta recargar la página o contacta con soporte.
+                      </p>
+                    </div>
                   ) : (
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                      {(availableAmenities.length > 0 ? availableAmenities : AMENITIES.map(a => ({
-                        id: a.id,
-                        name: a.name,
-                        icon: a.icon
-                      }))).map(amenity => {
+                      {availableAmenities.map(amenity => {
                         // Mapeo de iconos técnicos a emojis
                         const iconMap: Record<string, string> = {
                           'pool': '🏊',
