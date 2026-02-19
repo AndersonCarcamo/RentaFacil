@@ -26,5 +26,5 @@ Frontend/Android/.DS_Store
 # Temporary files created by Metro
 Frontend/Android/.metro-health-check*
 
-Backend\firebase-serviceAccount.json
-Frontend\web\renta-facil-d04c7-firebase-adminsdk-fbsvc-45eba69a39.json
+Backend/firebase-serviceAccount.json
+Frontend/web/renta-facil-d04c7-firebase-adminsdk-fbsvc-45eba69a39.json

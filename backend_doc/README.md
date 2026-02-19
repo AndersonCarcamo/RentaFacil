@@ -1,5 +1,31 @@
 # Sistema de Base de Datos - Marketplace Inmobiliario EasyRent
 
+## � Inicio Rápido
+
+**¿Primera vez instalando?** Sigue estos pasos:
+
+1. **[00_INICIO_RAPIDO.md](./00_INICIO_RAPIDO.md)** - Crear usuarios PostgreSQL (3 minutos)
+2. **[01_CREAR_USUARIOS.md](./01_CREAR_USUARIOS.md)** - Documentación detallada de usuarios
+3. Ejecutar `00_database_setup.sql` - Crear base de datos
+4. Ejecutar `install_database.sh` o scripts SQL individuales
+
+---
+
+## 📚 Documentación Esencial
+
+| Documento | Propósito | Cuándo Usar |
+|-----------|-----------|-------------|
+| **[00_INICIO_RAPIDO.md](./00_INICIO_RAPIDO.md)** | ⚡ Comandos rápidos para empezar | **EMPIEZA AQUÍ** - Primera instalación |
+| **[01_CREAR_USUARIOS.md](./01_CREAR_USUARIOS.md)** | 👥 Configuración de usuarios PostgreSQL | Crear benites_admin y benites_app |
+| **[RESUMEN_EJECUTIVO.md](./RESUMEN_EJECUTIVO.md)** | 🎯 Respuestas rápidas a consultas clave | Configuración usuario, async, separación listings |
+| **[32_optimize_listings_partial_indices.sql](./32_optimize_listings_partial_indices.sql)** | 🚀 **PRODUCCIÓN** - Optimización listings con índices parciales | Mejorar búsquedas 60-85% con consistencia en tiempo real |
+| **[ANALISIS_CRITICO_VISTAS_MATERIALIZADAS.md](./ANALISIS_CRITICO_VISTAS_MATERIALIZADAS.md)** | 🔍 Análisis técnico de vistas materializadas | Entender por qué NO usar vistas materializadas |
+| **[GUIA_INSTALACION_COMPLETA.md](./GUIA_INSTALACION_COMPLETA.md)** | 📖 Instalación paso a paso con todos los detalles | Instalación inicial completa del sistema |
+| **[ESTRATEGIA_ASYNC.md](./ESTRATEGIA_ASYNC.md)** | ⚡ Migración a operaciones asíncronas | Optimizar performance con Celery + Redis |
+| **[install_database.sh](./install_database.sh)** | 🤖 Script automático de instalación | Ejecutar todos los SQL en orden correcto |
+
+---
+
 ## Arquitectura del Sistema
 
 ### Características Técnicas Principales
@@ -68,12 +94,16 @@ Ejecutar en orden estricto usando DataGrip o psql:
 \i 06_verification_workflow.sql
 \i 07_security_audit.sql
 
--- Módulos de negocio (próximamente)
+-- Módulos de negocio
 \i 08_subscription_plans.sql
 \i 09_billing_payments.sql
 \i 10_partition_management.sql
 \i 11_business_rules.sql
 \i 12_sample_data.sql
+
+-- Optimizaciones (RECOMENDADO para producción)
+\i 32_optimize_listings_partial_indices.sql  -- Índices parciales para Traditional/Airbnb
+-- NOTA: NO usar 31_optimize_listings_inheritance.sql (vistas materializadas tienen problemas)
 ```
 
 ## Configuración Avanzada
