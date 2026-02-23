@@ -1,54 +1,6 @@
 -- ===== Update user_agency table to add role field =====
 -- This migration ensures the role field exists and is properly configured
 
--- Check if role column exists, if not, add it
-DO $$ 
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 
-        FROM information_schema.columns 
-        WHERE table_schema = 'core' 
-        AND table_name = 'user_agency' 
-        AND column_name = 'role'
-    ) THEN
-        ALTER TABLE core.user_agency 
-        ADD COLUMN role TEXT DEFAULT 'agent';
-        
-        COMMENT ON COLUMN core.user_agency.role IS 'Role of the user in the agency: owner, admin, or agent';
-    END IF;
-END $$;
-
--- Add constraint to ensure valid roles
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1
-        FROM pg_constraint
-        WHERE conname = 'user_agency_role_check'
-    ) THEN
-        ALTER TABLE core.user_agency
-        ADD CONSTRAINT user_agency_role_check 
-        CHECK (role IN ('owner', 'admin', 'agent'));
-    END IF;
-END $$;
-
--- Create index for role queries
-CREATE INDEX IF NOT EXISTS idx_user_agency_role 
-ON core.user_agency(role);
-
--- Update existing records without role to 'agent'
-UPDATE core.user_agency
-SET role = 'agent'
-WHERE role IS NULL;
-
--- Make role NOT NULL after setting defaults
-ALTER TABLE core.user_agency 
-ALTER COLUMN role SET NOT NULL;
-
--- Comments
-COMMENT ON TABLE core.user_agency IS 'Junction table linking users to agencies with their roles';
-COMMENT ON COLUMN core.user_agency.role IS 'Role types: owner (created agency), admin (full permissions), agent (normal permissions)';
-
 -- Create view for agency members with roles
 CREATE OR REPLACE VIEW core.v_agency_members AS
 SELECT 
@@ -75,6 +27,7 @@ ORDER BY
         WHEN 'owner' THEN 1
         WHEN 'admin' THEN 2
         WHEN 'agent' THEN 3
+        WHEN 'agency' THEN 4
         ELSE 4
     END,
     ua.created_at;

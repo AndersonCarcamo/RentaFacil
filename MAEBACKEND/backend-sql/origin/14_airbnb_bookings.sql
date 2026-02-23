@@ -1,51 +1,9 @@
 -- =====================================================
 -- 15. SISTEMA DE RESERVAS PARA PROPIEDADES TIPO AIRBNB
 -- =====================================================
--- Descripción: Sistema completo de reservas con pago fraccionado
--- Versión: 1.0
--- Fecha: 2025-11-22
 
 -- =====================================================
--- 1. ENUMS - TIPOS DE DATOS
--- =====================================================
-
--- Estado de las reservas
-CREATE TYPE core.booking_status AS ENUM (
-    'pending_confirmation',    -- Esperando confirmación del propietario
-    'confirmed',               -- Confirmada, esperando pago de reserva
-    'reservation_paid',        -- 50% pagado (reserva confirmada)
-    'checked_in',              -- Check-in realizado
-    'completed',               -- Reserva completada (100% pagado)
-    'cancelled_by_guest',      -- Cancelada por huésped
-    'cancelled_by_host',       -- Cancelada por propietario
-    'cancelled_no_payment',    -- Cancelada por falta de pago
-    'refunded'                 -- Reembolsada
-);
-
--- Estado de los pagos de reserva (renombrado para evitar conflicto)
-CREATE TYPE core.booking_payment_status AS ENUM (
-    'pending',              -- Pendiente de pago
-    'processing',           -- Procesando pago
-    'completed',            -- Pago exitoso (equivalente a 'succeeded')
-    'failed',               -- Pago fallido
-    'refunded',             -- Reembolsado
-    'partially_refunded'    -- Parcialmente reembolsado
-);
-
--- Tipo de pago
-CREATE TYPE core.payment_type AS ENUM (
-    'reservation',  -- Pago de reserva (50%)
-    'checkin',      -- Pago al check-in (50%)
-    'full',         -- Pago completo (100%)
-    'refund'        -- Reembolso
-);
-
-COMMENT ON TYPE core.booking_status IS 'Estados del flujo de reserva Airbnb';
-COMMENT ON TYPE core.booking_payment_status IS 'Estados de procesamiento de pagos de reservas (diferente del payment_status general)';
-COMMENT ON TYPE core.payment_type IS 'Tipos de pago en el flujo de reserva';
-
--- =====================================================
--- 2. TABLA PRINCIPAL: BOOKINGS
+-- BOOKINGS
 -- =====================================================
 
 CREATE TABLE core.bookings (
@@ -80,6 +38,14 @@ CREATE TABLE core.bookings (
     host_response TEXT,
     cancellation_reason TEXT,
     
+    payment_deadline TIMESTAMPTZ WITH TIME ZONE,  -- Fecha límite para completar el pago del 50% al confirmar la reserva
+    
+    -- Comprobante de pago
+    payment_proof_url TEXT,
+    payment_proof_uploaded_at TIMESTAMPTZ WITH TIME ZONE,
+    payment_verified_by UUID,
+    payment_verified_at TIMESTAMPTZ WITH TIME ZONE,
+
     -- Timestamps de eventos
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -117,6 +83,12 @@ COMMENT ON COLUMN core.bookings.listing_created_at IS 'Partition key de la tabla
 COMMENT ON COLUMN core.bookings.reservation_amount IS 'Monto del primer pago (50% del total)';
 COMMENT ON COLUMN core.bookings.checkin_amount IS 'Monto del segundo pago al check-in (50% restante)';
 COMMENT ON COLUMN core.bookings.metadata IS 'Datos adicionales: políticas de cancelación, instrucciones especiales, etc.';
+COMMENT ON COLUMN core.bookings.payment_deadline IS 'Fecha límite para que el huésped complete el pago del 50% después de que el host confirma la reserva (6 horas)';
+
+COMMENT ON COLUMN core.bookings.payment_proof_url IS 'URL del comprobante de pago (voucher/transferencia) subido por el huésped';
+COMMENT ON COLUMN core.bookings.payment_proof_uploaded_at IS 'Fecha y hora cuando el huésped subió el comprobante de pago';
+COMMENT ON COLUMN core.bookings.payment_verified_by IS 'ID del usuario admin que verificó el pago';
+COMMENT ON COLUMN core.bookings.payment_verified_at IS 'Fecha y hora cuando se verificó el pago';
 
 -- Índices para optimizar consultas
 CREATE INDEX idx_bookings_listing ON core.bookings(listing_id);
@@ -126,9 +98,15 @@ CREATE INDEX idx_bookings_status ON core.bookings(status);
 CREATE INDEX idx_bookings_dates ON core.bookings(check_in_date, check_out_date);
 CREATE INDEX idx_bookings_created_at ON core.bookings(created_at DESC);
 
+-- Indice para buscar reservas con deadline vencido
+CREATE INDEX IF NOT EXISTS idx_bookings_payment_deadline ON core.bookings(payment_deadline) 
+WHERE status = 'confirmed' AND payment_deadline IS NOT NULL;
+
 -- Índice compuesto para búsquedas comunes
 CREATE INDEX idx_bookings_listing_status ON core.bookings(listing_id, status);
 CREATE INDEX idx_bookings_guest_status ON core.bookings(guest_user_id, status);
+
+COMMENT ON INDEX core.idx_bookings_payment_deadline IS 'Índice para buscar reservas confirmadas con deadline de pago pendiente o vencido';
 
 -- =====================================================
 -- 3. TABLA: BOOKING_PAYMENTS

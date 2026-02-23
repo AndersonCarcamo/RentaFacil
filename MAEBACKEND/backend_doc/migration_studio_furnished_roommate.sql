@@ -7,66 +7,6 @@ BEGIN;
 \echo 'Adding Studio, Furnished, and Roommate Features'
 \echo '=========================================='
 
--- 1. Add 'studio' to property_type enum if it doesn't exist
-DO $add_studio$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_enum e 
-        JOIN pg_type t ON e.enumtypid = t.oid 
-        WHERE t.typname = 'property_type' AND e.enumlabel = 'studio'
-    ) THEN
-        ALTER TYPE core.property_type ADD VALUE 'studio' BEFORE 'apartment';
-        RAISE NOTICE 'Added studio to property_type enum';
-    ELSE
-        RAISE NOTICE 'studio already exists in property_type enum';
-    END IF;
-END $add_studio$;
-
--- 2. Add 'roommate' to operation_type enum if it doesn't exist
-DO $add_roommate$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_enum e 
-        JOIN pg_type t ON e.enumtypid = t.oid 
-        WHERE t.typname = 'operation_type' AND e.enumlabel = 'roommate'
-    ) THEN
-        ALTER TYPE core.operation_type ADD VALUE 'roommate';
-        RAISE NOTICE 'Added roommate to operation_type enum';
-    ELSE
-        RAISE NOTICE 'roommate already exists in operation_type enum';
-    END IF;
-END $add_roommate$;
-
--- 3. Add 'furnished' column to listings table if it doesn't exist
-DO $add_furnished$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM information_schema.columns 
-        WHERE table_schema = 'core' 
-        AND table_name = 'listings' 
-        AND column_name = 'furnished'
-    ) THEN
-        ALTER TABLE core.listings ADD COLUMN furnished BOOLEAN DEFAULT FALSE;
-        RAISE NOTICE 'Added furnished column to listings table';
-        
-        -- Create index for better search performance
-        CREATE INDEX listings_furnished_idx ON core.listings(furnished, operation, property_type) 
-        WHERE status = 'published';
-        RAISE NOTICE 'Created index on furnished column';
-    ELSE
-        RAISE NOTICE 'furnished column already exists in listings table';
-    END IF;
-END $add_furnished$;
-
--- 4. Create optimized indexes for new search patterns
-CREATE INDEX IF NOT EXISTS listings_operation_property_idx 
-ON core.listings(operation, property_type, furnished) 
-WHERE status = 'published';
-
-CREATE INDEX IF NOT EXISTS listings_roommate_idx 
-ON core.listings(operation, district, price) 
-WHERE operation = 'roommate' AND status = 'published';
-
 -- 5. Create view for roommate listings with additional context
 CREATE OR REPLACE VIEW core.v_roommate_listings AS
 SELECT l.*,
@@ -132,38 +72,6 @@ BEGIN
 END $enhanced_search$;
 
 COMMIT;
-
-\echo ''
-\echo '=========================================='
-\echo 'Migration completed successfully!'
-\echo '=========================================='
-
-\echo ''
-\echo 'Summary of changes:'
-\echo '✓ Added "studio" to property_type enum (for monoambientes)'
-\echo '✓ Added "roommate" to operation_type enum (for shared living)'
-\echo '✓ Added "furnished" boolean column to listings table'
-\echo '✓ Created optimized indexes for search performance'
-\echo '✓ Created view for roommate listings with additional context'
-\echo '✓ Created enhanced search function with new filters'
-\echo ''
-
-\echo 'New search capabilities:'
-\echo '• Filter by furnished/unfurnished properties'
-\echo '• Search specifically for roommate arrangements' 
-\echo '• Find studio apartments (monoambientes)'
-\echo '• Combined filters for precise results'
-\echo ''
-
-\echo 'Example usage:'
-\echo '-- Find furnished studios in Miraflores:'
-\echo 'SELECT * FROM core.search_listings_enhanced(''rent'', ''studio'', ''Miraflores'', NULL, NULL, NULL, true);'
-\echo ''
-\echo '-- Find roommate opportunities under $1000:'
-\echo 'SELECT * FROM core.search_listings_enhanced(''roommate'', NULL, NULL, NULL, 1000);'
-\echo ''
-\echo '-- Find all furnished properties:'
-\echo 'SELECT * FROM core.search_listings_enhanced(NULL, NULL, NULL, NULL, NULL, NULL, true);'
 
 -- Show updated enum values
 \echo ''

@@ -21,42 +21,6 @@
 BEGIN;
 
 -- ================================================================================
--- PASO 1: AGREGAR COLUMNA rental_model (si no existe)
--- ================================================================================
-
-DO $add_rental_model$
-DECLARE
-    v_column_exists BOOLEAN;
-BEGIN
-    -- Verificar si la columna existe
-    SELECT EXISTS (
-        SELECT 1 
-        FROM information_schema.columns 
-        WHERE table_schema = 'core' 
-        AND table_name = 'listings' 
-        AND column_name = 'rental_model'
-    ) INTO v_column_exists;
-    
-    IF NOT v_column_exists THEN
-        -- Agregar columna
-        ALTER TABLE core.listings ADD COLUMN rental_model TEXT DEFAULT 'traditional';
-        
-        -- Actualizar registros existentes basado en rental_term
-        UPDATE core.listings
-        SET rental_model = CASE
-            WHEN rental_term IN ('daily', 'weekly') THEN 'airbnb'
-            WHEN rental_term IN ('monthly', 'yearly') THEN 'traditional'
-            ELSE 'traditional'
-        END
-        WHERE rental_model IS NULL OR rental_model = 'traditional';
-        
-        RAISE NOTICE '✅ Columna rental_model agregada y actualizada';
-    ELSE
-        RAISE NOTICE '✅ Columna rental_model ya existe';
-    END IF;
-END $add_rental_model$;
-
--- ================================================================================
 -- PASO 2: CREAR ÍNDICES PARCIALES OPTIMIZADOS
 -- ================================================================================
 
@@ -66,39 +30,36 @@ END $add_rental_model$;
 DROP INDEX IF EXISTS core.idx_listings_traditional_active CASCADE;
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_listings_traditional_active 
 ON core.listings (
-    created_at DESC,        -- Ordenamiento principal (más recientes primero)
-    price,                  -- Filtro común
-    department,             -- Filtro de ubicación
-    province,               -- Filtro de ubicación
-    property_type           -- Filtro de tipo
+    created_at DESC,
+    price,
+    department,
+    province,
+    property_type
 )
 WHERE 
     rental_model = 'traditional'
-    AND status IN ('active', 'published')
+    AND status = 'published'  -- Corregido: solo 'published'
     AND verification_status = 'verified'
     AND (published_until IS NULL OR published_until > CURRENT_TIMESTAMP);
 
 COMMENT ON INDEX core.idx_listings_traditional_active IS 
 'Índice parcial para búsquedas de listings tradicionales activos.
-Solo incluye registros que cumplen las condiciones del WHERE.
-Tamaño: ~40% menor que índice completo.
-Performance: 60-80ms para búsquedas típicas.';
+Solo incluye registros con status=published y verification_status=verified.';
 
 -- 2.2 Índice para Listings Airbnb Activos
 -- Optimizado para búsquedas con score y disponibilidad
-
 DROP INDEX IF EXISTS core.idx_listings_airbnb_active CASCADE;
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_listings_airbnb_active 
 ON core.listings (
-    airbnb_score DESC NULLS LAST,  -- Ordenar por score primero
-    created_at DESC,                -- Luego por fecha
-    price,                          -- Filtro de precio
-    department,                     -- Filtro de ubicación
-    max_guests                      -- Filtro de capacidad
+    airbnb_score DESC NULLS LAST,
+    created_at DESC,
+    price,
+    department,
+    max_guests
 )
 WHERE 
     rental_model = 'airbnb'
-    AND status IN ('active', 'published')
+    AND status = 'published'  -- Corregido
     AND verification_status = 'verified'
     AND airbnb_eligible = true
     AND (airbnb_opted_out IS NULL OR airbnb_opted_out = false)

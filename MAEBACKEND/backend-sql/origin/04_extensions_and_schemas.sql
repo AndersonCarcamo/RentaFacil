@@ -37,6 +37,7 @@ CREATE SCHEMA IF NOT EXISTS core;        -- Main business tables
 CREATE SCHEMA IF NOT EXISTS analytics;   -- Metrics and reporting
 CREATE SCHEMA IF NOT EXISTS sec;         -- Security and audit
 CREATE SCHEMA IF NOT EXISTS archive;     -- Data retention
+CREATE SCHEMA IF NOT EXISTS chat;        -- Chat and messaging
 
 -- Set schema ownership
 ALTER SCHEMA core OWNER TO :app_admin_user;

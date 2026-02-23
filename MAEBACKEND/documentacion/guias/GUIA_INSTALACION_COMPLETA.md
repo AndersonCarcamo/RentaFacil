@@ -13,7 +13,7 @@
 ## 1. Requisitos Previos
 
 ### Software Necesario
-- **PostgreSQL**: 14.x o superior
+- **PostgreSQL**: 18.x o superior
 - **Redis**: 6.x o superior (para cache y tareas asíncronas)
 - **Python**: 3.9 o superior
 - **Node.js**: 16.x o superior (para frontend)

@@ -12,7 +12,8 @@ CREATE TABLE IF NOT EXISTS core.plans (
     period_months               INTEGER NOT NULL DEFAULT 1,
     price_amount                NUMERIC(10,2) NOT NULL DEFAULT 0,
     price_currency              CHAR(3) NOT NULL DEFAULT 'PEN',
-    
+    target_user_type            core.plan_target_type NOT NULL DEFAULT 'individual', 
+
     -- Plan limits and features
     max_active_listings         INTEGER NOT NULL DEFAULT 1,
     listing_active_days         INTEGER NOT NULL DEFAULT 30,
@@ -33,6 +34,12 @@ CREATE TABLE IF NOT EXISTS core.plans (
     updated_at                  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS plans_tier_active_idx ON core.plans(tier, is_active);
+-- Crear índice para facilitar consultas por tipo de usuario
+CREATE INDEX IF NOT EXISTS plans_target_type_idx ON core.plans(target_user_type, is_active);
+
+-- Comentarios en la columna
+COMMENT ON COLUMN core.plans.target_user_type IS 'Tipo de usuario al que está dirigido el plan: individual (usuarios), agency (agencias), both (ambos)';
+
 
 -- User subscriptions
 CREATE TABLE IF NOT EXISTS core.subscriptions (

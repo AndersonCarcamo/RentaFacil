@@ -2,16 +2,9 @@
 -- Tabla para almacenar URLs de imágenes y videos de propiedades
 -- Los archivos físicos se almacenan en el servidor web (Nginx) en /media/listings/{listing_id}/
 
--- Enum para tipos de media
-DO $$ BEGIN
-    CREATE TYPE core.media_type AS ENUM ('image', 'video', 'virtual_tour');
-EXCEPTION
-    WHEN duplicate_object THEN null;
-END $$;
-
 -- Tabla de medios de listings
 CREATE TABLE IF NOT EXISTS core.listing_media (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id                  UUID NOT NULL DEFAULT gen_random_uuid(),
     listing_id          UUID NOT NULL,
     listing_created_at  TIMESTAMPTZ NOT NULL,
     
@@ -36,6 +29,9 @@ CREATE TABLE IF NOT EXISTS core.listing_media (
     -- Timestamps
     uploaded_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+        
+    -- PRIMARY KEY compuesta (requerida para particiones)
+    PRIMARY KEY (id, listing_created_at),
     
     -- Foreign key con partición
     CONSTRAINT fk_listing_media_listing

@@ -72,7 +72,7 @@ BEGIN
     -- Get the default free plan
     SELECT id INTO free_plan_id 
     FROM core.plans 
-    WHERE tier = 'free' 
+    WHERE tier = 'individual_free' 
       AND is_default = TRUE 
       AND is_active = TRUE
     LIMIT 1;
@@ -99,7 +99,7 @@ BEGIN
             cancel_at_period_end
         ) VALUES (
             user_record.id,
-            free_plan_id,
+            free_plan_id,   
             'active',
             NOW(),
             NOW() + INTERVAL '100 years',
@@ -111,12 +111,6 @@ BEGIN
     
     RAISE NOTICE 'Created % free subscriptions for existing users without subscription', created_count;
 END $$;
-
--- =====================================================
--- REFRESH MATERIALIZED VIEW
--- =====================================================
--- Refresh the materialized view to include new subscriptions
-REFRESH MATERIALIZED VIEW CONCURRENTLY core.v_user_current_plan;
 
 -- =====================================================
 -- AUTO-REFRESH VIEW ON SUBSCRIPTION CHANGES
