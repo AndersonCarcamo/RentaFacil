@@ -100,32 +100,42 @@ DROP VIEW IF EXISTS core.v_user_current_plan CASCADE;
 -- En producción se usa una MATERIALIZED VIEW con las columnas:
 -- plan_tier (en lugar de tier), y sin period_months
 -- El backend hace alias: plan_tier as tier en el query
-CREATE VIEW core.v_user_current_plan AS
-SELECT s.user_id,
-       s.id AS subscription_id,
-       p.id AS plan_id,
-       p.code AS plan_code,
-       p.name AS plan_name,
-       p.tier,
-       p.period_months,
-       p.max_active_listings,
-       p.listing_active_days,
-       p.max_images_per_listing,
-       p.max_videos_per_listing,
-       p.max_video_seconds,
-       p.max_image_width,
-       p.max_image_height,
-       p.featured_listings,
-       p.priority_support,
-       p.analytics_access,
-       p.api_access,
-       s.current_period_start,
-       s.current_period_end,
-       s.status
+CREATE MATERIALIZED VIEW IF NOT EXISTS core.v_user_current_plan AS
+SELECT 
+    s.user_id,
+    s.id as subscription_id,
+    p.id as plan_id,
+    p.code as plan_code,
+    p.name as plan_name,
+    p.tier as plan_tier,
+    s.status,
+
+    s.current_period_start,
+    s.current_period_end,
+    s.cancel_at_period_end,
+
+    -- Plan limits
+    p.max_active_listings,
+    p.listing_active_days,
+    p.max_images_per_listing,
+    p.max_videos_per_listing,
+    p.max_video_seconds,
+    p.max_image_width,
+    p.max_image_height,
+    
+    p.featured_listings,
+    p.priority_support,
+    p.analytics_access,
+    p.api_access
 FROM core.subscriptions s
-JOIN core.plans p ON p.id = s.plan_id
-WHERE s.status IN ('trialing','active')
-    AND now() >= s.current_period_start AND now() < s.current_period_end;
+INNER JOIN core.plans p ON s.plan_id = p.id
+WHERE s.status = 'active'
+AND s.current_period_end > NOW();
+
+CREATE UNIQUE INDEX IF NOT EXISTS v_user_current_plan_user_id_idx 
+ON core.v_user_current_plan (user_id);
+
+REFRESH MATERIALIZED VIEW core.v_user_current_plan;
 
 -- Drop and recreate dependent view as well
 DROP VIEW IF EXISTS core.v_listing_owner_current_plan CASCADE;

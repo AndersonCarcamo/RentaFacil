@@ -51,7 +51,8 @@ CREATE TABLE IF NOT EXISTS core.verifications (
     
     -- Constraints
     CONSTRAINT verifications_status_check CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED', 'UNDER_REVIEW')),
-    CONSTRAINT verifications_target_type_check CHECK (target_type IN ('USER', 'LISTING', 'AGENCY'))
+    CONSTRAINT verifications_target_type_check CHECK (target_type IN ('USER', 'LISTING', 'AGENCY')),
+    CONSTRAINT verifications_priority_check CHECK (priority IN ('HIGH', 'MEDIUM', 'LOW'))
 );
 
 -- ============================================================================
@@ -132,30 +133,3 @@ COMMENT ON COLUMN core.verifications.documents IS
 
 COMMENT ON TABLE core.verification_documents IS 
 'Documentos asociados a una verificación (DNI, comprobantes, etc.)';
-
--- ============================================================================
--- 6. VALIDACIÓN
--- ============================================================================
-DO $$
-DECLARE
-    verification_count INTEGER;
-    document_count INTEGER;
-BEGIN
-    SELECT COUNT(*) INTO verification_count
-    FROM information_schema.tables 
-    WHERE table_schema = 'core' 
-    AND table_name = 'verifications';
-    
-    SELECT COUNT(*) INTO document_count
-    FROM information_schema.tables 
-    WHERE table_schema = 'core' 
-    AND table_name = 'verification_documents';
-    
-    IF verification_count > 0 AND document_count > 0 THEN
-        RAISE NOTICE '✅ Tablas de verificación creadas exitosamente';
-        RAISE NOTICE '   - core.verifications';
-        RAISE NOTICE '   - core.verification_documents';
-    ELSE
-        RAISE EXCEPTION '❌ Error: Las tablas no fueron creadas correctamente';
-    END IF;
-END $$;

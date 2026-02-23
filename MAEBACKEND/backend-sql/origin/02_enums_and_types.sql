@@ -52,6 +52,10 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'rental_mode') THEN
         CREATE TYPE core.rental_mode AS ENUM ('full_property','private_room','shared_room');
     END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'rental_model') THEN
+        CREATE TYPE core.rental_model AS ENUM ('traditional','typeairbnb');
+    END IF;
 END $types1$;
 
 -- Verification workflow

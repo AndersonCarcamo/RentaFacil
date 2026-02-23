@@ -145,9 +145,10 @@ CREATE TABLE IF NOT EXISTS core.listings (
     age_years                       INTEGER,
     rental_term                     core.rental_term,
     rental_mode                     core.rental_mode DEFAULT 'full_property',
+    rental_model                    core.rental_model DEFAULT 'traditional', -- "typeairbnb" for short-term rentals, "traditional" for long-term
     furnished                       BOOLEAN DEFAULT FALSE, -- Indicates if property comes furnished
     pets_allowed                    BOOLEAN,
-    rental_model                    TEXT DEFAULT 'traditional', -- long_term, short_term, vacation_rental
+    pet_friendly                    BOOLEAN DEFAULT NULL, -- Indicates if the property is pet-friendly (true), not pet-friendly (false), or unknown (null)
 
     -- Verification and status
     verification_status             core.verification_status NOT NULL DEFAULT 'pending',
@@ -158,6 +159,7 @@ CREATE TABLE IF NOT EXISTS core.listings (
     contact_phone_e164              TEXT,
     contact_whatsapp_phone_e164     TEXT,
     contact_whatsapp_link           TEXT,
+    contact_email                   CITEXT,
     
     -- SEO and search
     slug                            TEXT,
@@ -178,6 +180,9 @@ CREATE TABLE IF NOT EXISTS core.listings (
     updated_at                      TIMESTAMPTZ NOT NULL DEFAULT now(),
 
     -- Temporal listings Info
+    airbnb_score                    INTEGER CHECK (airbnb_score >= 0 AND airbnb_score <= 100),
+    airbnb_eligible                 BOOLEAN DEFAULT NULL,
+    airbnb_opted_out                BOOLEAN NOT NULL DEFAULT FALSE,
     max_guests                      INTEGER CHECK (max_guests >= 1 AND max_guests <= 50),
     smoking_allowed                 BOOLEAN DEFAULT NULL,
     deposit_required                BOOLEAN DEFAULT FALSE,
@@ -224,9 +229,18 @@ COMMENT ON COLUMN core.listings.internet_included IS 'Indica si el servicio de i
 COMMENT ON COLUMN core.listings.house_rules IS 'Reglas de la casa en texto libre';
 COMMENT ON COLUMN core.listings.cancellation_policy IS 'Política de cancelación (flexible, moderate, strict)';
 COMMENT ON COLUMN core.listings.available_from IS 'Fecha desde la cual la propiedad está disponible';
+COMMENT ON COLUMN core.listings.airbnb_score IS 'Score de elegibilidad Airbnb (0-100) calculado automáticamente';
+COMMENT ON COLUMN core.listings.airbnb_eligible IS 'Si la propiedad es elegible para funcionar como Airbnb';
+COMMENT ON COLUMN core.listings.airbnb_opted_out IS 'Si el propietario optó por NO permitir uso como Airbnb';
+COMMENT ON COLUMN core.listings.rental_mode IS 'Modalidad de alquiler: full_property, private_room, shared_room';
+COMMENT ON COLUMN core.listings.contact_email IS 
+'Email de contacto para la propiedad. Puede ser diferente al email del propietario. '
+'Este campo permite que el propietario especifique un email de contacto alternativo '
+'para consultas sobre esta propiedad específica.';
 
 
-CREATE INDEX listings_furnished_idx ON core.listings(furnished, operation, property_type) 
+CREATE INDEX listings_furnished_idx 
+ON core.listings(furnished, operation, property_type) 
 WHERE status = 'published';
 
 CREATE INDEX IF NOT EXISTS listings_operation_property_idx 
@@ -234,8 +248,38 @@ ON core.listings(operation, property_type, furnished)
 WHERE status = 'published';
 
 -- Indexes on the main table (inherited by partitions)
-CREATE INDEX IF NOT EXISTS listings_published_idx ON core.listings(status, verification_status, published_at DESC)
+CREATE INDEX IF NOT EXISTS listings_published_idx 
+ON core.listings(status, verification_status, published_at DESC)
 WHERE status = 'published';
+
+CREATE INDEX idx_listings_contact_email 
+ON core.listings (contact_email) 
+WHERE contact_email IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS listings_pet_friendly_idx 
+ON core.listings(pet_friendly) 
+WHERE pet_friendly IS NOT NULL;
+
+CREATE INDEX listings_room_furnished_idx 
+ON core.listings(property_type, furnished, district, price)
+WHERE property_type = 'room' AND status = 'published';
+
+CREATE INDEX listings_rental_model_idx 
+ON core.listings(rental_model, operation, property_type);
+
+CREATE INDEX IF NOT EXISTS idx_listings_airbnb_availability 
+ON core.listings (operation, airbnb_eligible, airbnb_opted_out, status)
+WHERE status = 'published';
+
+CREATE INDEX IF NOT EXISTS idx_listings_airbnb_score 
+ON core.listings (airbnb_score, operation)
+WHERE airbnb_eligible = true AND airbnb_opted_out = false AND status = 'published';
+
+CREATE INDEX IF NOT EXISTS idx_listings_hybrid_search 
+ON core.listings (rental_model, operation, airbnb_eligible, status)
+WHERE status = 'published';
+
+ANALYZE core.listings;
 
 -- Unique constraints that include partition key
 CREATE UNIQUE INDEX IF NOT EXISTS listings_slug_created_idx ON core.listings(slug, created_at) 
