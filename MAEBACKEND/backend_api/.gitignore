@@ -151,3 +151,7 @@ Thumbs.db
 uploads/
 *.db
 *.sqlite
+
+# Firebase credentials (NEVER commit these)
+firebase-serviceAccount.json
+*serviceAccount*.json

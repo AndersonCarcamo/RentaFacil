@@ -98,8 +98,7 @@ class FirebaseService:
             logger.info(f"Token prefix: {token[:30]}...")
             
             # Verify the token with Firebase
-            # Allow 60 seconds of clock skew tolerance
-            decoded_token = auth.verify_id_token(token, clock_skew_seconds=60)
+            decoded_token = auth.verify_id_token(token)
             
             logger.info(f"Token verified successfully for user: {decoded_token.get('email')}")
             
