@@ -731,7 +731,7 @@ export function Header({ disableRealtimeWidgets = false }: HeaderProps = {}) {
 													<Menu.Item>
 														{({ active }) => (
 															<Link
-																href="/profile"
+																href="/profile/favorites"
 																className={classNames(
 																	active ? 'bg-gray-50' : '',
 																	'flex items-center gap-x-3 px-4 py-2.5 text-sm text-gray-700'
@@ -982,7 +982,7 @@ export function Header({ disableRealtimeWidgets = false }: HeaderProps = {}) {
 												)}
 
 												<Link
-													href="/profile"
+													href="/profile/favorites"
 													onClick={() => setMobileMenuOpen(false)}
 													className="-mx-3 flex items-center gap-x-3 rounded-lg px-3 py-3 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50 transition-colors"
 												>
