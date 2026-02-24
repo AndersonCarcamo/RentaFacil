@@ -3,6 +3,8 @@ import { BellIcon } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 import { useAuth } from '../lib/hooks/useAuth';
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+
 interface PendingPayment {
   id: string;
   listing_title: string;
@@ -28,7 +30,7 @@ export function BookingNotifications() {
       const token = localStorage.getItem('access_token');
       if (!token) return;
 
-      const response = await fetch('http://localhost:8000/v1/bookings/my-bookings', {
+      const response = await fetch(`${API_BASE_URL}/bookings/my-bookings`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

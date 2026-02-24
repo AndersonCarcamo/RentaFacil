@@ -3,6 +3,8 @@ import { useRouter } from 'next/router';
 import Layout from '@/components/Layout';
 import { useAuth } from '@/lib/hooks/useAuth';
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+
 interface Booking {
   id: string;
   listing_id: string;
@@ -82,8 +84,8 @@ export default function MyBookings() {
         return;
       }
 
-      console.log('Llamando a API: http://localhost:8000/v1/bookings/my-bookings');
-      const response = await fetch('http://localhost:8000/v1/bookings/my-bookings', {
+      console.log('Llamando a API:', `${API_BASE_URL}/bookings/my-bookings`);
+      const response = await fetch(`${API_BASE_URL}/bookings/my-bookings`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
