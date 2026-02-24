@@ -162,28 +162,45 @@ class UserService:
         return self.update_user_profile(user, update_data)
 
     def delete_account(self, user: User, delete_data: DeleteAccountRequest) -> bool:
-        """Delete user account (soft delete in DB and hard delete in Firebase)."""
+        """Delete user account (soft delete in DB, hard delete in Firebase)."""
         from app.core.firebase import FirebaseService
         
-        # Delete from Firebase if user has firebase_uid
-        if user.firebase_uid:
+        user_id = user.id
+        firebase_uid = user.firebase_uid
+        email = user.email
+        
+        logger.info(f"Starting account deletion for user {user_id} ({email})")
+        
+        # Step 1: Delete from Firebase if user has firebase_uid
+        firebase_deleted = False
+        if firebase_uid:
             firebase_service = FirebaseService()
             try:
-                firebase_service.delete_user_by_uid(user.firebase_uid)
-                logger.info(f"User deleted from Firebase: {user.firebase_uid}")
+                result = firebase_service.delete_user_by_uid(firebase_uid)
+                if result:
+                    firebase_deleted = True
+                    logger.info(f"✓ User deleted from Firebase: {firebase_uid}")
+                else:
+                    logger.warning(f"✗ Failed to delete user from Firebase: {firebase_uid}")
             except Exception as e:
-                logger.error(f"Error deleting user from Firebase: {e}")
-                # Continue with DB deletion even if Firebase deletion fails
+                logger.error(f"✗ Exception deleting user from Firebase: {type(e).__name__} - {str(e)}")
+                # Don't stop the process - continue with DB deletion
+        else:
+            logger.warning(f"! User {user_id} has no firebase_uid associated")
         
-        # Soft delete using is_active
-        user.is_active = False
-        user.updated_at = utc_now()
+        # Step 2: Soft delete in database (mark as inactive)
+        try:
+            user.is_active = False
+            user.firebase_uid = None  # Clear Firebase UID to prevent accidental re-linking
+            user.updated_at = utc_now()
+            self.db.commit()
+            logger.info(f"✓ User marked as inactive in database: {user_id}")
+        except Exception as e:
+            self.db.rollback()
+            logger.error(f"✗ Error marking user as inactive: {type(e).__name__} - {str(e)}")
+            raise Exception(f"Error marking account as inactive: {str(e)}")
         
-        # Store deletion reason in a log (could be separate table)
-        # For now, we'll just log it
-        logger.info(f"Account deleted: {user.id}, reason: {delete_data.reason}")
-        
-        self.db.commit()
+        logger.info(f"✓ Account deletion completed for user {user_id}. Firebase deleted: {firebase_deleted}")
         return True
 
     def delete_user_admin(self, user_id: uuid.UUID, current_user: User) -> bool:

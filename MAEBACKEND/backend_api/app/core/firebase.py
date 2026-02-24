@@ -209,7 +209,7 @@ class FirebaseService:
             logger.error(f"Error creating custom token: {e}")
             return None
 
-    async def delete_user_by_uid(self, uid: str) -> bool:
+    def delete_user_by_uid(self, uid: str) -> bool:
         """
         Delete Firebase user by UID.
 
@@ -220,6 +220,7 @@ class FirebaseService:
             True if deleted (or not found), False if failed
         """
         if self._mock_mode:
+            logger.info(f"[MOCK MODE] Would delete Firebase user: {uid}")
             return True
 
         try:
@@ -230,7 +231,7 @@ class FirebaseService:
             logger.info(f"Firebase user not found during delete (already absent): {uid}")
             return True
         except Exception as e:
-            logger.error(f"Error deleting Firebase user {uid}: {e}")
+            logger.error(f"Error deleting Firebase user {uid}: {type(e).__name__} - {str(e)}")
             return False
     
     # Mock methods for development

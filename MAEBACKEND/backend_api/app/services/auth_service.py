@@ -126,22 +126,33 @@ class AuthService:
             user = self.get_user_by_firebase_uid(firebase_uid)
             if user:
                 logger.info(f"User found by Firebase UID: {user.id}")
-                # Update last login
+                if not user.is_active:
+                    logger.warning(f"User {user.id} attempted login but account is inactive (deleted)")
+                    return None
                 self.update_last_login(user)
                 return user
             
-            # Check if user exists by email (for migration cases)
+            # Check if user exists by email (for migration cases or after deletion)
             user = self.get_user_by_email(email)
             if user:
-                logger.info(f"User found by email: {user.id}, linking Firebase UID...")
-                # Link Firebase UID to existing user
-                user.firebase_uid = firebase_uid
-                self.db.commit()
+                logger.info(f"User found by email: {user.id}")
+                
+                # If user is inactive (deleted), don't allow re-activation via Firebase login
+                if not user.is_active:
+                    logger.warning(f"User {user.id} with email {email} attempted login but account was previously deleted")
+                    return None
+                
+                # If inactive but was a normal account, link Firebase UID
+                if not user.firebase_uid:
+                    logger.info(f"Linking Firebase UID to existing user {user.id}...")
+                    user.firebase_uid = firebase_uid
+                    self.db.commit()
+                
                 self.update_last_login(user)
                 return user
             
-            # User doesn't exist, create new one from Firebase data
-            logger.info(f"User not found, creating new user from Firebase data...")
+            # User doesn't exist and hasn't been deleted - create new one from Firebase data
+            logger.info(f"New user registration from Firebase data for email: {email}")
             user_data = UserRegisterRequest(
                 email=email,
                 first_name=firebase_claims.get('name', '').split(' ')[0] if firebase_claims.get('name') else '',
