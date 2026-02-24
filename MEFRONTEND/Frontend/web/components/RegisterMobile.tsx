@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import { Header } from './common/Header';
 import Button from './ui/Button';
@@ -550,12 +550,12 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
     }
   };
 
-  const handleInputChange = (field: keyof FormData, value: string | boolean) => {
+  const handleInputChange = useCallback((field: keyof FormData, value: string | boolean) => {
     let processedValue = value;
     
     if (field === 'nationalId' && typeof value === 'string') {
       const maxLength = getDocumentMaxLength(formData.nationalIdType);
-      processedValue = formatDocument(formData.nationalIdType, value).substring(0, maxLength);
+      processedValue = formatDocument(formData.normalIdType, value).substring(0, maxLength);
     }
     
     if (field === 'agencyRuc' && typeof value === 'string') {
@@ -567,13 +567,15 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
       [field]: processedValue
     }));
 
-    if (errors[field]) {
-      setErrors(prev => ({
-        ...prev,
-        [field]: ''
-      }));
-    }
-  };
+    // Limpiar error en el mismo setState para evitar doble render
+    setErrors(prev => {
+      if (prev[field]) {
+        const { [field]: _, ...rest } = prev;
+        return rest;
+      }
+      return prev;
+    });
+  }, [formData.nationalIdType]);
 
   const handleEmailBlur = () => {
     if (formData.email && validateEmail(formData.email)) {
