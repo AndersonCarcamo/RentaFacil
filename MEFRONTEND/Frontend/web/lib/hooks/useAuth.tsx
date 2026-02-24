@@ -203,9 +203,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // 3. Auto-login after successful registration
       console.log('🔄 Auto-logging in after registration...')
       
-      // Get Firebase ID token
-      const idToken = await firebaseUser.getIdToken()
-      console.log('🎫 Got Firebase ID token for auto-login')
+      // Use the existing idToken from registration
+      console.log('🎫 Using Firebase ID token for auto-login')
       
       // Login to our backend with Firebase token
       const loginResult = await apiLogin(idToken)

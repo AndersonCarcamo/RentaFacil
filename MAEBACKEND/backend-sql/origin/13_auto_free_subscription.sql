@@ -15,7 +15,7 @@ BEGIN
     SELECT id INTO free_plan_id 
     FROM core.plans 
         WHERE tier = 'individual_free'
-            AND target_user_type IN ('individual', 'both')
+            AND target_user_type = 'individual'
       AND is_default = TRUE 
       AND is_active = TRUE
     LIMIT 1;
@@ -25,7 +25,7 @@ BEGIN
                 SELECT id INTO free_plan_id
                 FROM core.plans
                 WHERE tier = 'individual_free'
-                    AND target_user_type IN ('individual', 'both')
+                    AND target_user_type = 'individual'
                     AND is_active = TRUE
                 ORDER BY is_default DESC, created_at ASC
                 LIMIT 1;
