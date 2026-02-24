@@ -1,5 +1,5 @@
 // API utilities for user management
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 // Tipos de respuesta del API
 export interface UserProfile {
@@ -197,9 +197,18 @@ export const deleteAvatar = async (): Promise<{ message: string }> => {
  * Elimina la cuenta del usuario
  */
 export const deleteAccount = async (reason?: string): Promise<{ message: string }> => {
+  console.log('Starting deleteAccount with reason:', reason);
+  console.log('API_BASE_URL:', API_BASE_URL);
+  console.log('Full URL:', `${API_BASE_URL}/v1/users/me`);
+  
   const response = await authenticatedFetch('/v1/users/me', {
     method: 'DELETE',
     body: JSON.stringify({ reason }),
   });
-  return response.json();
+  
+  console.log('Delete response status:', response.status);
+  const data = await response.json();
+  console.log('Delete response data:', data);
+  
+  return data;
 };
