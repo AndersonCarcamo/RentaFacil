@@ -1,30 +1,34 @@
-./Frontend/web/renta-facil-d04c7-firebase-adminsdk-fbsvc-45eba69a39.json
-.\Frontend\web\renta-facil-d04c7-firebase-adminsdk-fbsvc-45eba69a39.json
+.MAEFRONTED//Frontend/web/renta-facil-d04c7-firebase-adminsdk-fbsvc-45eba69a39.json
+.MAEFRONTED/\Frontend\web\renta-facil-d04c7-firebase-adminsdk-fbsvc-45eba69a39.json
+
+# Firebase Service Account Credentials - BACKEND
+MAEBACKEND/backend_api/firebase-serviceAccount.json
+MAEBACKEND/backend_api/config.env
 
 # Android/React Native
-Frontend/Android/node_modules/
-Frontend/Android/.expo/
-Frontend/Android/.expo-shared/
-Frontend/Android/dist/
-Frontend/Android/npm-debug.*
-Frontend/Android/*.jks
-Frontend/Android/*.p8
-Frontend/Android/*.p12
-Frontend/Android/*.key
-Frontend/Android/*.mobileprovision
-Frontend/Android/*.orig.*
-Frontend/Android/web-build/
-Frontend/Android/.env
-Frontend/Android/.env.local
-Frontend/Android/.env.development.local
-Frontend/Android/.env.test.local
-Frontend/Android/.env.production.local
+MAEFRONTED/Frontend/Android/node_modules/
+MAEFRONTED/Frontend/Android/.expo/
+MAEFRONTED/Frontend/Android/.expo-shared/
+MAEFRONTED/Frontend/Android/dist/
+MAEFRONTED/Frontend/Android/npm-debug.*
+MAEFRONTED/Frontend/Android/*.jks
+MAEFRONTED/Frontend/Android/*.p8
+MAEFRONTED/Frontend/Android/*.p12
+MAEFRONTED/Frontend/Android/*.key
+MAEFRONTED/Frontend/Android/*.mobileprovision
+MAEFRONTED/Frontend/Android/*.orig.*
+MAEFRONTED/Frontend/Android/web-build/
+MAEFRONTED/Frontend/Android/.env
+MAEFRONTED/Frontend/Android/.env.local
+MAEFRONTED/Frontend/Android/.env.development.local
+MAEFRONTED/Frontend/Android/.env.test.local
+MAEFRONTED/Frontend/Android/.env.production.local
 
 # macOS
-Frontend/Android/.DS_Store
+MAEFRONTED/Frontend/Android/.DS_Store
 
 # Temporary files created by Metro
-Frontend/Android/.metro-health-check*
+MAEFRONTED/Frontend/Android/.metro-health-check*
 
-Backend/firebase-serviceAccount.json
-Frontend/web/renta-facil-d04c7-firebase-adminsdk-fbsvc-45eba69a39.json
+MAEBACKEMD/Backend/firebase-serviceAccount.json
+MAEFRONTED/Frontend/web/renta-facil-d04c7-firebase-adminsdk-fbsvc-45eba69a39.json
