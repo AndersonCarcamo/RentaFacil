@@ -84,8 +84,8 @@ export default function MyBookings() {
         return;
       }
 
-      console.log('Llamando a API:', `${API_BASE_URL}/bookings/my-bookings`);
-      const response = await fetch(`${API_BASE_URL}/bookings/my-bookings`, {
+      console.log('Llamando a API:', `${API_BASE_URL}/v1/bookings/my-bookings`);
+      const response = await fetch(`${API_BASE_URL}/v1/bookings/my-bookings`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

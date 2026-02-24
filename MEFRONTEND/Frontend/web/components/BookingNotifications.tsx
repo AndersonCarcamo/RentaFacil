@@ -30,7 +30,7 @@ export function BookingNotifications() {
       const token = localStorage.getItem('access_token');
       if (!token) return;
 
-      const response = await fetch(`${API_BASE_URL}/bookings/my-bookings`, {
+      const response = await fetch(`${API_BASE_URL}/v1/bookings/my-bookings`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
