@@ -141,10 +141,6 @@ class UserService:
         if update_data.national_id_type is not None:
             user.national_id_type = update_data.national_id_type
 
-        # Handle agency information (for agents)
-        if update_data.agency_name is not None:
-            user.agency_name = sanitize_string(update_data.agency_name)
-
         user.updated_at = utc_now()
         self.db.commit()
         self.db.refresh(user)

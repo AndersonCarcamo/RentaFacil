@@ -1,3 +1,21 @@
 # Ejecutar el servidor:
 
 python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+
+## Tailscale direct
+
+uvicorn app.main:app --host 100.119.186.126 --port 8000 --workers 2
+
+## More Stable: Gunicorn + worker uvicorn
+
+gunicorn app.main:app -k uvicorn.workers.UvicornWorker --bind 100.119.186.126:8000 --workers 4
+
+## Tailscale
+
+### Commands
+
+- Agregar nueva regla para el 8000
+
+el comando es: 

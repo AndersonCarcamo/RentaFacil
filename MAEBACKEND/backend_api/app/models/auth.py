@@ -36,9 +36,6 @@ class User(Base):
     national_id = Column(Text, nullable=True)
     national_id_type = Column(Text, default='DNI')
     
-    # Agency information (for agents)
-    agency_name = Column(Text, nullable=True)
-    
     # Status and verification
     is_verified = Column(Boolean, default=False, nullable=False)
     role = Column(Enum(UserRole, values_callable=lambda x: [e.value for e in x]), 

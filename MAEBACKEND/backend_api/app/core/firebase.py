@@ -8,6 +8,7 @@ from fastapi import HTTPException, status
 from app.core.config import settings
 import logging
 import os
+from pathlib import Path
 from typing import Optional, Dict, Any
 
 logger = logging.getLogger(__name__)
@@ -37,11 +38,13 @@ class FirebaseService:
             logger.info("Firebase already initialized")
         except ValueError:
             # Initialize Firebase
-            if settings.firebase_service_account_path and os.path.exists(settings.firebase_service_account_path):
+            service_account_path = self._resolve_service_account_path()
+
+            if service_account_path:
                 # Production: Use service account file
-                cred = credentials.Certificate(settings.firebase_service_account_path)
+                cred = credentials.Certificate(service_account_path)
                 firebase_admin.initialize_app(cred)
-                logger.info("Firebase initialized with service account file")
+                logger.info(f"Firebase initialized with service account file: {service_account_path}")
             elif settings.firebase_service_account_json:
                 # Production: Use service account JSON from environment
                 import json
@@ -62,6 +65,20 @@ class FirebaseService:
         except Exception as e:
             logger.error(f"Failed to initialize Firebase: {e}")
             self._mock_mode = True
+
+    def _resolve_service_account_path(self) -> Optional[str]:
+        """Resolve Firebase service account path from config/env/default project location."""
+        explicit_path = settings.firebase_service_account_path
+        env_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+        default_path = Path(__file__).resolve().parents[2] / "firebase-serviceAccount.json"
+
+        candidate_paths = [explicit_path, env_path, str(default_path)]
+
+        for candidate in candidate_paths:
+            if candidate and os.path.exists(candidate):
+                return candidate
+
+        return None
     
     async def verify_token(self, token: str) -> Optional[Dict[str, Any]]:
         """
@@ -192,6 +209,30 @@ class FirebaseService:
         except Exception as e:
             logger.error(f"Error creating custom token: {e}")
             return None
+
+    async def delete_user_by_uid(self, uid: str) -> bool:
+        """
+        Delete Firebase user by UID.
+
+        Args:
+            uid: Firebase user UID
+
+        Returns:
+            True if deleted (or not found), False if failed
+        """
+        if self._mock_mode:
+            return True
+
+        try:
+            auth.delete_user(uid)
+            logger.info(f"Firebase user deleted successfully: {uid}")
+            return True
+        except auth.UserNotFoundError:
+            logger.info(f"Firebase user not found during delete (already absent): {uid}")
+            return True
+        except Exception as e:
+            logger.error(f"Error deleting Firebase user {uid}: {e}")
+            return False
     
     # Mock methods for development
     def _mock_verify_token(self, token: str) -> Optional[Dict[str, Any]]:

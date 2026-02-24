@@ -54,7 +54,6 @@ class AuthService:
                 role=user_data.role,
                 national_id=user_data.national_id,
                 national_id_type=user_data.national_id_type,
-                agency_name=user_data.agency_name,  # Guardar nombre de agencia
                 is_verified=False,
                 is_active=True
             )
@@ -62,53 +61,49 @@ class AuthService:
             if user_data.agency_name:
                 logger.info(f"Agency name set: {user_data.agency_name}")
             
-            # Save to database
+            # Save user + agency in a single transaction
             logger.info("Adding user to database session...")
             self.db.add(user)
+            self.db.flush()
+            logger.info(f"User prepared with ID: {user.id}")
+            
+            # If user is an agent and has agency_name, create agency automatically
+            if user.role == UserRole.AGENT and user_data.agency_name:
+                logger.info(f"Creating agency automatically for agent: {user_data.agency_name}")
+                from app.models.agency import Agency, AgencyAgent
+                
+                # Create agency (agency_name is persisted in agencies table, not users)
+                agency = Agency(
+                    name=user_data.agency_name,
+                    email=user.email,
+                    phone=user.phone,
+                    description=f"Agencia creada automáticamente para {user.first_name} {user.last_name}",
+                    is_verified=False
+                )
+                self.db.add(agency)
+                self.db.flush()
+                logger.info(f"Agency prepared with ID: {agency.id}")
+                
+                # Link user to agency as owner
+                agency_agent = AgencyAgent(
+                    user_id=user.id,
+                    agency_id=agency.id,
+                    role='owner'  # User who creates the agency is the owner
+                )
+                self.db.add(agency_agent)
+                self.db.flush()
+                logger.info("User linked to agency as owner")
+
             logger.info("Committing transaction...")
             self.db.commit()
             logger.info("Refreshing user object...")
             self.db.refresh(user)
             logger.info(f"User saved successfully with ID: {user.id}")
             
-            # If user is an agent and has agency_name, create agency automatically
-            if user.role == UserRole.AGENT and user_data.agency_name:
-                logger.info(f"Creating agency automatically for agent: {user_data.agency_name}")
-                try:
-                    from app.models.agency import Agency, AgencyAgent
-                    
-                    # Create agency
-                    agency = Agency(
-                        name=user_data.agency_name,
-                        email=user.email,
-                        phone=user.phone,
-                        description=f"Agencia creada automáticamente para {user.first_name} {user.last_name}",
-                        is_verified=False
-                    )
-                    self.db.add(agency)
-                    self.db.commit()
-                    self.db.refresh(agency)
-                    logger.info(f"Agency created with ID: {agency.id}")
-                    
-                    # Link user to agency as owner
-                    agency_agent = AgencyAgent(
-                        user_id=user.id,
-                        agency_id=agency.id,
-                        role='owner'  # User who creates the agency is the owner
-                    )
-                    self.db.add(agency_agent)
-                    self.db.commit()
-                    logger.info(f"User linked to agency as owner")
-                    
-                except Exception as agency_error:
-                    logger.error(f"Error creating agency: {agency_error}")
-                    # Don't fail user creation if agency creation fails
-                    # User can create/link agency later
-                    self.db.rollback()
-            
             return user
             
         except Exception as e:
+            self.db.rollback()
             logger.error(f"Error in create_user: {e}")
             logger.error(f"Exception type: {type(e).__name__}")
             import traceback

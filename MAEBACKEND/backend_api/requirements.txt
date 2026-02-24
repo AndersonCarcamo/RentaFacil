@@ -5,7 +5,9 @@ uvicorn[standard]==0.24.0
 # Database
 sqlalchemy==2.0.35
 psycopg[binary]==3.2.9
+psycopg2-binary==2.9.10
 alembic==1.13.3
+psutil==6.1.0
 
 # Authentication & Security
 python-jose[cryptography]==3.3.0

@@ -2,8 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.schemas.auth import (
-    UserRegisterRequest, UserLoginRequest, TokenResponse, 
-    RefreshTokenRequest, MessageResponse, LoginResponse, UserResponse
+    UserRegisterRequest, UserLoginRequest, TokenResponse,
+    RefreshTokenRequest, MessageResponse, LoginResponse, UserResponse,
+    RegisterInitRequest, RegisterInitResponse, RegisterCompleteRequest
 )
 from app.services.auth_service import AuthService
 from app.api.deps import get_current_user, get_current_active_user
@@ -20,17 +21,114 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+@router.post("/register/init",
+             response_model=RegisterInitResponse,
+             summary="Validar preregistro",
+             description="Valida disponibilidad de email en DB y Firebase antes de crear cuenta")
+async def register_init(
+    request: RegisterInitRequest,
+    db: Session = Depends(get_db)
+):
+    auth_service = AuthService(db)
+    email = request.email.lower().strip()
+
+    existing_user = auth_service.get_user_by_email(email)
+    if existing_user:
+        raise http_409_conflict(ERROR_MESSAGES["EMAIL_EXISTS"])
+
+    firebase_user = await firebase_service.get_user_by_email(email)
+    if firebase_user:
+        raise http_409_conflict("Email already registered in Firebase")
+
+    return RegisterInitResponse(can_register=True, email=email)
+
+
+@router.post("/register/complete",
+             response_model=UserResponse,
+             status_code=status.HTTP_201_CREATED,
+             summary="Completar registro",
+             description="Completa registro luego de crear cuenta en Firebase")
+async def register_complete(
+    request: RegisterCompleteRequest,
+    db: Session = Depends(get_db)
+):
+    auth_service = AuthService(db)
+    firebase_uid = None
+
+    try:
+        firebase_claims = await verify_firebase_token(request.firebase_token)
+        firebase_uid = firebase_claims.get("uid")
+        firebase_email = (firebase_claims.get("email") or "").strip().lower()
+        request_email = request.email.strip().lower()
+
+        if not firebase_uid or not firebase_email:
+            raise http_400_bad_request("Firebase token does not include required user information")
+
+        if firebase_email != request_email:
+            raise http_400_bad_request("Email mismatch between Firebase token and request")
+
+        existing_by_uid = auth_service.get_user_by_firebase_uid(firebase_uid)
+        if existing_by_uid:
+            if existing_by_uid.email.lower() == firebase_email:
+                return UserResponse.from_orm(existing_by_uid)
+            raise http_409_conflict("Firebase UID already registered")
+
+        existing_by_email = auth_service.get_user_by_email(firebase_email)
+        if existing_by_email:
+            if request.cleanup_firebase_on_failure:
+                await firebase_service.delete_user_by_uid(firebase_uid)
+            raise http_409_conflict(ERROR_MESSAGES["EMAIL_EXISTS"])
+
+        user_data = UserRegisterRequest(
+            email=firebase_email,
+            first_name=request.first_name,
+            last_name=request.last_name,
+            phone=request.phone,
+            firebase_uid=firebase_uid,
+            firebase_created_in_flow=False,
+            role=request.role,
+            national_id=request.national_id,
+            national_id_type=request.national_id_type,
+            agency_name=request.agency_name,
+        )
+
+        user = auth_service.create_user(user_data, firebase_uid=firebase_uid)
+        return UserResponse.from_orm(user)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        if request.cleanup_firebase_on_failure and firebase_uid:
+            deleted = await firebase_service.delete_user_by_uid(firebase_uid)
+            if deleted:
+                logger.info(
+                    f"Compensation applied on register/complete: deleted Firebase user {firebase_uid}"
+                )
+            else:
+                logger.error(
+                    f"Compensation failed on register/complete: could not delete Firebase user {firebase_uid}"
+                )
+        logger.error(f"Unexpected error during register/complete: {e}")
+        raise http_500_internal_error("Registration failed")
+
+
 @router.post("/register", 
              response_model=UserResponse,
              status_code=status.HTTP_201_CREATED,
+             deprecated=True,
              summary="Registro de nuevo usuario",
-             description="Registra un nuevo usuario en el sistema con autenticación Firebase")
+             description="[DEPRECATED] Usa /register/init + /register/complete. Se mantiene solo por compatibilidad.")
 async def register(
     request: UserRegisterRequest,
     db: Session = Depends(get_db),
     http_request: Request = None
 ):
     """Register a new user with Firebase authentication."""
+    logger.warning("Deprecated endpoint /v1/auth/register was used. Prefer /register/init + /register/complete")
+    firebase_uid_to_cleanup = (
+        request.firebase_uid if request.firebase_uid and request.firebase_created_in_flow else None
+    )
+
     try:
         logger.info(f"Starting registration for email: {request.email}")
         logger.info(f"Request data: {request.dict()}")
@@ -69,10 +167,30 @@ async def register(
         logger.info("Registration completed successfully")
         return response
         
-    except HTTPException:
+    except HTTPException as exc:
+        if firebase_uid_to_cleanup:
+            deleted = await firebase_service.delete_user_by_uid(firebase_uid_to_cleanup)
+            if deleted:
+                logger.info(
+                    f"Compensation applied: deleted Firebase user {firebase_uid_to_cleanup}"
+                )
+            else:
+                logger.error(
+                    f"Compensation failed: could not delete Firebase user {firebase_uid_to_cleanup}"
+                )
         logger.error("HTTPException occurred during registration")
-        raise
+        raise exc
     except Exception as e:
+        if firebase_uid_to_cleanup:
+            deleted = await firebase_service.delete_user_by_uid(firebase_uid_to_cleanup)
+            if deleted:
+                logger.info(
+                    f"Compensation applied: deleted Firebase user {firebase_uid_to_cleanup}"
+                )
+            else:
+                logger.error(
+                    f"Compensation failed: could not delete Firebase user {firebase_uid_to_cleanup}"
+                )
         logger.error(f"Unexpected error during user registration: {e}")
         logger.error(f"Exception type: {type(e).__name__}")
         import traceback

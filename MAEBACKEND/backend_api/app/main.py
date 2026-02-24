@@ -90,19 +90,26 @@ app = FastAPI(
 )
 
 # CORS Configuration
+configured_frontend_origins = [
+    origin.strip() for origin in (settings.frontend_url or "").split(",") if origin.strip()
+]
+
+cors_origins = [
+    "http://localhost:3000",  # React development
+    "http://localhost:3001",  # Alternative React port
+    "http://127.0.0.1:3000",  # React development (IP)
+    "http://127.0.0.1:3001",  # Alternative React port (IP)
+    "http://localhost:8000",  # Backend mismo origen
+    "http://127.0.0.1:8000",  # Backend mismo origen (IP)
+    "http://localhost:19006",  # Expo development
+    "http://127.0.0.1:19006",
+    "http://192.168.18.51:3000",  # Frontend en red local
+    *configured_frontend_origins,
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",  # React development
-        "http://localhost:3001",  # Alternative React port
-        "http://127.0.0.1:3000",  # React development (IP)
-        "http://127.0.0.1:3001",  # Alternative React port (IP)
-        "http://localhost:8000",  # Backend mismo origen
-        "http://127.0.0.1:8000",  # Backend mismo origen (IP)
-        "http://localhost:19006",  # Expo development
-        "http://127.0.0.1:19006",
-        settings.frontend_url
-    ],
+    allow_origins=list(dict.fromkeys(cors_origins)),
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],

@@ -17,6 +17,28 @@ export interface RegisterRequest {
   national_id_type?: string
 }
 
+export interface RegisterInitRequest {
+  email: string
+}
+
+export interface RegisterInitResponse {
+  can_register: boolean
+  email: string
+}
+
+export interface RegisterCompleteRequest {
+  firebase_token: string
+  email: string
+  first_name: string
+  last_name: string
+  phone?: string
+  role?: 'user' | 'tenant' | 'landlord' | 'agent' | 'admin'
+  national_id?: string
+  national_id_type?: string
+  agency_name?: string
+  cleanup_firebase_on_failure?: boolean
+}
+
 export interface AuthUser {
   id: string
   email: string
@@ -103,10 +125,12 @@ export async function login(firebaseToken: string): Promise<LoginResponse> {
 
 /**
  * Register new user
+ * @deprecated Use registerInit + Firebase signup + registerComplete.
  */
 export async function register(userData: RegisterRequest): Promise<RegisterResponse> {
   try {
     console.log('📝 Attempting registration for:', userData.email)
+    console.warn('⚠️ Deprecated auth.register() used. Prefer registerInit + registerComplete flow.')
     
     const response = await fetch(`${API_BASE_URL}/v1/auth/register`, {
       method: 'POST',
@@ -133,6 +157,50 @@ export async function register(userData: RegisterRequest): Promise<RegisterRespo
     console.error('💥 Registration error:', error)
     throw error
   }
+}
+
+/**
+ * Registration step 1: validate email availability in DB and Firebase
+ */
+export async function registerInit(email: string): Promise<RegisterInitResponse> {
+  const normalizedEmail = email.toLowerCase().trim()
+
+  const response = await fetch(`${API_BASE_URL}/v1/auth/register/init`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    },
+    body: JSON.stringify({ email: normalizedEmail }),
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    throw new Error(`Register init failed: ${response.status} - ${errorText}`)
+  }
+
+  return response.json()
+}
+
+/**
+ * Registration step 2: complete registration using Firebase token + profile data
+ */
+export async function registerComplete(payload: RegisterCompleteRequest): Promise<RegisterResponse> {
+  const response = await fetch(`${API_BASE_URL}/v1/auth/register/complete`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    throw new Error(`Register complete failed: ${response.status} - ${errorText}`)
+  }
+
+  return response.json()
 }
 
 /**
@@ -393,28 +461,18 @@ export async function authenticatedRequest(url: string, options: RequestInit = {
 export async function checkEmailExists(email: string): Promise<boolean> {
   try {
     console.log('🔍 Checking if email exists:', email)
-    
-    const response = await fetch(`${API_BASE_URL}/v1/auth/check-email`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify({ email: email.toLowerCase().trim() }),
-    })
 
-    if (!response.ok) {
-      console.warn('⚠️ Email check endpoint returned error:', response.status)
-      return false
-    }
-    
-    const data = await response.json()
-    console.log('✅ Email check result:', data.exists ? 'EXISTS' : 'AVAILABLE')
-    return data.exists
+    await registerInit(email)
+    console.log('✅ Email check result: AVAILABLE')
+    return false
     
   } catch (error) {
+    if (error instanceof Error && error.message.includes('409')) {
+      console.log('✅ Email check result: EXISTS')
+      return true
+    }
     console.error('💥 Email check error:', error)
-    // En caso de error, retornamos false para no bloquear el registro
+    // En caso de error no relacionado a conflicto, no bloquear el registro
     return false
   }
 }

@@ -27,16 +27,81 @@ class UserRegisterRequest(BaseModel):
     last_name: str = Field(..., min_length=1, max_length=100)
     phone: Optional[str] = Field(None, max_length=20)
     firebase_uid: Optional[str] = None
+    firebase_created_in_flow: bool = False
     role: UserRole = UserRole.USER
     national_id: Optional[str] = None  # Para landlord es DNI, para agent es RUC de la agencia
     national_id_type: str = "DNI"
-    agency_name: Optional[str] = None  # Nombre de la agencia (solo para role='agent')
+    agency_name: Optional[str] = None  # Nombre de la agencia (se guarda en tabla agencies)
 
     @validator('phone')
     def validate_phone(cls, v):
         if v and not re.match(r'^\+[1-9]\d{1,14}$', v):
             raise ValueError('Phone must be in E.164 format (+1234567890)')
         return v
+
+    @validator('agency_name', always=True)
+    def validate_agency_name_for_agent(cls, v, values):
+        role = values.get('role')
+        if role == UserRole.AGENT:
+            if not v or len(v.strip()) == 0:
+                raise ValueError('agency_name is required for role=agent')
+            return v.strip()
+        return v.strip() if isinstance(v, str) else v
+
+
+class RegisterInitRequest(BaseModel):
+    email: EmailStr
+
+    @validator('email', pre=True)
+    def normalize_email(cls, v):
+        if v:
+            return v.lower().strip()
+        return v
+
+
+class RegisterInitResponse(BaseModel):
+    can_register: bool
+    email: str
+
+
+class RegisterCompleteRequest(BaseModel):
+    firebase_token: str = Field(..., description="Firebase ID token from freshly created account")
+    email: EmailStr
+    first_name: str = Field(..., min_length=1, max_length=100)
+    last_name: str = Field(..., min_length=1, max_length=100)
+    phone: Optional[str] = Field(None, max_length=20)
+    role: UserRole = UserRole.USER
+    national_id: Optional[str] = None
+    national_id_type: str = "DNI"
+    agency_name: Optional[str] = None
+    cleanup_firebase_on_failure: bool = True
+
+    @validator('firebase_token')
+    def validate_complete_firebase_token(cls, v):
+        if not v or len(v.strip()) == 0:
+            raise ValueError('Firebase token cannot be empty')
+        return v.strip()
+
+    @validator('email', pre=True)
+    def normalize_complete_email(cls, v):
+        if v:
+            return v.lower().strip()
+        return v
+
+    @validator('phone')
+    def validate_complete_phone(cls, v):
+        if v and not re.match(r'^\+[1-9]\d{1,14}$', v):
+            raise ValueError('Phone must be in E.164 format (+1234567890)')
+        return v
+
+    @validator('agency_name', always=True)
+    def validate_complete_agency_name_for_agent(cls, v, values):
+        role = values.get('role')
+        if role == UserRole.AGENT:
+            if not v or len(v.strip()) == 0:
+                raise ValueError('agency_name is required for role=agent')
+            return v.strip()
+        return v.strip() if isinstance(v, str) else v
 
 
 class UserLoginRequest(BaseModel):
@@ -70,7 +135,7 @@ class UserResponse(BaseModel):
     profile_picture_url: Optional[str]
     national_id: Optional[str]
     national_id_type: Optional[str]
-    agency_name: Optional[str]  # Para usuarios de agencias
+    agency_name: Optional[str] = None  # Para usuarios de agencias
     role: UserRole
     is_verified: bool
     is_active: bool

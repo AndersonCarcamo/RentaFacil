@@ -14,14 +14,26 @@ BEGIN
     -- Get the default free plan
     SELECT id INTO free_plan_id 
     FROM core.plans 
-    WHERE tier = 'free' 
+        WHERE tier = 'individual_free'
+            AND target_user_type IN ('individual', 'both')
       AND is_default = TRUE 
       AND is_active = TRUE
     LIMIT 1;
+
+        -- Fallback: if no default exists, use any active individual free plan
+        IF free_plan_id IS NULL THEN
+                SELECT id INTO free_plan_id
+                FROM core.plans
+                WHERE tier = 'individual_free'
+                    AND target_user_type IN ('individual', 'both')
+                    AND is_active = TRUE
+                ORDER BY is_default DESC, created_at ASC
+                LIMIT 1;
+        END IF;
     
     -- If no free plan exists, raise error
     IF free_plan_id IS NULL THEN
-        RAISE EXCEPTION 'No default free plan found. Please create a free plan with is_default=TRUE';
+        RAISE EXCEPTION 'No active individual_free plan found. Please create one (ideally is_default=TRUE)';
     END IF;
     
     -- Create subscription for the new user

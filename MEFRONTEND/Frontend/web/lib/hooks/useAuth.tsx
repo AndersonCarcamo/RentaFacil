@@ -9,7 +9,18 @@ import {
   User as FirebaseUser
 } from 'firebase/auth'
 import { auth } from '../firebase'
-import { AuthUser, login as apiLogin, register as apiRegister, logout as apiLogout, getCurrentUser, isAuthenticated, getStoredUser, updateUserRole as apiUpdateUserRole, UpdateRoleRequest } from '../api/auth'
+import {
+  AuthUser,
+  login as apiLogin,
+  registerInit as apiRegisterInit,
+  registerComplete as apiRegisterComplete,
+  logout as apiLogout,
+  getCurrentUser,
+  isAuthenticated,
+  getStoredUser,
+  updateUserRole as apiUpdateUserRole,
+  UpdateRoleRequest,
+} from '../api/auth'
 
 interface AuthContextType {
   user: AuthUser | null
@@ -151,8 +162,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     agency_ruc?: string
   }) => {
     setLoading(true)
+    let firebaseUser: FirebaseUser | null = null
     try {
       console.log('📝 Registering with Firebase:', userData.email)
+
+      // 0. Validate preregistration with backend (DB + Firebase email availability)
+      await apiRegisterInit(userData.email)
+      console.log('✅ Register init validation successful')
       
       // 1. Create user in Firebase
       const userCredential = await createUserWithEmailAndPassword(
@@ -160,19 +176,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         userData.email,
         userData.password
       )
-      const firebaseUser = userCredential.user
+      firebaseUser = userCredential.user
       
       console.log('✅ Firebase user created:', firebaseUser.uid)
-      
-      // 2. Register in our backend
-      const { password, ...userDataWithoutPassword } = userData
-      console.log('📤 Sending to backend:', {
-        ...userDataWithoutPassword,
-        firebase_uid: firebaseUser.uid
-      })
-      const result = await apiRegister({
-        ...userDataWithoutPassword,
-        firebase_uid: firebaseUser.uid
+
+      // 2. Complete registration in backend with Firebase token
+      const idToken = await firebaseUser.getIdToken()
+
+      const result = await apiRegisterComplete({
+        firebase_token: idToken,
+        email: userData.email.toLowerCase().trim(),
+        first_name: userData.first_name.trim(),
+        last_name: userData.last_name.trim(),
+        phone: userData.phone || undefined,
+        role: userData.role || 'user',
+        national_id: userData.national_id || undefined,
+        national_id_type: userData.national_id_type,
+        agency_name: userData.agency_name?.trim() || undefined,
+        cleanup_firebase_on_failure: true,
       })
       
       console.log('✅ Backend registration successful:', result)
@@ -198,7 +219,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       // If registration fails, make sure to sign out from Firebase
       try {
-        await signOut(auth)
+        if (firebaseUser) {
+          await signOut(auth)
+        }
       } catch (signOutError) {
         console.error('⚠️ Error signing out after failed registration:', signOutError)
       }

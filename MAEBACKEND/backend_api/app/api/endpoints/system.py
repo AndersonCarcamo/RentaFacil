@@ -7,6 +7,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from sqlalchemy.orm import Session
 from typing import Optional
 import time
+from datetime import datetime, timezone
 
 from app.core.database import get_db
 from app.schemas.system import (
@@ -48,12 +49,12 @@ async def health_check(
         if health_result.status == "unhealthy":
             return JSONResponse(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                content=health_result.dict()
+                content=health_result.model_dump(mode="json")
             )
         elif health_result.status == "degraded":
             return JSONResponse(
                 status_code=status.HTTP_200_OK,
-                content=health_result.dict()
+                content=health_result.model_dump(mode="json")
             )
         else:
             return health_result
@@ -63,12 +64,12 @@ async def health_check(
         error_response = SystemError(
             error="health_check_failed",
             message="Unable to perform health check",
-            timestamp=time.time(),
+            timestamp=datetime.now(timezone.utc),
             details={"error": str(e)}
         )
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content=error_response.dict()
+            content=error_response.model_dump(mode="json")
         )
 
 
