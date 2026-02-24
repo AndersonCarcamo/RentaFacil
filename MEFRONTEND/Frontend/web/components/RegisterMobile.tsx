@@ -72,6 +72,201 @@ const RegisterProgress = React.memo(function RegisterProgress({ visualStep, visu
   );
 });
 
+const Step2PersonalData = React.memo(function Step2PersonalData({
+  formData,
+  errors,
+  isCheckingEmail,
+  emailAvailable,
+  onInputChange,
+  onEmailBlur
+}: {
+  formData: FormData;
+  errors: FormErrors;
+  isCheckingEmail: boolean;
+  emailAvailable: boolean | null;
+  onInputChange: (field: keyof FormData, value: string | boolean) => void;
+  onEmailBlur: () => void;
+}) {
+  const formatPhoneInput = (value: string): string => {
+    let cleaned = value.replace(/[^\d+]/g, '');
+    if (cleaned && !cleaned.startsWith('+')) {
+      cleaned = '+' + cleaned;
+    }
+    return cleaned;
+  };
+
+  return (
+    <div className="space-y-1.5">
+      <h2 className="text-lg font-bold text-gray-900">
+        Datos Personales
+      </h2>
+      <p className="text-xs text-gray-600 mb-2">
+        {formData.role === 'AGENT' 
+          ? 'Información del representante y de la inmobiliaria'
+          : 'Cuéntanos un poco sobre ti'}
+      </p>
+
+      <div className="space-y-2">
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">
+            {formData.role === 'AGENT' ? 'Nombre del Representante *' : 'Nombre *'}
+          </label>
+          <div className="relative">
+            <UserIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <input
+              type="text"
+              value={formData.firstName}
+              onChange={(e) => onInputChange('firstName', e.target.value)}
+              className={`w-full pl-10 pr-4 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                errors.firstName ? 'border-red-300' : 'border-gray-300'
+              }`}
+              placeholder="Tu nombre"
+              maxLength={100}
+            />
+          </div>
+          {errors.firstName && (
+            <p className="mt-0.5 text-xs text-red-600">{errors.firstName}</p>
+          )}
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">
+            {formData.role === 'AGENT' ? 'Apellido del Representante *' : 'Apellido *'}
+          </label>
+          <div className="relative">
+            <UserIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <input
+              type="text"
+              value={formData.lastName}
+              onChange={(e) => onInputChange('lastName', e.target.value)}
+              className={`w-full pl-10 pr-4 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                errors.lastName ? 'border-red-300' : 'border-gray-300'
+              }`}
+              placeholder="Tu apellido"
+              maxLength={100}
+            />
+          </div>
+          {errors.lastName && (
+            <p className="mt-0.5 text-xs text-red-600">{errors.lastName}</p>
+          )}
+        </div>
+
+        {formData.role === 'AGENT' && (
+          <>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Nombre de la Inmobiliaria *
+              </label>
+              <div className="relative">
+                <BuildingOfficeIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <input
+                  type="text"
+                  value={formData.agencyName || ''}
+                  onChange={(e) => onInputChange('agencyName', e.target.value)}
+                  className={`w-full pl-10 pr-4 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    errors.agencyName ? 'border-red-300' : 'border-gray-300'
+                  }`}
+                  placeholder="Nombre de tu inmobiliaria"
+                  maxLength={200}
+                />
+              </div>
+              {errors.agencyName && (
+                <p className="mt-0.5 text-xs text-red-600">{errors.agencyName}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                RUC de la Inmobiliaria *
+              </label>
+              <div className="relative">
+                <IdentificationIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <input
+                  type="text"
+                  value={formData.agencyRuc || ''}
+                  onChange={(e) => onInputChange('agencyRuc', e.target.value)}
+                  className={`w-full pl-10 pr-4 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    errors.agencyRuc ? 'border-red-300' : 'border-gray-300'
+                  }`}
+                  placeholder="12345678901"
+                  maxLength={11}
+                />
+              </div>
+              {errors.agencyRuc && (
+                <p className="mt-0.5 text-xs text-red-600">{errors.agencyRuc}</p>
+              )}
+            </div>
+          </>
+        )}
+
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">
+            Correo Electrónico *
+          </label>
+          <div className="relative">
+            <EnvelopeIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <input
+              type="email"
+              value={formData.email}
+              onChange={(e) => onInputChange('email', e.target.value)}
+              onBlur={onEmailBlur}
+              className={`w-full pl-10 pr-12 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                errors.email 
+                  ? 'border-red-300' 
+                  : emailAvailable === false 
+                    ? 'border-red-300'
+                    : emailAvailable === true 
+                      ? 'border-green-300'
+                      : 'border-gray-300'
+              }`}
+              placeholder="tu@email.com"
+            />
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+              {isCheckingEmail && (
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+              )}
+              {!isCheckingEmail && emailAvailable === true && (
+                <CheckCircleIcon className="h-5 w-5 text-green-600" />
+              )}
+              {!isCheckingEmail && emailAvailable === false && (
+                <ExclamationCircleIcon className="h-5 w-5 text-red-600" />
+              )}
+            </div>
+          </div>
+          {errors.email && (
+            <p className="mt-0.5 text-xs text-red-600">{errors.email}</p>
+          )}
+          {!errors.email && emailAvailable === true && formData.email && (
+            <p className="mt-1 text-sm text-green-600">✓ Email disponible</p>
+          )}
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">
+            Teléfono (Opcional)
+          </label>
+          <div className="relative">
+            <PhoneIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <input
+              type="tel"
+              value={formData.phone}
+              onChange={(e) => onInputChange('phone', formatPhoneInput(e.target.value))}
+              className={`w-full pl-10 pr-4 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                errors.phone ? 'border-red-300' : 'border-gray-300'
+              }`}
+              placeholder="+51987654321"
+              maxLength={20}
+            />
+          </div>
+          {errors.phone && (
+            <p className="mt-0.5 text-xs text-red-600">{errors.phone}</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+});
+
 const RegisterNavigation = React.memo(function RegisterNavigation({
   currentStep,
   isLoading,
@@ -167,19 +362,6 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
   const [isDragOver, setIsDragOver] = useState(false);
   const [isCheckingEmail, setIsCheckingEmail] = useState(false);
   const [emailAvailable, setEmailAvailable] = useState<boolean | null>(null);
-
-  // Debounce para verificar email
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (formData.email && validateEmail(formData.email)) {
-        checkEmail(formData.email);
-      } else {
-        setEmailAvailable(null);
-      }
-    }, 800); // Esperar 800ms después de que el usuario deje de escribir
-
-    return () => clearTimeout(timeoutId);
-  }, [formData.email]);
 
   const checkEmail = async (email: string) => {
     try {
@@ -393,12 +575,12 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
     }
   };
 
-  const formatPhoneInput = (value: string): string => {
-    let cleaned = value.replace(/[^\d+]/g, '');
-    if (cleaned && !cleaned.startsWith('+')) {
-      cleaned = '+' + cleaned;
+  const handleEmailBlur = () => {
+    if (formData.email && validateEmail(formData.email)) {
+      checkEmail(formData.email);
+    } else {
+      setEmailAvailable(null);
     }
-    return cleaned;
   };
 
   const handleFileChange = (file: File | null) => {
@@ -556,174 +738,14 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
 
       case 2:
         return (
-          <div className="space-y-1.5">
-            <h2 className="text-lg font-bold text-gray-900">
-              Datos Personales
-            </h2>
-            <p className="text-xs text-gray-600 mb-2">
-              {formData.role === 'AGENT' 
-                ? 'Información del representante y de la inmobiliaria'
-                : 'Cuéntanos un poco sobre ti'}
-            </p>
-
-            <div className="space-y-2">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  {formData.role === 'AGENT' ? 'Nombre del Representante *' : 'Nombre *'}
-                </label>
-                <div className="relative">
-                  <UserIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                  <input
-                    type="text"
-                    value={formData.firstName}
-                    onChange={(e) => handleInputChange('firstName', e.target.value)}
-                    className={`w-full pl-10 pr-4 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                      errors.firstName ? 'border-red-300' : 'border-gray-300'
-                    }`}
-                    placeholder="Tu nombre"
-                    maxLength={100}
-                  />
-                </div>
-                {errors.firstName && (
-                  <p className="mt-0.5 text-xs text-red-600">{errors.firstName}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  {formData.role === 'AGENT' ? 'Apellido del Representante *' : 'Apellido *'}
-                </label>
-                <div className="relative">
-                  <UserIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                  <input
-                    type="text"
-                    value={formData.lastName}
-                    onChange={(e) => handleInputChange('lastName', e.target.value)}
-                    className={`w-full pl-10 pr-4 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                      errors.lastName ? 'border-red-300' : 'border-gray-300'
-                    }`}
-                    placeholder="Tu apellido"
-                    maxLength={100}
-                  />
-                </div>
-                {errors.lastName && (
-                  <p className="mt-0.5 text-xs text-red-600">{errors.lastName}</p>
-                )}
-              </div>
-
-              {formData.role === 'AGENT' && (
-                <>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Nombre de la Inmobiliaria *
-                    </label>
-                    <div className="relative">
-                      <BuildingOfficeIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                      <input
-                        type="text"
-                        value={formData.agencyName || ''}
-                        onChange={(e) => handleInputChange('agencyName', e.target.value)}
-                        className={`w-full pl-10 pr-4 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                          errors.agencyName ? 'border-red-300' : 'border-gray-300'
-                        }`}
-                        placeholder="Nombre de tu inmobiliaria"
-                        maxLength={200}
-                      />
-                    </div>
-                    {errors.agencyName && (
-                      <p className="mt-0.5 text-xs text-red-600">{errors.agencyName}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
-                      RUC de la Inmobiliaria *
-                    </label>
-                    <div className="relative">
-                      <IdentificationIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                      <input
-                        type="text"
-                        value={formData.agencyRuc || ''}
-                        onChange={(e) => handleInputChange('agencyRuc', e.target.value.replace(/\D/g, ''))}
-                        className={`w-full pl-10 pr-4 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                          errors.agencyRuc ? 'border-red-300' : 'border-gray-300'
-                        }`}
-                        placeholder="12345678901"
-                        maxLength={11}
-                      />
-                    </div>
-                    {errors.agencyRuc && (
-                      <p className="mt-0.5 text-xs text-red-600">{errors.agencyRuc}</p>
-                    )}
-                  </div>
-                </>
-              )}
-
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Correo Electrónico *
-                </label>
-                <div className="relative">
-                  <EnvelopeIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                  <input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => handleInputChange('email', e.target.value)}
-                    className={`w-full pl-10 pr-12 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                      errors.email 
-                        ? 'border-red-300' 
-                        : emailAvailable === false 
-                          ? 'border-red-300'
-                          : emailAvailable === true 
-                            ? 'border-green-300'
-                            : 'border-gray-300'
-                    }`}
-                    placeholder="tu@email.com"
-                  />
-                  {/* Indicador de verificación */}
-                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                    {isCheckingEmail && (
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-                    )}
-                    {!isCheckingEmail && emailAvailable === true && (
-                      <CheckCircleIcon className="h-5 w-5 text-green-600" />
-                    )}
-                    {!isCheckingEmail && emailAvailable === false && (
-                      <ExclamationCircleIcon className="h-5 w-5 text-red-600" />
-                    )}
-                  </div>
-                </div>
-                {errors.email && (
-                  <p className="mt-0.5 text-xs text-red-600">{errors.email}</p>
-                )}
-                {!errors.email && emailAvailable === true && formData.email && (
-                  <p className="mt-1 text-sm text-green-600">✓ Email disponible</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Teléfono (Opcional)
-                </label>
-                <div className="relative">
-                  <PhoneIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                  <input
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) => handleInputChange('phone', formatPhoneInput(e.target.value))}
-                    className={`w-full pl-10 pr-4 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                      errors.phone ? 'border-red-300' : 'border-gray-300'
-                    }`}
-                    placeholder="+51987654321"
-                    maxLength={20}
-                  />
-                </div>
-                {errors.phone && (
-                  <p className="mt-0.5 text-xs text-red-600">{errors.phone}</p>
-                )}
-              </div>
-            </div>
-          </div>
+          <Step2PersonalData
+            formData={formData}
+            errors={errors}
+            isCheckingEmail={isCheckingEmail}
+            emailAvailable={emailAvailable}
+            onInputChange={handleInputChange}
+            onEmailBlur={handleEmailBlur}
+          />
         );
 
       case 3:
