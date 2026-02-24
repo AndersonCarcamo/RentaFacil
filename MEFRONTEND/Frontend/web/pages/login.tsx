@@ -235,7 +235,7 @@ const LoginPage: React.FC = () => {
       </Head>
       
       <div className="min-h-screen bg-gray-50">
-        <Header />
+        <Header disableRealtimeWidgets />
         
         <div className="min-h-[calc(100vh-96px)] grid grid-cols-1 lg:grid-cols-5">
           {/* Formulario - Lado Izquierdo */}

@@ -75,7 +75,11 @@ function getAvatarUrl(avatarUrl: string | null | undefined): string | null {
 	return `${API_BASE_URL}${avatarUrl}`;
 }
 
-export function Header() {
+interface HeaderProps {
+	disableRealtimeWidgets?: boolean
+}
+
+export function Header({ disableRealtimeWidgets = false }: HeaderProps = {}) {
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 	const [showPublishModal, setShowPublishModal] = useState(false)
 	const [showRoleUpgradeModal, setShowRoleUpgradeModal] = useState(false)
@@ -550,15 +554,19 @@ export function Header() {
 
 								{isLoggedIn ? (
 									<>
-										{/* Notifications */}
-										<div className="hidden sm:inline-flex">
-											<Notifications />
-										</div>
-										
-										{/* Booking Notifications */}
-										<div className="hidden sm:inline-flex">
-											<BookingNotifications />
-										</div>
+										{!disableRealtimeWidgets && (
+											<>
+												{/* Notifications */}
+												<div className="hidden sm:inline-flex">
+													<Notifications />
+												</div>
+												
+												{/* Booking Notifications */}
+												<div className="hidden sm:inline-flex">
+													<BookingNotifications />
+												</div>
+											</>
+										)}
 
 										{/* User Menu Desktop */}
 										<Menu as="div" className="relative hidden lg:block">

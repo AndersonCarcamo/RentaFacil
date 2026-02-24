@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import { Header } from './common/Header';
 import Button from './ui/Button';
@@ -48,6 +48,84 @@ interface RegisterMobileProps {
   generalError?: string;
   hideHeader?: boolean;
 }
+
+const RegisterProgress = React.memo(function RegisterProgress({ visualStep, visualTotalSteps }: { visualStep: number; visualTotalSteps: number }) {
+  return (
+    <div className="bg-white border-b flex-shrink-0">
+      <div className="px-4 py-2">
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-sm font-medium text-gray-900">
+            Paso {visualStep} de {visualTotalSteps}
+          </span>
+          <span className="text-sm text-gray-500">
+            {Math.round((visualStep / visualTotalSteps) * 100)}%
+          </span>
+        </div>
+        <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-blue-600 transition-all duration-300"
+            style={{ width: `${(visualStep / visualTotalSteps) * 100}%` }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+});
+
+const RegisterNavigation = React.memo(function RegisterNavigation({
+  currentStep,
+  isLoading,
+  onBack,
+  onNext,
+  onSubmit
+}: {
+  currentStep: number;
+  isLoading: boolean;
+  onBack: () => void;
+  onNext: () => void;
+  onSubmit: () => void;
+}) {
+  return (
+    <div className="bg-white border-t px-4 py-2.5 flex-shrink-0">
+      <div className="flex gap-3">
+        {currentStep > 1 && (
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={onBack}
+            className="flex-1"
+            disabled={isLoading}
+          >
+            <ChevronLeftIcon className="w-5 h-5 mr-1" />
+            Atrás
+          </Button>
+        )}
+
+        {currentStep === 5 ? (
+          <Button
+            type="button"
+            variant="primary"
+            onClick={onSubmit}
+            loading={isLoading}
+            className="flex-1"
+          >
+            {isLoading ? 'Creando cuenta...' : 'Crear Cuenta'}
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            variant="primary"
+            onClick={onNext}
+            className="flex-1"
+          >
+            Siguiente
+            <ChevronRightIcon className="w-5 h-5 ml-1" />
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+});
 
 const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, generalError, hideHeader = false }) => {
   const router = useRouter();
@@ -161,7 +239,10 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
     }
   };
 
-  const passwordStrength = getPasswordStrength(formData.password);
+  const passwordStrength = useMemo(
+    () => (currentStep === 3 ? getPasswordStrength(formData.password) : { strength: 0, label: '', color: '' }),
+    [currentStep, formData.password]
+  );
 
   const validateStep = (step: number): boolean => {
     const newErrors: FormErrors = {};
@@ -957,25 +1038,8 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
           maxHeight: hideHeader ? '100%' : 'calc(100vh - 96px)',
           height: hideHeader ? '100%' : 'calc(100vh - 96px)'
         }}
-      >        {/* Progress Bar - Fixed height */}
-        <div className="bg-white border-b flex-shrink-0">
-          <div className="px-4 py-2">
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-sm font-medium text-gray-900">
-                Paso {visualStep} de {visualTotalSteps}
-              </span>
-              <span className="text-sm text-gray-500">
-                {Math.round((visualStep / visualTotalSteps) * 100)}%
-              </span>
-            </div>
-            <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-blue-600 transition-all duration-300"
-                style={{ width: `${(visualStep / visualTotalSteps) * 100}%` }}
-              />
-            </div>
-          </div>
-        </div>
+      >
+        <RegisterProgress visualStep={visualStep} visualTotalSteps={visualTotalSteps} />
 
         {/* Error general */}
         {generalError && (
@@ -992,45 +1056,13 @@ const RegisterMobile: React.FC<RegisterMobileProps> = ({ onSubmit, isLoading, ge
           {renderStepContent()}
         </div>
 
-        {/* Navigation Buttons - Fixed at bottom */}
-        <div className="bg-white border-t px-4 py-2.5 flex-shrink-0">
-          <div className="flex gap-3">
-            {currentStep > 1 && (
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={handleBack}
-                className="flex-1"
-                disabled={isLoading}
-              >
-                <ChevronLeftIcon className="w-5 h-5 mr-1" />
-                Atrás
-              </Button>
-            )}
-            
-            {currentStep === 5 ? (
-              <Button
-                type="button"
-                variant="primary"
-                onClick={handleSubmit}
-                loading={isLoading}
-                className="flex-1"
-              >
-                {isLoading ? 'Creando cuenta...' : 'Crear Cuenta'}
-              </Button>
-            ) : (
-              <Button
-                type="button"
-                variant="primary"
-                onClick={handleNext}
-                className="flex-1"
-              >
-                Siguiente
-                <ChevronRightIcon className="w-5 h-5 ml-1" />
-              </Button>
-            )}
-          </div>
-        </div>
+        <RegisterNavigation
+          currentStep={currentStep}
+          isLoading={isLoading}
+          onBack={handleBack}
+          onNext={handleNext}
+          onSubmit={handleSubmit}
+        />
       </div>
     </div>
   );

@@ -543,7 +543,7 @@ const RegisterPage: React.FC = () => {
         </Head>
         
         <div className="min-h-screen bg-gray-50">
-          {!isMobile && <Header />}
+          {!isMobile && <Header disableRealtimeWidgets />}
           
           <div className={`flex items-center justify-center px-4 ${
             isMobile ? 'min-h-screen' : 'min-h-[calc(100vh-96px)]'
@@ -592,7 +592,7 @@ const RegisterPage: React.FC = () => {
       ) : (
         /* Desktop view - Header + 50/50 split with banner */
         <>
-          <Header />
+          <Header disableRealtimeWidgets />
           <div className="flex" style={{ height: 'calc(100vh - 96px)' }}>
           {/* Left side - Registration Form (50%) */}
           <div className="w-1/2 bg-white overflow-hidden">
