@@ -17,6 +17,7 @@ import {
 import toast from 'react-hot-toast';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
+import { deleteAccount } from '../../lib/api/users';
 
 const SettingsPage = () => {
   const router = useRouter();
@@ -126,10 +127,10 @@ const SettingsPage = () => {
 
     try {
       setLoading(true);
-      // TODO: Implementar llamada al endpoint de eliminación de cuenta
-      // await deleteAccount();
+      await deleteAccount('Usuario solicitó eliminar su cuenta');
       toast.success('Cuenta eliminada correctamente');
       setShowDeleteAccountModal(false);
+      setDeleteConfirmText('');
       await logout();
       router.push('/');
     } catch (error: any) {

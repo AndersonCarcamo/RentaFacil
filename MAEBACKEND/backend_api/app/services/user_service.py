@@ -162,7 +162,19 @@ class UserService:
         return self.update_user_profile(user, update_data)
 
     def delete_account(self, user: User, delete_data: DeleteAccountRequest) -> bool:
-        """Delete user account (soft delete)."""
+        """Delete user account (soft delete in DB and hard delete in Firebase)."""
+        from app.core.firebase import FirebaseService
+        
+        # Delete from Firebase if user has firebase_uid
+        if user.firebase_uid:
+            firebase_service = FirebaseService()
+            try:
+                firebase_service.delete_user_by_uid(user.firebase_uid)
+                logger.info(f"User deleted from Firebase: {user.firebase_uid}")
+            except Exception as e:
+                logger.error(f"Error deleting user from Firebase: {e}")
+                # Continue with DB deletion even if Firebase deletion fails
+        
         # Soft delete using is_active
         user.is_active = False
         user.updated_at = utc_now()

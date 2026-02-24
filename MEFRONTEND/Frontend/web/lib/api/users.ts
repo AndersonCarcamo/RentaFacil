@@ -196,10 +196,10 @@ export const deleteAvatar = async (): Promise<{ message: string }> => {
 /**
  * Elimina la cuenta del usuario
  */
-export const deleteAccount = async (password: string): Promise<{ message: string }> => {
+export const deleteAccount = async (reason?: string): Promise<{ message: string }> => {
   const response = await authenticatedFetch('/v1/users/me', {
     method: 'DELETE',
-    body: JSON.stringify({ password }),
+    body: JSON.stringify({ reason }),
   });
   return response.json();
 };
