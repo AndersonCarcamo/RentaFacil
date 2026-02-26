@@ -4,6 +4,7 @@ Endpoints para el sistema de reservas Airbnb
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 from typing import List, Optional
 from datetime import date, datetime, timedelta
 from uuid import UUID
@@ -11,6 +12,7 @@ import logging
 from decimal import Decimal
 import os
 from pathlib import Path
+import hashlib
 
 from ...core.database import get_db
 from ...api.deps import get_current_user
@@ -35,6 +37,16 @@ from ...schemas.notifications import NotificationCreate
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+def _advisory_lock_key(value: str) -> int:
+    digest = hashlib.sha256(value.encode("utf-8")).digest()
+    return int.from_bytes(digest[:8], byteorder="big", signed=False) % 9223372036854775807
+
+
+def _acquire_xact_lock(db: Session, resource: str) -> None:
+    lock_key = _advisory_lock_key(resource)
+    db.execute(text("SELECT pg_advisory_xact_lock(:lock_key)"), {"lock_key": lock_key})
 
 # =====================================================
 # CALENDAR ENDPOINTS
@@ -274,33 +286,41 @@ async def create_booking(
         logger.info(f"Usuario autenticado: {current_user.id}, Email: {current_user.email}")
         logger.info(f"Datos de reserva recibidos: listing_id={data.listing_id}, check_in={data.check_in_date}, check_out={data.check_out_date}")
         
-        # 1. Verificar que el listing existe
-        listing = db.query(Listing).filter(Listing.id == UUID(data.listing_id)).first()
+        # 1. Lock transaccional por listing para evitar doble reserva concurrente
+        _acquire_xact_lock(db, f"booking:create:{data.listing_id}")
+
+        # 2. Verificar que el listing existe (bloqueando fila)
+        listing = (
+            db.query(Listing)
+            .filter(Listing.id == UUID(data.listing_id))
+            .with_for_update()
+            .first()
+        )
         if not listing:
             raise HTTPException(status_code=404, detail="Propiedad no encontrada")
         
-        # 2. Verificar que el listing es tipo Airbnb
+        # 3. Verificar que el listing es tipo Airbnb
         if listing.rental_model != 'airbnb':
             raise HTTPException(
                 status_code=400,
                 detail="Esta propiedad no está disponible para reservas tipo Airbnb"
             )
         
-        # 3. Verificar que el usuario no esté reservando su propia propiedad
+        # 4. Verificar que el usuario no esté reservando su propia propiedad
         if str(listing.owner_user_id) == str(current_user.id):
             raise HTTPException(
                 status_code=400,
                 detail="No puedes reservar tu propia propiedad"
             )
         
-        # 4. Verificar número de huéspedes
+        # 5. Verificar número de huéspedes
         if listing.max_guests and data.number_of_guests > listing.max_guests:
             raise HTTPException(
                 status_code=400,
                 detail=f"El número de huéspedes excede el máximo permitido ({listing.max_guests})"
             )
         
-        # 5. Calcular noches
+        # 6. Calcular noches
         nights = (data.check_out_date - data.check_in_date).days
         if nights < 1:
             raise HTTPException(
@@ -308,7 +328,7 @@ async def create_booking(
                 detail="La reserva debe ser de al menos 1 noche"
             )
         
-        # 6. Verificar disponibilidad usando la función SQL
+        # 7. Verificar disponibilidad usando la función SQL
         availability_query = text("""
             SELECT core.check_availability(
                 CAST(:listing_id AS uuid),
@@ -332,13 +352,13 @@ async def create_booking(
                 detail="Las fechas seleccionadas no están disponibles"
             )
         
-        # 7. Calcular precios
+        # 8. Calcular precios
         price_per_night = float(listing.price)
         total_price = Decimal(str(price_per_night * nights))
         reservation_amount = total_price / 2  # 50% inicial
         checkin_amount = total_price / 2      # 50% al check-in
         
-        # 8. Crear la reserva
+        # 9. Crear la reserva
         booking = Booking(
             listing_id=UUID(data.listing_id),
             listing_created_at=listing.created_at,
@@ -662,7 +682,13 @@ async def confirm_booking(
     Envía email al huésped solicitando pago del 50% en 6 horas.
     """
     try:
-        booking = db.query(Booking).filter(Booking.id == UUID(booking_id)).first()
+        _acquire_xact_lock(db, f"booking:confirm:{booking_id}")
+        booking = (
+            db.query(Booking)
+            .filter(Booking.id == UUID(booking_id))
+            .with_for_update()
+            .first()
+        )
         
         if not booking:
             raise HTTPException(status_code=404, detail="Reserva no encontrada")
@@ -1024,7 +1050,14 @@ async def process_payment(
     Requiere el token generado por Culqi en el frontend.
     """
     try:
-        booking = db.query(Booking).filter(Booking.id == UUID(booking_id)).first()
+        payment_record = None
+        _acquire_xact_lock(db, f"booking:payment:{booking_id}")
+        booking = (
+            db.query(Booking)
+            .filter(Booking.id == UUID(booking_id))
+            .with_for_update()
+            .first()
+        )
         
         if not booking:
             raise HTTPException(status_code=404, detail="Reserva no encontrada")
@@ -1034,17 +1067,128 @@ async def process_payment(
                 status_code=403,
                 detail="No tienes permiso para realizar esta acción"
             )
+
+        payment_type = (payment_data.get('payment_type') or 'reservation').lower()
+        if payment_type not in ['reservation', 'full']:
+            raise HTTPException(
+                status_code=400,
+                detail="payment_type inválido. Solo se permite 'reservation' o 'full'"
+            )
+
+        # Idempotencia: si ya está pagada, devolver estado exitoso sin reprocesar cargo
+        if booking.status == 'reservation_paid':
+            completed_payment = (
+                db.query(BookingPayment)
+                .filter(
+                    BookingPayment.booking_id == booking.id,
+                    BookingPayment.payment_type.in_(['reservation', 'full']),
+                    BookingPayment.status == 'completed'
+                )
+                .order_by(BookingPayment.created_at.desc())
+                .first()
+            )
+            return {
+                "message": "Pago ya procesado previamente",
+                "booking_id": str(booking.id),
+                "charge_id": completed_payment.stripe_charge_id if completed_payment else None,
+                "amount": float(booking.reservation_amount),
+                "status": booking.status,
+                "already_processed": True
+            }
         
         if booking.status != 'confirmed':
             raise HTTPException(
                 status_code=400,
                 detail=f"No se puede procesar pago para estado: {booking.status}"
             )
+
+        # Serializar operaciones de calendario para el mismo listing
+        _acquire_xact_lock(db, f"booking:calendar:{booking.listing_id}")
         
         # Obtener el token de Culqi del frontend
         culqi_token = payment_data.get('token')
         if not culqi_token:
             raise HTTPException(status_code=400, detail="Token de Culqi no proporcionado")
+
+        idempotency_key = (
+            payment_data.get('idempotency_key')
+            or payment_data.get('idempotencyKey')
+            or culqi_token
+        )
+
+        # Buscar operación previa por booking + payment_type + idempotency_key
+        existing_payment_row = db.execute(
+            text("""
+                SELECT id
+                FROM core.booking_payments
+                WHERE booking_id = :booking_id
+                    AND payment_type = :payment_type
+                    AND metadata->>'idempotency_key' = :idempotency_key
+                ORDER BY created_at DESC
+                LIMIT 1
+                FOR UPDATE
+            """),
+            {
+                "booking_id": booking.id,
+                "payment_type": payment_type,
+                "idempotency_key": idempotency_key,
+            }
+        ).fetchone()
+
+        if existing_payment_row:
+            payment_record = (
+                db.query(BookingPayment)
+                .filter(BookingPayment.id == existing_payment_row.id)
+                .with_for_update()
+                .first()
+            )
+
+            if payment_record and payment_record.status == 'completed':
+                return {
+                    "message": "Pago ya procesado (idempotencia)",
+                    "booking_id": str(booking.id),
+                    "charge_id": payment_record.stripe_charge_id,
+                    "amount": float(booking.reservation_amount),
+                    "status": booking.status,
+                    "already_processed": True
+                }
+
+            if payment_record and payment_record.status == 'processing':
+                return {
+                    "message": "Pago en procesamiento, intenta nuevamente en unos segundos",
+                    "booking_id": str(booking.id),
+                    "payment_id": str(payment_record.id),
+                    "status": booking.status,
+                    "payment_status": payment_record.status
+                }
+
+        if not payment_record:
+            payment_record = BookingPayment(
+                booking_id=booking.id,
+                payment_type=payment_type,
+                amount=booking.reservation_amount,
+                status='processing',
+                extra_metadata={
+                    "provider": "culqi",
+                    "idempotency_key": idempotency_key,
+                    "culqi_token": culqi_token,
+                    "started_at": datetime.utcnow().isoformat()
+                }
+            )
+            db.add(payment_record)
+        else:
+            payment_record.amount = booking.reservation_amount
+            payment_record.status = 'processing'
+            metadata = payment_record.extra_metadata or {}
+            metadata.update({
+                "provider": "culqi",
+                "idempotency_key": idempotency_key,
+                "culqi_token": culqi_token,
+                "retried_at": datetime.utcnow().isoformat()
+            })
+            payment_record.extra_metadata = metadata
+
+        db.flush()
         
         # Configuración de Culqi
         import requests
@@ -1164,11 +1308,22 @@ async def process_payment(
         # Actualizar booking según el resultado
         charge_id = charge_result.get('id', 'unknown')
         logger.info(f"🔑 Charge ID: {charge_id}, Action code: {action_code}, Outcome: {charge_outcome}")
+
+        payment_metadata = payment_record.extra_metadata or {}
+        payment_metadata.update({
+            "culqi_charge_id": charge_id,
+            "culqi_action_code": action_code,
+            "culqi_outcome": charge_outcome,
+            "updated_at": datetime.utcnow().isoformat()
+        })
+        payment_record.stripe_charge_id = charge_id
+        payment_record.extra_metadata = payment_metadata
         
         if action_code == 'REVIEW' or charge_outcome.get('type') == 'pendiente':
             # Cargo pendiente de autenticación 3DS
             booking.status = 'pending_payment'
             booking.payment_proof_url = f"culqi_charge_{charge_id}_pending"
+            payment_record.status = 'processing'
             logger.info(f"⏳ Pago pendiente de autenticación 3DS para reserva {booking_id}")
             message = "Pago pendiente de autenticación. Por favor completa la autenticación 3DS."
         elif charge_outcome.get('type') == 'venta_exitosa':
@@ -1178,6 +1333,8 @@ async def process_payment(
             booking.payment_proof_url = f"culqi_charge_{charge_id}"
             booking.payment_verified_at = datetime.utcnow()
             booking.payment_verified_by = current_user.id
+            payment_record.status = 'completed'
+            payment_record.paid_at = datetime.utcnow()
             logger.info(f"✅ Pago procesado exitosamente para reserva {booking_id}")
             message = "Pago procesado exitosamente"
             
@@ -1193,27 +1350,44 @@ async def process_payment(
                     raise ValueError("Listing no encontrado")
                 
                 while current_date < booking.check_out_date:
-                    # Buscar si ya existe entrada para esta fecha
-                    calendar_entry = db.query(BookingCalendar).filter(
-                        BookingCalendar.listing_id == booking.listing_id,
-                        BookingCalendar.date == current_date
-                    ).first()
-                    
-                    if calendar_entry:
-                        # Actualizar entrada existente
-                        calendar_entry.is_available = False
-                        calendar_entry.booking_id = booking.id
-                    else:
-                        # Crear nueva entrada
-                        calendar_entry = BookingCalendar(
-                            listing_id=booking.listing_id,
-                            listing_created_at=listing.created_at,
-                            date=current_date,
-                            is_available=False,
-                            booking_id=booking.id,
-                            price_override=price_per_night
-                        )
-                        db.add(calendar_entry)
+                    db.execute(
+                        text("""
+                            INSERT INTO core.booking_calendar (
+                                listing_id,
+                                listing_created_at,
+                                date,
+                                is_available,
+                                booking_id,
+                                price_override,
+                                created_at,
+                                updated_at
+                            )
+                            VALUES (
+                                :listing_id,
+                                :listing_created_at,
+                                :calendar_date,
+                                FALSE,
+                                :booking_id,
+                                :price_override,
+                                now(),
+                                now()
+                            )
+                            ON CONFLICT (listing_id, listing_created_at, date)
+                            DO UPDATE
+                            SET
+                                is_available = FALSE,
+                                booking_id = EXCLUDED.booking_id,
+                                price_override = EXCLUDED.price_override,
+                                updated_at = now()
+                        """),
+                        {
+                            "listing_id": booking.listing_id,
+                            "listing_created_at": listing.created_at,
+                            "calendar_date": current_date,
+                            "booking_id": booking.id,
+                            "price_override": price_per_night,
+                        }
+                    )
                     
                     current_date += timedelta(days=1)
                 
@@ -1222,6 +1396,13 @@ async def process_payment(
             except Exception as calendar_error:
                 logger.error(f"❌ Error bloqueando fechas en calendario: {calendar_error}")
                 db.rollback()  # Rollback si hay error
+                if isinstance(calendar_error, IntegrityError):
+                    error_text = str(calendar_error.orig) if getattr(calendar_error, "orig", None) else str(calendar_error)
+                    if "uq_booking_payments_external_charge" in error_text:
+                        raise HTTPException(
+                            status_code=409,
+                            detail="La operación de pago ya fue registrada. Reintenta consultando el estado de la reserva."
+                        )
                 raise HTTPException(status_code=500, detail=f"Error bloqueando fechas: {str(calendar_error)}")
             
             # --- NOTIFICAR AL PROPIETARIO ---
@@ -1269,6 +1450,7 @@ async def process_payment(
             logger.warning(f"⚠️ Estado desconocido de cargo: {charge_result}")
             booking.status = 'pending_payment'
             booking.payment_proof_url = f"culqi_charge_{charge_id}_unknown"
+            payment_record.status = 'processing'
             message = "Pago en proceso de verificación"
         
         db.commit()
@@ -1285,8 +1467,28 @@ async def process_payment(
             "outcome": charge_outcome
         }
         
-    except HTTPException:
+    except HTTPException as http_error:
+        if 'payment_record' in locals() and payment_record is not None:
+            try:
+                if payment_record.status == 'processing':
+                    metadata = payment_record.extra_metadata or {}
+                    metadata.update({
+                        "last_error": str(http_error.detail),
+                        "failed_at": datetime.utcnow().isoformat()
+                    })
+                    payment_record.extra_metadata = metadata
+                    payment_record.status = 'failed'
+                    db.commit()
+            except Exception:
+                db.rollback()
         raise
+    except IntegrityError as e:
+        logger.warning(f"Conflicto de idempotencia procesando pago {booking_id}: {e}")
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="La operación de pago ya fue registrada. Reintenta consultando el estado de la reserva."
+        )
     except Exception as e:
         logger.error(f"Error procesando pago: {e}")
         db.rollback()
@@ -1310,7 +1512,13 @@ async def verify_payment(
     Si se rechaza, se puede solicitar nuevo comprobante.
     """
     try:
-        booking = db.query(Booking).filter(Booking.id == UUID(booking_id)).first()
+        _acquire_xact_lock(db, f"booking:verify:{booking_id}")
+        booking = (
+            db.query(Booking)
+            .filter(Booking.id == UUID(booking_id))
+            .with_for_update()
+            .first()
+        )
         
         if not booking:
             raise HTTPException(status_code=404, detail="Reserva no encontrada")

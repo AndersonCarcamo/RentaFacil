@@ -4,6 +4,7 @@ Script de prueba para el sistema de plazo de pago
 import requests
 import json
 from datetime import datetime
+import pytest
 
 BASE_URL = "http://localhost:8000/v1"
 
@@ -11,6 +12,14 @@ BASE_URL = "http://localhost:8000/v1"
 OWNER_TOKEN = "tu_token_de_propietario"
 ADMIN_TOKEN = "tu_token_de_admin"
 BOOKING_ID = "uuid_de_la_reserva"
+
+
+def _is_manual_configured() -> bool:
+    return not (
+        OWNER_TOKEN == "tu_token_de_propietario"
+        or ADMIN_TOKEN == "tu_token_de_admin"
+        or BOOKING_ID == "uuid_de_la_reserva"
+    )
 
 
 def test_confirm_booking():
@@ -22,6 +31,9 @@ def test_confirm_booking():
     print("TEST 1: Confirmar Reserva")
     print("="*60)
     
+    if not _is_manual_configured():
+        pytest.skip("Configura OWNER_TOKEN/ADMIN_TOKEN/BOOKING_ID reales para esta prueba manual")
+
     url = f"{BASE_URL}/bookings/{BOOKING_ID}/confirm"
     headers = {"Authorization": f"Bearer {OWNER_TOKEN}"}
     
@@ -30,19 +42,15 @@ def test_confirm_booking():
         print(f"Status Code: {response.status_code}")
         print(f"Response: {json.dumps(response.json(), indent=2)}")
         
-        if response.status_code == 200:
-            data = response.json()
-            print(f"\n✅ Reserva confirmada exitosamente")
-            print(f"📧 Email enviado al huésped")
-            print(f"⏰ Deadline de pago: {data.get('payment_deadline')}")
-            return True
-        else:
-            print(f"\n❌ Error: {response.json()}")
-            return False
+        assert response.status_code == 200, response.text
+        data = response.json()
+        print(f"\n✅ Reserva confirmada exitosamente")
+        print(f"📧 Email enviado al huésped")
+        print(f"⏰ Deadline de pago: {data.get('payment_deadline')}")
             
     except Exception as e:
         print(f"❌ Error en la prueba: {e}")
-        return False
+        pytest.fail(f"Error en la prueba: {e}")
 
 
 def test_check_payment_status():
@@ -53,6 +61,9 @@ def test_check_payment_status():
     print("TEST 2: Consultar Estado de Pagos")
     print("="*60)
     
+    if not _is_manual_configured():
+        pytest.skip("Configura OWNER_TOKEN/ADMIN_TOKEN/BOOKING_ID reales para esta prueba manual")
+
     url = f"{BASE_URL}/scheduled-tasks/booking-payment-status"
     headers = {"Authorization": f"Bearer {ADMIN_TOKEN}"}
     
@@ -60,26 +71,21 @@ def test_check_payment_status():
         response = requests.get(url, headers=headers)
         print(f"Status Code: {response.status_code}")
         
-        if response.status_code == 200:
-            data = response.json()
-            print(f"\n✅ Total de reservas: {data.get('total')}")
-            
-            for booking in data.get('bookings', [])[:5]:  # Mostrar primeras 5
-                print(f"\nBooking ID: {booking['booking_id']}")
-                print(f"  Estado: {booking['status']}")
-                print(f"  Estado de pago: {booking['payment_status']}")
-                if booking['hours_remaining']:
-                    print(f"  Horas restantes: {booking['hours_remaining']:.2f}")
-                print(f"  Deadline: {booking['payment_deadline']}")
-            
-            return True
-        else:
-            print(f"\n❌ Error: {response.json()}")
-            return False
+        assert response.status_code == 200, response.text
+        data = response.json()
+        print(f"\n✅ Total de reservas: {data.get('total')}")
+        
+        for booking in data.get('bookings', [])[:5]:  # Mostrar primeras 5
+            print(f"\nBooking ID: {booking['booking_id']}")
+            print(f"  Estado: {booking['status']}")
+            print(f"  Estado de pago: {booking['payment_status']}")
+            if booking['hours_remaining']:
+                print(f"  Horas restantes: {booking['hours_remaining']:.2f}")
+            print(f"  Deadline: {booking['payment_deadline']}")
             
     except Exception as e:
         print(f"❌ Error en la prueba: {e}")
-        return False
+        pytest.fail(f"Error en la prueba: {e}")
 
 
 def test_cancel_expired():
@@ -90,6 +96,9 @@ def test_cancel_expired():
     print("TEST 3: Cancelar Reservas Expiradas")
     print("="*60)
     
+    if not _is_manual_configured():
+        pytest.skip("Configura OWNER_TOKEN/ADMIN_TOKEN/BOOKING_ID reales para esta prueba manual")
+
     url = f"{BASE_URL}/scheduled-tasks/cancel-expired-payments"
     headers = {"Authorization": f"Bearer {ADMIN_TOKEN}"}
     
@@ -97,28 +106,23 @@ def test_cancel_expired():
         response = requests.post(url, headers=headers)
         print(f"Status Code: {response.status_code}")
         
-        if response.status_code == 200:
-            data = response.json()
-            print(f"\n✅ Tarea ejecutada exitosamente")
-            print(f"📊 Reservas canceladas: {data.get('cancelled_count')}")
-            
-            if data.get('cancelled_count', 0) > 0:
-                print("\nReservas canceladas:")
-                for booking in data.get('bookings', []):
-                    print(f"  - {booking['listing_title']}")
-                    print(f"    Email: {booking['guest_email']}")
-                    print(f"    Deadline: {booking['deadline']}")
-            else:
-                print("No hay reservas expiradas para cancelar")
-            
-            return True
+        assert response.status_code == 200, response.text
+        data = response.json()
+        print(f"\n✅ Tarea ejecutada exitosamente")
+        print(f"📊 Reservas canceladas: {data.get('cancelled_count')}")
+        
+        if data.get('cancelled_count', 0) > 0:
+            print("\nReservas canceladas:")
+            for booking in data.get('bookings', []):
+                print(f"  - {booking['listing_title']}")
+                print(f"    Email: {booking['guest_email']}")
+                print(f"    Deadline: {booking['deadline']}")
         else:
-            print(f"\n❌ Error: {response.json()}")
-            return False
+            print("No hay reservas expiradas para cancelar")
             
     except Exception as e:
         print(f"❌ Error en la prueba: {e}")
-        return False
+        pytest.fail(f"Error en la prueba: {e}")
 
 
 def test_send_reminders():
@@ -129,6 +133,9 @@ def test_send_reminders():
     print("TEST 4: Enviar Recordatorios de Pago")
     print("="*60)
     
+    if not _is_manual_configured():
+        pytest.skip("Configura OWNER_TOKEN/ADMIN_TOKEN/BOOKING_ID reales para esta prueba manual")
+
     url = f"{BASE_URL}/scheduled-tasks/send-payment-reminders"
     headers = {"Authorization": f"Bearer {ADMIN_TOKEN}"}
     
@@ -136,20 +143,15 @@ def test_send_reminders():
         response = requests.post(url, headers=headers)
         print(f"Status Code: {response.status_code}")
         
-        if response.status_code == 200:
-            data = response.json()
-            print(f"\n✅ Tarea ejecutada exitosamente")
-            print(f"📊 Recordatorios pendientes: {data.get('warnings_count')}")
-            print(f"📧 Emails enviados: {data.get('sent_count')}")
-            
-            return True
-        else:
-            print(f"\n❌ Error: {response.json()}")
-            return False
+        assert response.status_code == 200, response.text
+        data = response.json()
+        print(f"\n✅ Tarea ejecutada exitosamente")
+        print(f"📊 Recordatorios pendientes: {data.get('warnings_count')}")
+        print(f"📧 Emails enviados: {data.get('sent_count')}")
             
     except Exception as e:
         print(f"❌ Error en la prueba: {e}")
-        return False
+        pytest.fail(f"Error en la prueba: {e}")
 
 
 def run_all_tests():

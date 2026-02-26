@@ -76,7 +76,7 @@ async def register_complete(
         existing_by_email = auth_service.get_user_by_email(firebase_email)
         if existing_by_email:
             if request.cleanup_firebase_on_failure:
-                await firebase_service.delete_user_by_uid(firebase_uid)
+                firebase_service.delete_user_by_uid(firebase_uid)
             raise http_409_conflict(ERROR_MESSAGES["EMAIL_EXISTS"])
 
         user_data = UserRegisterRequest(
@@ -99,7 +99,7 @@ async def register_complete(
         raise
     except Exception as e:
         if request.cleanup_firebase_on_failure and firebase_uid:
-            deleted = await firebase_service.delete_user_by_uid(firebase_uid)
+            deleted = firebase_service.delete_user_by_uid(firebase_uid)
             if deleted:
                 logger.info(
                     f"Compensation applied on register/complete: deleted Firebase user {firebase_uid}"
@@ -169,7 +169,7 @@ async def register(
         
     except HTTPException as exc:
         if firebase_uid_to_cleanup:
-            deleted = await firebase_service.delete_user_by_uid(firebase_uid_to_cleanup)
+            deleted = firebase_service.delete_user_by_uid(firebase_uid_to_cleanup)
             if deleted:
                 logger.info(
                     f"Compensation applied: deleted Firebase user {firebase_uid_to_cleanup}"
@@ -182,7 +182,7 @@ async def register(
         raise exc
     except Exception as e:
         if firebase_uid_to_cleanup:
-            deleted = await firebase_service.delete_user_by_uid(firebase_uid_to_cleanup)
+            deleted = firebase_service.delete_user_by_uid(firebase_uid_to_cleanup)
             if deleted:
                 logger.info(
                     f"Compensation applied: deleted Firebase user {firebase_uid_to_cleanup}"

@@ -4,6 +4,7 @@
 \set app_user 'rf_app'
 
 -- Required Extensions
+CREATE EXTENSION IF NOT EXISTS citext;
 CREATE EXTENSION IF NOT EXISTS pgcrypto;           -- UUID generation
 CREATE EXTENSION IF NOT EXISTS btree_gin;          -- Composite indexes
 CREATE EXTENSION IF NOT EXISTS pg_trgm;            -- Trigram similarity search

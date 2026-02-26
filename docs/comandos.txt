@@ -18,4 +18,36 @@ gunicorn app.main:app -k uvicorn.workers.UvicornWorker --bind 100.119.186.126:80
 
 - Agregar nueva regla para el 8000
 
-el comando es: 
+#### docker
+
+docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build --force-recreate app
+
+docker compose --env-file .env.production -f docker-compose.prod.yml logs --tail=200 app
+
+curl -i http://localhost:8080/
+
+## Upgrade DB (Docker Prod)
+
+### 1) Rebuild y levantar app con código nuevo
+docker compose -f MAEBACKEND/backend_api/docker-compose.prod.yml up -d --build app
+
+### 2) Verificar heads disponibles
+docker compose -f MAEBACKEND/backend_api/docker-compose.prod.yml run --rm -T app alembic heads
+
+### 3) Ver revisión actual en la BD
+docker compose -f MAEBACKEND/backend_api/docker-compose.prod.yml run --rm -T app alembic current
+
+### 4) Upgrade normal
+docker compose -f MAEBACKEND/backend_api/docker-compose.prod.yml run --rm -T app alembic upgrade head
+
+### 5) Verificación final
+docker compose -f MAEBACKEND/backend_api/docker-compose.prod.yml run --rm -T app alembic current
+curl -s http://localhost:8080/v1/media/health | python3 -m json.tool
+
+### 6) Si falla por tablas duplicadas de baseline (BD ya provisionada)
+# Solo cuando la BD ya tiene tablas creadas fuera de Alembic
+docker compose -f MAEBACKEND/backend_api/docker-compose.prod.yml run --rm -T app alembic stamp d187588fa76d
+docker compose -f MAEBACKEND/backend_api/docker-compose.prod.yml run --rm -T app alembic upgrade head
+
+### 7) Logs rápidos de diagnóstico
+docker compose -f MAEBACKEND/backend_api/docker-compose.prod.yml logs --tail=200 app

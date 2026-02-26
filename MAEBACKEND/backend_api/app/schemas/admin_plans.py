@@ -19,7 +19,7 @@ class SubscriptionPlanLimits(BaseModel):
     priority_support: Optional[bool] = Field(None, description="Soporte prioritario")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "max_listings": 20,
                 "max_images": 15,
@@ -49,7 +49,7 @@ class SubscriptionPlanUpdate(BaseModel):
         return v
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "name": "Premium",
                 "description": "Para arrendadores que quieren destacar",
@@ -88,8 +88,8 @@ class SubscriptionPlanResponse(BaseModel):
     updated_at: datetime
     
     class Config:
-        orm_mode = True
-        schema_extra = {
+        from_attributes = True
+        json_schema_extra = {
             "example": {
                 "id": "premium",
                 "name": "Premium",
@@ -123,7 +123,7 @@ class AdminUserCreate(BaseModel):
     email: EmailStr = Field(..., description="Email del usuario a convertir en administrador")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "email": "nuevo.admin@easyrent.pe"
             }
@@ -138,7 +138,7 @@ class AdminUserResponse(BaseModel):
     isSystemAdmin: bool = Field(default=False, description="Es un admin del sistema (no eliminable)")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "email": "admin@easyrent.pe",
                 "addedDate": "2024-01-01T00:00:00",
@@ -164,7 +164,7 @@ class AdminActionLog(BaseModel):
     created_at: datetime
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "id": "log_123",
                 "admin_email": "admin@easyrent.pe",
@@ -193,7 +193,7 @@ class AdminOverviewStats(BaseModel):
     lastUpdated: str
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "totalUsers": 1234,
                 "activeListings": 567,

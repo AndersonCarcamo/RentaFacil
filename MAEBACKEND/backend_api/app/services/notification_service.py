@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_, or_, desc, asc
+from sqlalchemy import func, and_, or_, desc, asc, text
 from typing import List, Optional, Dict, Any, Tuple
 from uuid import UUID
 from datetime import datetime, timedelta
@@ -493,10 +493,111 @@ class NotificationService:
         queue_item = NotificationQueue(
             notification_id=notification.id,
             priority_score=priority_score,
-            scheduled_for=datetime.utcnow()
+            scheduled_for=datetime.utcnow(),
+            available_at=datetime.utcnow(),
+            processing=False,
+            locked_at=None,
+            lock_owner=None
         )
         
         self.db.add(queue_item)
+
+    def claim_notification_queue_items(
+        self,
+        worker_id: str,
+        batch_size: int = 50,
+        lease_seconds: int = 60
+    ) -> List[NotificationQueue]:
+        """Reclamar items de cola de forma concurrente usando SKIP LOCKED."""
+        claim_sql = text(
+            """
+            WITH picked AS (
+                SELECT id
+                FROM core.notification_queue
+                WHERE processing = FALSE
+                  AND scheduled_for <= now()
+                  AND available_at <= now()
+                ORDER BY priority_score DESC, created_at ASC
+                LIMIT :batch_size
+                FOR UPDATE SKIP LOCKED
+            )
+            UPDATE core.notification_queue q
+            SET processing = TRUE,
+                processing_started_at = now(),
+                worker_id = :worker_id,
+                locked_at = now(),
+                lock_owner = :worker_id,
+                updated_at = now()
+            FROM picked
+            WHERE q.id = picked.id
+            RETURNING q.id
+            """
+        )
+
+        result = self.db.execute(
+            claim_sql,
+            {
+                "worker_id": worker_id,
+                "batch_size": batch_size,
+                "lease_seconds": lease_seconds,
+            },
+        )
+        queue_ids = [row[0] for row in result.fetchall()]
+
+        if not queue_ids:
+            return []
+
+        items = (
+            self.db.query(NotificationQueue)
+            .filter(NotificationQueue.id.in_(queue_ids))
+            .order_by(desc(NotificationQueue.priority_score), asc(NotificationQueue.created_at))
+            .all()
+        )
+        self.db.commit()
+        return items
+
+    def complete_notification_queue_item(self, queue_id: UUID) -> bool:
+        """Marcar item de cola como completado y retirarlo de la cola."""
+        queue_item = self.db.query(NotificationQueue).filter(NotificationQueue.id == queue_id).first()
+        if not queue_item:
+            return False
+
+        notification = self.db.query(Notification).filter(Notification.id == queue_item.notification_id).first()
+        if notification:
+            notification.status = NotificationStatus.DELIVERED
+            notification.sent_at = notification.sent_at or datetime.utcnow()
+            notification.delivered_at = datetime.utcnow()
+
+        self.db.delete(queue_item)
+        self.db.commit()
+        return True
+
+    def fail_notification_queue_item(
+        self,
+        queue_id: UUID,
+        error_message: str,
+        retry_delay_seconds: int = 60
+    ) -> bool:
+        """Liberar item de cola fallido para reintento."""
+        queue_item = self.db.query(NotificationQueue).filter(NotificationQueue.id == queue_id).first()
+        if not queue_item:
+            return False
+
+        queue_item.retry_count = (queue_item.retry_count or 0) + 1
+        queue_item.last_error = error_message
+        queue_item.processing = False
+        queue_item.worker_id = None
+        queue_item.locked_at = None
+        queue_item.lock_owner = None
+        queue_item.available_at = datetime.utcnow() + timedelta(seconds=retry_delay_seconds)
+        queue_item.processing_started_at = None
+
+        notification = self.db.query(Notification).filter(Notification.id == queue_item.notification_id).first()
+        if notification:
+            notification.status = NotificationStatus.FAILED
+
+        self.db.commit()
+        return True
     
     def _calculate_notification_priority_score(self, priority: NotificationPriority) -> int:
         """Calcular score de prioridad"""

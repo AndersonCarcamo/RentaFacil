@@ -3,6 +3,8 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 from pathlib import Path
 from app.api.endpoints.auth import router as auth_router
 from app.api.endpoints.users import router as users_router
@@ -94,18 +96,36 @@ configured_frontend_origins = [
     origin.strip() for origin in (settings.frontend_url or "").split(",") if origin.strip()
 ]
 
-cors_origins = [
-    "http://localhost:3000",  # React development
-    "http://localhost:3001",  # Alternative React port
-    "http://127.0.0.1:3000",  # React development (IP)
-    "http://127.0.0.1:3001",  # Alternative React port (IP)
-    "http://localhost:8000",  # Backend mismo origen
-    "http://127.0.0.1:8000",  # Backend mismo origen (IP)
-    "http://localhost:19006",  # Expo development
-    "http://127.0.0.1:19006",
-    "http://192.168.18.51:3000",  # Frontend en red local
-    *configured_frontend_origins,
+configured_cors_origins = [
+    origin.strip() for origin in (settings.cors_allowed_origins or "").split(",") if origin.strip()
 ]
+
+if settings.environment.lower() == "production":
+    cors_origins = configured_cors_origins or configured_frontend_origins
+else:
+    cors_origins = [
+        "http://localhost:3000",  # React development
+        "http://localhost:3001",  # Alternative React port
+        "http://127.0.0.1:3000",  # React development (IP)
+        "http://127.0.0.1:3001",  # Alternative React port (IP)
+        "http://localhost:8000",  # Backend mismo origen
+        "http://127.0.0.1:8000",  # Backend mismo origen (IP)
+        "http://localhost:19006",  # Expo development
+        "http://127.0.0.1:19006",
+        "http://192.168.18.51:3000",  # Frontend en red local
+        *configured_frontend_origins,
+        *configured_cors_origins,
+    ]
+
+trusted_hosts = [
+    host.strip() for host in (settings.allowed_hosts or "").split(",") if host.strip()
+]
+
+if trusted_hosts:
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=list(dict.fromkeys(trusted_hosts)))
+
+if settings.enforce_https_redirect:
+    app.add_middleware(HTTPSRedirectMiddleware)
 
 app.add_middleware(
     CORSMiddleware,

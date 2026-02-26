@@ -30,7 +30,7 @@ class ServiceHealthResponse(BaseModel):
     details: Optional[Dict[str, Any]] = Field(None, description="Additional service details")
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "status": "healthy",
                 "response_time_ms": 12.5,
@@ -53,7 +53,7 @@ class HealthCheckResponse(BaseModel):
     request_count: Optional[int] = Field(None, description="Total requests processed")
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "status": "healthy",
                 "timestamp": "2023-10-15T10:30:00Z",
@@ -89,7 +89,7 @@ class VersionResponse(BaseModel):
     dependencies: Optional[Dict[str, str]] = Field(None, description="Key dependency versions")
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "version": "1.2.3",
                 "build": "build-456",
@@ -117,7 +117,7 @@ class SystemStatsResponse(BaseModel):
     cache_stats: Optional[Dict[str, Any]] = Field(None, description="Cache statistics")
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "uptime_seconds": 86400,
                 "memory_usage": {
@@ -153,7 +153,7 @@ class DocumentationResponse(BaseModel):
     tags: Optional[list] = Field(None, description="Available endpoint tags")
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "title": "EasyRent API",
                 "version": "1.0.0",
@@ -181,7 +181,7 @@ class SystemError(BaseModel):
     details: Optional[Dict[str, Any]] = None
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "error": "database_connection_failed",
                 "message": "Unable to connect to the database",

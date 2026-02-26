@@ -64,7 +64,7 @@ class ApiKeyCreate(BaseModel):
         return unique_scopes
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "name": "My App API Key",
                 "description": "API key for my mobile application",
@@ -106,7 +106,7 @@ class ApiKeyUpdate(BaseModel):
         return v
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "name": "Updated API Key Name",
                 "scopes": ["read", "write", "admin"],
@@ -135,7 +135,7 @@ class ApiKeyResponse(BaseModel):
     
     class Config:
         from_attributes = True
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "id": "550e8400-e29b-41d4-a716-446655440000",
                 "name": "My App API Key",
@@ -180,7 +180,7 @@ class ApiKeyListResponse(BaseModel):
     limit: int
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "data": [
                     {
@@ -205,7 +205,7 @@ class ApiKeyRegenerateResponse(BaseModel):
     updated_at: datetime
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "key": "pk_live_abcdef1234567890abcdef1234567890",
                 "key_prefix": "pk_live_",
@@ -245,7 +245,7 @@ class ApiKeyUsageStatsResponse(BaseModel):
     hourly_usage: List[Dict[str, Any]]
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "total_requests": 15430,
                 "requests_last_24h": 243,
@@ -295,7 +295,7 @@ class DeveloperApplicationCreate(BaseModel):
         return v
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "name": "My Real Estate App",
                 "description": "A mobile app for property listings",
@@ -348,7 +348,7 @@ class DeveloperApplicationResponse(BaseModel):
 
     class Config:
         from_attributes = True
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "id": "550e8400-e29b-41d4-a716-446655440000",
                 "name": "My Real Estate App",
@@ -383,7 +383,7 @@ class ApiKeyError(BaseModel):
     details: Optional[Dict[str, Any]] = None
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "error": "api_key_not_found",
                 "message": "The specified API key was not found",

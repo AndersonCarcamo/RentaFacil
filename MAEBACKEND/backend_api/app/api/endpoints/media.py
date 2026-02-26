@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from typing import List, Optional
 from app.core.database import get_db
 from app.api.deps import get_current_user
@@ -343,7 +344,7 @@ async def delete_video(
 # UPLOAD URL ENDPOINT
 # =====================================
 
-@router.post("/media/upload-url",
+@router.post("/upload-url",
             response_model=UploadUrlResponse,
             summary="Obtener URL de subida directa")
 async def get_upload_url(
@@ -368,7 +369,7 @@ async def get_upload_url(
 # UTILIDADES Y ESTADÍSTICAS
 # =====================================
 
-@router.get("/media/stats",
+@router.get("/stats",
            summary="Obtener estadísticas del sistema de media")
 async def get_media_stats(
     db: Session = Depends(get_db),
@@ -389,7 +390,7 @@ async def get_media_stats(
         raise HTTPException(status_code=500, detail=f"Error getting stats: {str(e)}")
 
 
-@router.post("/media/cache/invalidate/{listing_id}",
+@router.post("/cache/invalidate/{listing_id}",
             summary="Invalidar cache de listing")
 async def invalidate_listing_cache(
     listing_id: str,
@@ -421,7 +422,7 @@ async def invalidate_listing_cache(
         raise HTTPException(status_code=500, detail=f"Error invalidating cache: {str(e)}")
 
 
-@router.get("/media/resize{file_path:path}",
+@router.get("/resize/{file_path:path}",
            summary="Redimensionar imagen on-demand")
 async def resize_image(
     file_path: str,
@@ -461,7 +462,7 @@ async def resize_image(
 # HEALTH CHECK PARA MEDIA
 # =====================================
 
-@router.get("/media/health",
+@router.get("/health",
            summary="Health check del sistema de media")
 async def media_health_check(db: Session = Depends(get_db)):
     """Verifica el estado del sistema de media"""
@@ -480,7 +481,7 @@ async def media_health_check(db: Session = Depends(get_db)):
         
         # Verificar base de datos
         try:
-            db.execute("SELECT 1")
+            db.execute(text("SELECT 1"))
             health_status["services"]["database"] = "up"
         except:
             health_status["services"]["database"] = "down"

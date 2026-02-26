@@ -232,6 +232,9 @@ class NotificationQueue(Base):
     processing = Column(Boolean, default=False)
     processing_started_at = Column(DateTime)
     worker_id = Column(String(100))  # ID del worker que está procesando
+    locked_at = Column(DateTime)
+    lock_owner = Column(String(100))
+    available_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     
     # Reintentos
     retry_count = Column(Integer, default=0)

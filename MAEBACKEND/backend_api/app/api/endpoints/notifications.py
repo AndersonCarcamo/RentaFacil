@@ -348,3 +348,69 @@ def cleanup_old_read_notifications(
         "count": count,
         "days": days
     }
+
+
+@router.post("/admin/queue/claim", response_model=dict)
+def claim_notification_queue_items(
+    worker_id: str = Query(..., min_length=3, max_length=100),
+    batch_size: int = Query(50, ge=1, le=500),
+    current_user: User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db)
+):
+    """Reclamar items de la cola para procesamiento concurrente (admin)."""
+    service = NotificationService(db)
+    items = service.claim_notification_queue_items(worker_id=worker_id, batch_size=batch_size)
+
+    return {
+        "claimed": len(items),
+        "worker_id": worker_id,
+        "items": [
+            {
+                "queue_id": str(item.id),
+                "notification_id": str(item.notification_id),
+                "priority_score": item.priority_score,
+                "scheduled_for": item.scheduled_for.isoformat() if item.scheduled_for else None,
+            }
+            for item in items
+        ]
+    }
+
+
+@router.post("/admin/queue/{queue_id}/complete", response_model=dict)
+def complete_notification_queue_item(
+    queue_id: UUID = Path(..., description="ID del item en cola"),
+    current_user: User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db)
+):
+    """Marcar item de cola como procesado correctamente (admin)."""
+    service = NotificationService(db)
+    ok = service.complete_notification_queue_item(queue_id)
+    if not ok:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item de cola no encontrado")
+
+    return {"message": "Item de cola completado", "queue_id": str(queue_id)}
+
+
+@router.post("/admin/queue/{queue_id}/fail", response_model=dict)
+def fail_notification_queue_item(
+    queue_id: UUID = Path(..., description="ID del item en cola"),
+    error_message: str = Query(..., min_length=3, max_length=500),
+    retry_delay_seconds: int = Query(60, ge=1, le=86400),
+    current_user: User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db)
+):
+    """Marcar item de cola como fallido y reprogramarlo (admin)."""
+    service = NotificationService(db)
+    ok = service.fail_notification_queue_item(
+        queue_id=queue_id,
+        error_message=error_message,
+        retry_delay_seconds=retry_delay_seconds,
+    )
+    if not ok:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item de cola no encontrado")
+
+    return {
+        "message": "Item de cola reprogramado",
+        "queue_id": str(queue_id),
+        "retry_delay_seconds": retry_delay_seconds,
+    }

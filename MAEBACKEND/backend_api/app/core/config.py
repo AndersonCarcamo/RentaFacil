@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings
+from pydantic_settings import SettingsConfigDict
 from typing import Optional
 import os
 
@@ -24,6 +25,9 @@ class Settings(BaseSettings):
     app_version: str = "1.0.0"
     debug: bool = True
     environment: str = "development"
+    allowed_hosts: str = "localhost,127.0.0.1"
+    cors_allowed_origins: Optional[str] = None
+    enforce_https_redirect: bool = False
     
     # Email
     email_enabled: bool = True
@@ -76,9 +80,11 @@ class Settings(BaseSettings):
     culqi_rsa_id: Optional[str] = None  # RSA ID from CulqiPanel -> Desarrollo -> RSA Keys
     culqi_rsa_public_key: Optional[str] = None  # RSA Public Key for payload encryption
     
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        case_sensitive=False,
+        extra="ignore",
+    )
 
 
 # Global settings instance

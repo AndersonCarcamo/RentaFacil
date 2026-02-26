@@ -1,0 +1,80 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: easyrent_api_prod
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    depends_on:
+      - redis
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - easyrent_network
+    volumes:
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+    command: >
+      sh -c "
+        DB_TARGET=\"$${DB_HOST:-host.docker.internal}\" &&
+        echo \"Waiting for PostgreSQL on $${DB_TARGET}:5432...\" &&
+        while ! nc -z \"$${DB_TARGET}\" 5432; do sleep 1; done &&
+        echo 'Host PostgreSQL is ready!' &&
+        echo 'Waiting for Redis...' &&
+        while ! nc -z redis 6379; do sleep 1; done &&
+        echo 'Redis is ready!' &&
+        alembic upgrade head &&
+        uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4 --proxy-headers
+      "
+
+  redis:
+    image: redis:7-alpine
+    container_name: easyrent_redis_prod
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf
+    networks:
+      - easyrent_network
+    command: redis-server /usr/local/etc/redis/redis.conf
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  nginx:
+    image: nginx:alpine
+    container_name: easyrent_nginx_prod
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "${NGINX_HTTP_PORT:-8080}:80"
+      - "${NGINX_HTTPS_PORT:-8443}:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./uploads:/var/www/easyrent/media:ro
+      - ./nginx/html:/var/www/html:ro
+      - nginx_cache:/var/cache/nginx
+      - nginx_logs:/var/log/nginx
+    networks:
+      - easyrent_network
+
+volumes:
+  redis_data:
+    driver: local
+    name: easyrent_redis_data_prod
+  nginx_cache:
+    driver: local
+    name: easyrent_nginx_cache_prod
+  nginx_logs:
+    driver: local
+    name: easyrent_nginx_logs_prod
+
+networks:
+  easyrent_network:
+    driver: bridge
+    name: easyrent_network_prod
