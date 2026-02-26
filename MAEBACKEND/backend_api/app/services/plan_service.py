@@ -32,7 +32,7 @@ class PlanService:
             db: Sesión de base de datos
             include_inactive: Incluir planes inactivos
             tier: Filtrar por tier específico
-            target_user_type: Filtrar por tipo de usuario (individual, agency, both)
+            target_user_type: Filtrar por tipo de usuario (individual, agency)
             skip: Registros a saltar
             limit: Límite de registros
             
@@ -48,11 +48,7 @@ class PlanService:
             query = query.filter(Plan.tier == tier)
         
         if target_user_type:
-            # Si se busca un tipo específico, mostrar ese tipo + "both"
-            query = query.filter(
-                (Plan.target_user_type == target_user_type) | 
-                (Plan.target_user_type == 'both')
-            )
+            query = query.filter(Plan.target_user_type == target_user_type)
         
         return query.order_by(Plan.tier, Plan.period_months).offset(skip).limit(limit).all()
 

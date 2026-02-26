@@ -29,7 +29,6 @@ class PlanTargetType(str, enum.Enum):
     """Tipo de usuario objetivo del plan"""
     individual = "individual"  # Para usuarios individuales
     agency = "agency"  # Para agencias
-    both = "both"  # Para ambos tipos
 
 
 class Plan(Base):

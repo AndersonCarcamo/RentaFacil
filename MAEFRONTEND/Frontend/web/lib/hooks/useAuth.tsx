@@ -62,17 +62,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       if (firebaseUser) {
         setFirebaseUser(firebaseUser)
+        const hasBackendSession = isAuthenticated()
         
         // Get our backend user data
         try {
           const storedUser = getStoredUser()
-          if (storedUser) {
+          if (storedUser && hasBackendSession) {
             console.log('✅ User from storage:', storedUser)
             setUser(storedUser)
             if (storedUser.role === 'admin') {
               console.log('👑 Admin user detected:', storedUser.email)
             }
-          } else {
+          } else if (hasBackendSession) {
             // Try to get from server
             const currentUser = await getCurrentUser()
             console.log('✅ User from server:', currentUser)
@@ -80,9 +81,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if (currentUser.role === 'admin') {
               console.log('👑 Admin user detected:', currentUser.email)
             }
+          } else {
+            // Firebase sesión activa pero sin credenciales backend válidas
+            setUser(null)
+            console.log('ℹ️ Firebase session without backend auth tokens')
           }
         } catch (error) {
           console.error('Error loading user data:', error)
+          setUser(null)
         }
       } else {
         setFirebaseUser(null)
@@ -287,17 +293,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  const hasBackendSession = typeof window !== 'undefined' ? isAuthenticated() : false
+
   const value: AuthContextType = useMemo(() => ({
     user,
     firebaseUser,
     loading,
-    isLoggedIn: !!user && !!firebaseUser,
+    isLoggedIn: !!user && !!firebaseUser && hasBackendSession,
     isAdmin,
     login,
     register,
     updateUserRole,
     logout
-  }), [user, firebaseUser, loading, isAdmin])
+  }), [user, firebaseUser, loading, isAdmin, hasBackendSession, login, register, updateUserRole, logout])
 
   return (
     <AuthContext.Provider value={value}>

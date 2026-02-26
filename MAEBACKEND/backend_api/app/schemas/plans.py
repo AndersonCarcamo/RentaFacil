@@ -31,7 +31,6 @@ class PlanTargetType(str, Enum):
     """Tipo de usuario objetivo del plan"""
     individual = "individual"  # Para usuarios individuales
     agency = "agency"  # Para agencias
-    both = "both"  # Para ambos tipos
 
 
 class PlanBase(BaseModel):
