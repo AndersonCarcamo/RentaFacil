@@ -22,6 +22,7 @@ import { useMediaQuery } from '../../lib/hooks/useMediaQuery';
 
 export default function PlanesPage() {
   const router = useRouter();
+  const { plan: planQuery, planName: planNameQuery, autocheckout } = router.query;
   const { user, loading: authLoading } = useAuth();
   const isMobile = useMediaQuery('(max-width: 768px)');
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
@@ -32,6 +33,7 @@ export default function PlanesPage() {
   const [processingPlanId, setProcessingPlanId] = useState<string | null>(null);
   const [showCheckout, setShowCheckout] = useState<string | null>(null); // planId being checked out
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [checkoutAutoOpened, setCheckoutAutoOpened] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -141,6 +143,37 @@ export default function PlanesPage() {
   const handleCancelCheckout = () => {
     setShowCheckout(null);
   };
+
+  useEffect(() => {
+    if (checkoutAutoOpened || plans.length === 0 || !router.isReady) {
+      return;
+    }
+
+    if (autocheckout !== '1') {
+      return;
+    }
+
+    const normalizedPlanIdQuery = typeof planQuery === 'string' ? planQuery.trim().toLowerCase() : '';
+    const normalizedPlanNameQuery = typeof planNameQuery === 'string' ? planNameQuery.trim().toLowerCase() : '';
+    const matchedPlan = plans.find((plan) => {
+      const idMatch = normalizedPlanIdQuery ? plan.id.toLowerCase() === normalizedPlanIdQuery : false;
+      const nameMatch = normalizedPlanNameQuery ? plan.name.toLowerCase() === normalizedPlanNameQuery : false;
+      return idMatch || nameMatch;
+    });
+
+    if (!matchedPlan) {
+      return;
+    }
+
+    const planPrice = billingCycle === 'monthly' ? matchedPlan.price_monthly : matchedPlan.price_yearly;
+    if (planPrice > 0) {
+      setShowCheckout(matchedPlan.id);
+      setCheckoutAutoOpened(true);
+      return;
+    }
+
+    setCheckoutAutoOpened(true);
+  }, [autocheckout, billingCycle, checkoutAutoOpened, planNameQuery, planQuery, plans, router.isReady]);
 
   const getPlanIcon = (planName: string) => {
     const name = planName.toLowerCase();

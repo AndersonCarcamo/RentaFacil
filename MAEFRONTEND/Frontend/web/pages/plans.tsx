@@ -11,7 +11,6 @@ import {
   HomeIcon,
   ChartBarIcon,
   UserGroupIcon,
-  BoltIcon,
   ShieldCheckIcon,
   XMarkIcon
 } from '@heroicons/react/24/outline';
@@ -63,120 +62,9 @@ const PlansPage: React.FC = () => {
   // Determinar si es agente o propietario
   const isAgent = userType === 'AGENT';
   const isLandlord = userType === 'LANDLORD';
-
-  // Planes para PROPIETARIOS
-  const landlordPlans: UiPlan[] = [
-    {
-      id: 'free',
-      name: 'Plan FREE',
-      price: 'S/ 0',
-      period: '/mes',
-      description: 'Perfecto para empezar y probar la plataforma',
-      color: 'bg-gray-50 border-gray-300',
-      highlightColor: 'text-gray-900',
-      buttonVariant: 'secondary' as const,
-      features: [
-        { text: '1 publicación activa', included: true },
-        { text: 'Hasta 5 fotos por propiedad', included: true },
-        { text: 'Visibilidad básica', included: true },
-        { text: 'Estadísticas básicas', included: true },
-        { text: 'Soporte por email', included: true },
-        { text: 'Publicaciones destacadas', included: false },
-        { text: 'Análisis avanzado', included: false }
-      ]
-    },
-    {
-      id: 'basic',
-      name: 'Plan BÁSICO',
-      price: 'S/ 49',
-      period: '/mes',
-      description: 'Ideal para propietarios con pocas propiedades',
-      color: 'bg-blue-50 border-blue-300',
-      highlightColor: 'text-blue-600',
-      buttonVariant: 'primary' as const,
-      popular: true,
-      features: [
-        { text: '5 publicaciones activas', included: true },
-        { text: 'Hasta 10 fotos por propiedad', included: true },
-        { text: 'Visibilidad mejorada', included: true },
-        { text: 'Estadísticas detalladas', included: true },
-        { text: '1 publicación destacada/mes', included: true },
-        { text: 'Soporte prioritario', included: true },
-        { text: 'Badge de verificado', included: true }
-      ]
-    },
-    {
-      id: 'pro',
-      name: 'Plan PRO',
-      price: 'S/ 149',
-      period: '/mes',
-      description: 'Para propietarios con múltiples propiedades',
-      color: 'bg-gradient-to-br from-blue-50 to-cyan-50 border-blue-400',
-      highlightColor: 'text-blue-600',
-      buttonVariant: 'primary' as const,
-      features: [
-        { text: '20 publicaciones activas', included: true },
-        { text: 'Fotos ilimitadas', included: true },
-        { text: 'Máxima visibilidad', included: true },
-        { text: 'Estadísticas detalladas', included: true },
-        { text: '5 publicaciones destacadas/mes', included: true },
-        { text: 'Prioridad en resultados', included: true },
-        { text: 'Soporte 24/7', included: true },
-        { text: 'Tour virtual 360°', included: true }
-      ]
-    }
-  ];
-
-  // Planes para AGENTES/INMOBILIARIAS
-  const agentPlans: UiPlan[] = [
-    {
-      id: 'free',
-      name: 'Plan FREE',
-      price: 'S/ 0',
-      period: '/mes',
-      description: 'Prueba la plataforma sin compromiso',
-      color: 'bg-gray-50 border-gray-300',
-      highlightColor: 'text-gray-900',
-      buttonVariant: 'secondary' as const,
-      features: [
-        { text: '1 publicación activa', included: true },
-        { text: 'Hasta 5 fotos por propiedad', included: true },
-        { text: 'Visibilidad básica', included: true },
-        { text: 'Estadísticas básicas', included: true },
-        { text: 'Soporte por email', included: true },
-        { text: 'Gestión de múltiples propiedades', included: false },
-        { text: 'API access', included: false },
-        { text: 'Gestor de cuenta dedicado', included: false }
-      ]
-    },
-    {
-      id: 'enterprise',
-      name: 'Plan ENTERPRISE',
-      price: 'Desde S/ 499',
-      period: '/mes',
-      description: 'Solución completa para inmobiliarias profesionales',
-      color: 'bg-gradient-to-br from-amber-50 to-yellow-50 border-amber-400',
-      highlightColor: 'text-amber-600',
-      buttonVariant: 'primary' as const,
-      popular: true,
-      features: [
-        { text: 'Publicaciones ilimitadas', included: true },
-        { text: 'Fotos y videos ilimitados', included: true },
-        { text: 'Máxima visibilidad y prioridad', included: true },
-        { text: 'API personalizada', included: true },
-        { text: 'Gestor de cuenta dedicado', included: true },
-        { text: 'Dashboard de gestión avanzado', included: true },
-        { text: 'Múltiples usuarios en la cuenta', included: true },
-        { text: 'Integraciones personalizadas', included: true },
-        { text: 'Reportes y análisis empresariales', included: true },
-        { text: 'Capacitación del equipo', included: true },
-        { text: 'Soporte prioritario 24/7', included: true },
-        { text: 'SLA garantizado', included: true }
-      ]
-    }
-  ];
-
-  const [plans, setPlans] = useState<UiPlan[]>(isAgent ? agentPlans : landlordPlans);
+  const [plans, setPlans] = useState<UiPlan[]>([]);
+  const [plansLoading, setPlansLoading] = useState<boolean>(true);
+  const [plansError, setPlansError] = useState<string | null>(null);
 
   const getPlanTheme = (plan: BackendPlan) => {
     const tier = (plan.tier || '').toLowerCase();
@@ -218,8 +106,11 @@ const PlansPage: React.FC = () => {
   };
 
   const mapBackendPlanToUiPlan = (plan: BackendPlan): UiPlan => {
-    const numericPrice = Number(plan.price_amount || 0);
-    const formattedPrice = numericPrice === 0
+    const numericPrice = typeof plan.price_amount !== 'undefined' ? Number(plan.price_amount) : undefined;
+    const hasValidPrice = typeof numericPrice === 'number' && !Number.isNaN(numericPrice);
+    const formattedPrice = !hasValidPrice
+      ? 'Precio no disponible'
+      : numericPrice === 0
       ? 'S/ 0'
       : `S/ ${numericPrice.toLocaleString('es-PE', { maximumFractionDigits: 0 })}`;
 
@@ -232,34 +123,19 @@ const PlansPage: React.FC = () => {
       : '/mes';
 
     const features: PlanFeature[] = [
-      {
-        text: `${plan.max_active_listings ?? 1} publicaciones activas`,
-        included: true,
-      },
-      {
-        text: `Hasta ${plan.max_images_per_listing ?? 5} fotos por propiedad`,
-        included: true,
-      },
-      {
-        text: 'Publicaciones destacadas',
-        included: Boolean(plan.featured_listings),
-      },
-      {
-        text: 'Análisis avanzado',
-        included: Boolean(plan.analytics_access),
-      },
-      {
-        text: 'Acceso a API',
-        included: Boolean(plan.api_access),
-      },
-      {
-        text: 'Soporte prioritario',
-        included: Boolean(plan.priority_support),
-      },
-      {
-        text: `${plan.max_videos_per_listing ?? 0} videos por propiedad`,
-        included: (plan.max_videos_per_listing ?? 0) > 0,
-      },
+      ...(typeof plan.max_active_listings === 'number'
+        ? [{ text: `${plan.max_active_listings} publicaciones activas`, included: true }]
+        : []),
+      ...(typeof plan.max_images_per_listing === 'number'
+        ? [{ text: `Hasta ${plan.max_images_per_listing} fotos por propiedad`, included: true }]
+        : []),
+      { text: 'Publicaciones destacadas', included: Boolean(plan.featured_listings) },
+      { text: 'Análisis avanzado', included: Boolean(plan.analytics_access) },
+      { text: 'Acceso a API', included: Boolean(plan.api_access) },
+      { text: 'Soporte prioritario', included: Boolean(plan.priority_support) },
+      ...(typeof plan.max_videos_per_listing === 'number'
+        ? [{ text: `${plan.max_videos_per_listing} videos por propiedad`, included: plan.max_videos_per_listing > 0 }]
+        : []),
     ];
 
     const theme = getPlanTheme(plan);
@@ -280,7 +156,7 @@ const PlansPage: React.FC = () => {
       sourceTier: plan.tier,
       sourceCode: plan.code,
       sourceTargetUserType: plan.target_user_type,
-      priceAmount: numericPrice,
+      priceAmount: hasValidPrice ? numericPrice : undefined,
     };
   };
 
@@ -294,12 +170,26 @@ const PlansPage: React.FC = () => {
   const isFreePlan = (plan: UiPlan) => {
     const code = (plan.sourceCode || plan.id || '').toLowerCase();
     const name = (plan.name || '').toLowerCase();
-    return (plan.priceAmount ?? 0) === 0 || code.includes('free') || name.includes('free') || name.includes('gratis');
+    return (typeof plan.priceAmount === 'number' && plan.priceAmount === 0)
+      || code.includes('free')
+      || name.includes('free')
+      || name.includes('gratis');
+  };
+
+  const goToSubscriptionCheckout = (plan: UiPlan) => {
+    const targetPlan = plan.id;
+    const targetPlanName = plan.name;
+    router.push(
+      `/dashboard/planes?plan=${encodeURIComponent(targetPlan)}&planName=${encodeURIComponent(targetPlanName)}&autocheckout=1`
+    );
   };
 
   useEffect(() => {
     const loadPlansFromBackend = async () => {
       try {
+        setPlansLoading(true);
+        setPlansError(null);
+
         const targetUserType = isAgent ? 'agency' : 'individual';
         const response = await publicRequest(
           `${API_BASE_URL}/v1/plans?target_user_type=${targetUserType}`,
@@ -313,23 +203,17 @@ const PlansPage: React.FC = () => {
         const data = await response.json();
         const backendPlans = Array.isArray(data?.plans) ? data.plans as BackendPlan[] : [];
 
-        if (backendPlans.length === 0) {
-          setPlans(isAgent ? agentPlans : landlordPlans);
-          return;
-        }
-
         const mappedPlans = backendPlans
           .filter((plan) => plan.is_active !== false)
           .map(mapBackendPlanToUiPlan);
 
-        if (mappedPlans.length > 0) {
-          setPlans(mappedPlans);
-        } else {
-          setPlans(isAgent ? agentPlans : landlordPlans);
-        }
+        setPlans(mappedPlans);
       } catch (error) {
-        console.error('Error loading plans from backend, using fallback plans:', error);
-        setPlans(isAgent ? agentPlans : landlordPlans);
+        console.error('Error loading plans from backend:', error);
+        setPlans([]);
+        setPlansError('No se pudieron cargar los planes en este momento. Intenta nuevamente.');
+      } finally {
+        setPlansLoading(false);
       }
     };
 
@@ -347,16 +231,6 @@ const PlansPage: React.FC = () => {
       setSelectedPlan(freePlan?.id || plans[0].id);
     }
   }, [plans, selectedPlan]);
-
-  const handleContinue = () => {
-    if (newUser) {
-      // Si es usuario nuevo, llevarlo al dashboard
-      router.push('/dashboard');
-    } else {
-      // Si está explorando planes, llevarlo a página de pago
-      router.push(`/checkout?plan=${selectedPlan}`);
-    }
-  };
 
   return (
     <>
@@ -499,6 +373,25 @@ const PlansPage: React.FC = () => {
               }
             </h2>
             
+            {plansLoading && (
+              <div className="text-center py-12">
+                <p className="text-gray-600">Cargando planes...</p>
+              </div>
+            )}
+
+            {!plansLoading && plansError && (
+              <div className="text-center py-12 bg-red-50 border border-red-200 rounded-xl">
+                <p className="text-red-700">{plansError}</p>
+              </div>
+            )}
+
+            {!plansLoading && !plansError && plans.length === 0 && (
+              <div className="text-center py-12 bg-yellow-50 border border-yellow-200 rounded-xl">
+                <p className="text-yellow-800">No hay planes disponibles en este momento.</p>
+              </div>
+            )}
+
+            {!plansLoading && !plansError && plans.length > 0 && (
             <div className={`grid gap-6 ${isAgent ? 'md:grid-cols-2 max-w-5xl mx-auto' : 'md:grid-cols-2 lg:grid-cols-3'}`}>
               {plans.map((plan, index) => (
                 <div
@@ -506,7 +399,7 @@ const PlansPage: React.FC = () => {
                   id={isEnterprisePlan(plan) ? 'enterprise-plan' : undefined}
                   className={`relative rounded-2xl shadow-lg overflow-hidden transition-all hover:shadow-xl ${plan.color} border-2 ${
                     selectedPlan === plan.id ? 'ring-4 ring-blue-500 ring-opacity-50 scale-105' : ''
-                  } ${isAgent && plan.id === 'enterprise' ? 'md:col-span-1' : ''}`}
+                  } ${isAgent && isEnterprisePlan(plan) ? 'md:col-span-1' : ''}`}
                   onClick={() => setSelectedPlan(plan.id as any)}
                 >
                   {plan.popular && (
@@ -550,7 +443,7 @@ const PlansPage: React.FC = () => {
                         } else if (isFreePlan(plan) && newUser) {
                           router.push('/dashboard');
                         } else {
-                          router.push(`/checkout?plan=${plan.id}`);
+                          goToSubscriptionCheckout(plan);
                         }
                       }}
                       variant={plan.buttonVariant}
@@ -567,6 +460,7 @@ const PlansPage: React.FC = () => {
                 </div>
               ))}
             </div>
+            )}
           </div>
 
           {/* Características destacadas */}
