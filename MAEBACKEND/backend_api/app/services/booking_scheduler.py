@@ -7,7 +7,10 @@ from datetime import datetime
 import logging
 
 from ..core.database import get_db
-from ..services.email_service import EmailService
+from ..tasks.email_tasks import (
+    send_payment_deadline_reminder_email_task,
+    send_payment_expired_email_task,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -33,14 +36,15 @@ class BookingScheduledTasks:
             if cancelled_bookings:
                 logger.info(f"🔴 Canceladas {len(cancelled_bookings)} reservas por pago expirado")
                 
-                # Enviar emails de notificación
-                email_service = EmailService()
+                # Encolar emails de notificación
                 for booking in cancelled_bookings:
                     try:
-                        email_service.send_payment_expired_notification(
-                            guest_email=booking.guest_email,
-                            listing_title=booking.listing_title,
-                            deadline=booking.deadline.strftime("%d/%m/%Y %H:%M")
+                        send_payment_expired_email_task.delay(
+                            {
+                                "guest_email": booking.guest_email,
+                                "listing_title": booking.listing_title,
+                                "deadline": booking.deadline.strftime("%d/%m/%Y %H:%M"),
+                            }
                         )
                     except Exception as e:
                         logger.error(f"Error enviando email de cancelación: {e}")
@@ -87,22 +91,22 @@ class BookingScheduledTasks:
             
             if warnings:
                 logger.info(f"⚠️ Enviando {len(warnings)} recordatorios de pago")
-                
-                email_service = EmailService()
+
                 sent_count = 0
                 
                 for warning in warnings:
                     try:
-                        email_sent = email_service.send_payment_deadline_reminder(
-                            guest_email=warning.guest_email,
-                            guest_name=warning.guest_name,
-                            listing_title=warning.listing_title,
-                            deadline=warning.deadline.strftime("%d/%m/%Y %H:%M"),
-                            minutes_remaining=int(warning.minutes_remaining),
-                            booking_id=str(warning.booking_id)
+                        send_payment_deadline_reminder_email_task.delay(
+                            {
+                                "guest_email": warning.guest_email,
+                                "guest_name": warning.guest_name,
+                                "listing_title": warning.listing_title,
+                                "deadline": warning.deadline.strftime("%d/%m/%Y %H:%M"),
+                                "minutes_remaining": int(warning.minutes_remaining),
+                                "booking_id": str(warning.booking_id),
+                            }
                         )
-                        if email_sent:
-                            sent_count += 1
+                        sent_count += 1
                     except Exception as e:
                         logger.error(f"Error enviando recordatorio: {e}")
                 

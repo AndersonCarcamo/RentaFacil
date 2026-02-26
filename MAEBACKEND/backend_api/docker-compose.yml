@@ -24,6 +24,8 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_DB=1
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
       
       # Configuración de aplicación
       - API_V1_STR=/api/v1
@@ -79,6 +81,77 @@ services:
         alembic upgrade head &&
         echo 'Starting FastAPI server...' &&
         uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+      "
+
+  # =====================================
+  # CELERY WORKER
+  # =====================================
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: easyrent_celery_worker
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql://easyrent_user:easyrent_pass@db:5432/easyrent_db
+      - REDIS_URL=redis://redis:6379/1
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=1
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - ENVIRONMENT=development
+      - DEBUG=true
+    volumes:
+      - .:/app
+      - ./logs:/app/logs
+    depends_on:
+      - db
+      - redis
+    networks:
+      - easyrent_network
+    command: >
+      sh -c "
+        echo 'Waiting for database...' &&
+        while ! nc -z db 5432; do sleep 1; done &&
+        echo 'Database is ready!' &&
+        echo 'Waiting for Redis...' &&
+        while ! nc -z redis 6379; do sleep 1; done &&
+        echo 'Redis is ready!' &&
+        celery -A app.core.celery_app.celery_app worker --loglevel=info
+      "
+
+  celery_beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: easyrent_celery_beat
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql://easyrent_user:easyrent_pass@db:5432/easyrent_db
+      - REDIS_URL=redis://redis:6379/1
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=1
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - NOTIFICATION_QUEUE_DRAIN_INTERVAL_SECONDS=30
+    volumes:
+      - .:/app
+      - ./logs:/app/logs
+    depends_on:
+      - db
+      - redis
+    networks:
+      - easyrent_network
+    command: >
+      sh -c "
+        echo 'Waiting for Redis...' &&
+        while ! nc -z redis 6379; do sleep 1; done &&
+        echo 'Redis is ready!' &&
+        celery -A app.core.celery_app.celery_app beat --loglevel=info
       "
 
   # =====================================

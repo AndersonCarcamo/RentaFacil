@@ -203,6 +203,32 @@ async def get_database_stats(
         )
 
 
+@router.get("/stats/database/pool")
+@router.get("/v1/system/stats/database/pool")
+async def get_database_pool_stats():
+    """
+    Get database pool diagnostics
+
+    Returns SQLAlchemy pool runtime data to validate pool sizing,
+    saturation and potential connection leaks.
+    """
+    try:
+        service = SystemService()
+        pool_stats = service.get_database_pool_stats()
+
+        return {
+            "success": True,
+            "data": pool_stats
+        }
+
+    except Exception as e:
+        logger.error(f"Database pool stats failed: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unable to retrieve database pool diagnostics"
+        )
+
+
 # Monitoring and diagnostics endpoints
 
 @router.get("/ping")
@@ -283,6 +309,7 @@ async def get_metrics(
         # Get basic stats
         stats = service.get_system_stats()
         health = await service.get_health_check(db, request_counter["count"])
+        pool_stats = service.get_database_pool_stats()
         
         # Format as simple key-value metrics
         metrics = {
@@ -293,6 +320,8 @@ async def get_metrics(
             "easyrent_requests_total": request_counter["count"],
             "easyrent_health_status": 1 if health.status == "healthy" else 0,
             "easyrent_database_response_time_ms": health.services["database"].response_time_ms or 0,
+            "easyrent_db_pool_checkedout": pool_stats.get("checkedout", 0),
+            "easyrent_db_pool_size": pool_stats.get("size", 0),
         }
         
         return {

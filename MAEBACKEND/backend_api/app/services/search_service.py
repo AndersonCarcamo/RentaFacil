@@ -2,6 +2,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, text, and_, or_, desc, asc
 from app.models.listing import Listing
 from app.models.search import Alert, Amenity, ListingAmenity
+from app.core.config import settings
+from app.core.redis_client import get_redis_client
+from app.services.search_cache_service import search_cache_service
 from app.schemas.search import (
     SearchFilters, SearchResults, SearchInfo, SearchFacets, FacetItem, PriceRange,
     SearchSuggestion, SuggestionType, SavedSearchRequest, UpdateSavedSearchRequest,
@@ -11,14 +14,29 @@ from typing import List, Optional, Dict, Any, Tuple
 import uuid
 import time
 import math
+import json
+import hashlib
+import logging
+from redis.exceptions import RedisError
+
+
+logger = logging.getLogger(__name__)
 
 class SearchService:
     def __init__(self, db: Session):
         self.db = db
+        self.redis_client = get_redis_client()
+        self.search_cache_ttl = settings.search_cache_ttl_seconds
 
     def search_listings(self, filters: SearchFilters) -> SearchResults:
         """Búsqueda principal de listings"""
         start_time = time.time()
+
+        cache_version = search_cache_service.get_cache_version()
+        cache_key = self._build_search_cache_key(filters, cache_version)
+        cached_results = self._get_cached_search(cache_key)
+        if cached_results:
+            return cached_results
         
         # Query base
         query = self.db.query(Listing).filter(
@@ -64,11 +82,51 @@ class SearchService:
             total_pages=total_pages
         )
         
-        return SearchResults(
+        search_results = SearchResults(
             data=listings_data,
             meta=search_info,
             facets=facets
         )
+
+        self._set_cached_search(cache_key, search_results)
+        return search_results
+
+    def _build_search_cache_key(self, filters: SearchFilters, version: int) -> str:
+        """Generar key determinístico para cache de búsquedas."""
+        raw_filters = filters.model_dump(exclude_none=True)
+        if raw_filters.get("amenities"):
+            raw_filters["amenities"] = sorted(raw_filters["amenities"])
+
+        payload = json.dumps(raw_filters, sort_keys=True, separators=(",", ":"))
+        digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()
+        return f"search:v{version}:results:{digest}"
+
+    def _get_cached_search(self, cache_key: str) -> Optional[SearchResults]:
+        """Leer resultados de búsqueda desde Redis cache."""
+        if not self.redis_client:
+            return None
+
+        try:
+            cached_payload = self.redis_client.get(cache_key)
+            if not cached_payload:
+                return None
+
+            parsed_payload = json.loads(cached_payload)
+            return SearchResults.model_validate(parsed_payload)
+        except (RedisError, json.JSONDecodeError, ValueError) as exc:
+            logger.warning("Search cache read failed for %s: %s", cache_key, exc)
+            return None
+
+    def _set_cached_search(self, cache_key: str, data: SearchResults) -> None:
+        """Guardar resultados de búsqueda en Redis con TTL."""
+        if not self.redis_client:
+            return
+
+        try:
+            serialized_data = data.model_dump_json()
+            self.redis_client.setex(cache_key, self.search_cache_ttl, serialized_data)
+        except RedisError as exc:
+            logger.warning("Search cache write failed for %s: %s", cache_key, exc)
 
     def get_suggestions(self, q: str, suggestion_type: Optional[str] = None) -> List[SearchSuggestion]:
         """Obtener sugerencias de búsqueda"""

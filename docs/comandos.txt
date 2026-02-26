@@ -18,7 +18,10 @@ gunicorn app.main:app -k uvicorn.workers.UvicornWorker --bind 100.119.186.126:80
 
 - Agregar nueva regla para el 8000
 
-#### docker
+## UFW
+
+
+## docker
 
 docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build --force-recreate app
 
@@ -30,6 +33,7 @@ curl -i http://localhost:8080/
 
 ### 1) Rebuild y levantar app con código nuevo
 docker compose -f MAEBACKEND/backend_api/docker-compose.prod.yml up -d --build app
+docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build --force-recreate app nginx
 
 ### 2) Verificar heads disponibles
 docker compose -f MAEBACKEND/backend_api/docker-compose.prod.yml run --rm -T app alembic heads
@@ -51,3 +55,164 @@ docker compose -f MAEBACKEND/backend_api/docker-compose.prod.yml run --rm -T app
 
 ### 7) Logs rápidos de diagnóstico
 docker compose -f MAEBACKEND/backend_api/docker-compose.prod.yml logs --tail=200 app
+
+### 8) Pool DB y workers (runtime)
+curl -s http://localhost:8080/stats/database/pool | python3 -m json.tool
+docker compose --env-file MAEBACKEND/backend_api/.env.production -f MAEBACKEND/backend_api/docker-compose.prod.yml exec -T app sh -lc 'echo WEB_CONCURRENCY=${WEB_CONCURRENCY:-unset}'
+
+
+## Docker real (actualizado) - DEV y PRODUCCIÓN
+
+### Ubicación recomendada
+# Ejecutar estos comandos desde:
+# /home/rentafacil/proyectos/RentaFacil/MAEBACKEND/backend_api
+
+cd /home/rentafacil/proyectos/RentaFacil/MAEBACKEND/backend_api
+
+
+### DEV - levantar todo
+
+# Build + up de todo el stack dev
+docker compose up -d --build
+
+# Build + up solo servicios clave (api + async + data + proxy)
+docker compose up -d --build app celery_worker celery_beat redis db nginx
+
+
+### DEV - operación diaria
+
+# Estado
+docker compose ps
+
+# Logs API + worker + beat
+docker compose logs -f --tail=200 app celery_worker celery_beat
+
+# Reiniciar solo componentes async
+docker compose restart celery_worker celery_beat
+
+# Rebuild de servicios críticos
+docker compose up -d --build --force-recreate app celery_worker celery_beat
+
+# Ejecutar migraciones
+docker compose run --rm -T app alembic upgrade head
+
+# Ver revisión actual
+docker compose run --rm -T app alembic current
+
+# Healthcheck API
+curl -s http://localhost:8000/health | python3 -m json.tool
+
+# Apagar stack dev
+docker compose down
+
+# Apagar y borrar volúmenes (reset total)
+docker compose down -v
+
+
+### PRODUCCIÓN (docker-compose.prod.yml) - levantar
+
+# Build + up prod-like completo
+docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build
+
+# Si recreaste app y nginx quedó apuntando a IP vieja, recarga/reinicia nginx
+docker compose --env-file .env.production -f docker-compose.prod.yml restart nginx
+
+# Build + up solo servicios clave prod-like
+docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build app celery_worker celery_beat redis nginx
+
+
+### PRODUCCIÓN - operación diaria
+
+# Estado
+docker compose --env-file .env.production -f docker-compose.prod.yml ps
+
+# Logs API + worker + beat
+docker compose --env-file .env.production -f docker-compose.prod.yml logs -f --tail=200 app celery_worker celery_beat
+
+# Reiniciar componentes async
+docker compose --env-file .env.production -f docker-compose.prod.yml restart celery_worker celery_beat
+
+# Rebuild de servicios críticos
+docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build --force-recreate app celery_worker celery_beat nginx
+
+
+### PRODUCCIÓN - migraciones Alembic
+
+# Heads
+docker compose --env-file .env.production -f docker-compose.prod.yml run --rm -T app alembic heads
+
+# Revisión actual
+docker compose --env-file .env.production -f docker-compose.prod.yml run --rm -T app alembic current
+
+# Upgrade
+docker compose --env-file .env.production -f docker-compose.prod.yml run --rm -T app alembic upgrade head
+
+# Si la BD ya existía fuera de Alembic (solo en ese caso)
+docker compose --env-file .env.production -f docker-compose.prod.yml run --rm -T app alembic stamp d187588fa76d
+docker compose --env-file .env.production -f docker-compose.prod.yml run --rm -T app alembic upgrade head
+
+
+### PRODUCCIÓN - validaciones runtime
+
+# API via nginx
+curl -i http://localhost:8080/
+
+# Smoke test recomendado de proxy
+curl -i http://localhost:8080/health
+
+# Pool DB
+curl -s http://localhost:8080/stats/database/pool | python3 -m json.tool
+
+# Ver valor efectivo de WEB_CONCURRENCY dentro del contenedor app
+docker compose --env-file .env.production -f docker-compose.prod.yml exec -T app sh -lc 'echo WEB_CONCURRENCY=${WEB_CONCURRENCY:-unset}'
+
+
+### PRODUCCIÓN - test WebSocket chat (end-to-end)
+
+# 0) Requisitos mínimos
+# - Tener usuario cliente + password
+# - Tener listing_id válido para crear/obtener conversación
+
+# 1) Login y extraer access token JWT
+TOKEN=$(curl -s -X POST http://localhost:8080/v1/auth/login \
+	-H 'Content-Type: application/json' \
+	-d '{"email":"TU_EMAIL","password":"TU_PASSWORD"}' | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
+
+echo "$TOKEN" | cut -c1-40
+
+# 2) Crear/obtener conversación desde API
+CONVERSATION_ID=$(curl -s -X POST http://localhost:8080/v1/chat/conversations \
+	-H "Authorization: Bearer $TOKEN" \
+	-H 'Content-Type: application/json' \
+	-d '{"listing_id":"TU_LISTING_ID"}' | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
+
+echo "$CONVERSATION_ID"
+
+# 3A) Test WS con websocat (recomendado)
+# Instalar (Ubuntu/Debian): sudo apt-get install -y websocat
+websocat "ws://localhost:8080/v1/ws/chat/$CONVERSATION_ID?token=$TOKEN"
+
+# Mensaje de prueba (pegar dentro de websocat)
+{"type":"ping"}
+{"type":"message","content":"hola desde websocket test","message_type":"text"}
+
+# 3B) Alternativa con wscat (Node)
+# npm i -g wscat
+wscat -c "ws://localhost:8080/v1/ws/chat/$CONVERSATION_ID?token=$TOKEN"
+
+# Mensaje de prueba (pegar dentro de wscat)
+{"type":"ping"}
+{"type":"message","content":"hola desde wscat","message_type":"text"}
+
+# 4) Validar que el mensaje quedó persistido en REST
+curl -s "http://localhost:8080/v1/chat/conversations/$CONVERSATION_ID/messages?limit=5" \
+	-H "Authorization: Bearer $TOKEN" | python3 -m json.tool
+
+
+### PRODUCCIÓN - apagar
+
+# Stop y remove contenedores/red
+docker compose --env-file .env.production -f docker-compose.prod.yml down
+
+# Stop y remove + volúmenes (destructivo)
+docker compose --env-file .env.production -f docker-compose.prod.yml down -v

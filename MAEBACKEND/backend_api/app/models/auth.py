@@ -1,5 +1,5 @@
 from sqlalchemy import Column, String, Boolean, DateTime, Enum, Text, Integer
-from sqlalchemy.dialects.postgresql import UUID, CITEXT
+from sqlalchemy.dialects.postgresql import UUID, CITEXT, TSVECTOR
 from sqlalchemy.sql import func
 import uuid
 import enum
@@ -33,6 +33,7 @@ class User(Base):
     last_name = Column(Text, nullable=True)
     profile_picture_url = Column(Text, nullable=True)
     bio = Column(Text, nullable=True)
+    search_doc = Column(TSVECTOR, nullable=True)
     national_id = Column(Text, nullable=True)
     national_id_type = Column(Text, default='DNI')
     

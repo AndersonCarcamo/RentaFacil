@@ -26,7 +26,64 @@ services:
         while ! nc -z redis 6379; do sleep 1; done &&
         echo 'Redis is ready!' &&
         alembic upgrade head &&
-        uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4 --proxy-headers
+        uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers $${WEB_CONCURRENCY:-6} --proxy-headers
+      "
+
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: easyrent_celery_worker_prod
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    environment:
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL:-redis://redis:6379/1}
+      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND:-redis://redis:6379/1}
+    depends_on:
+      - redis
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - easyrent_network
+    volumes:
+      - ./logs:/app/logs
+      - ./uploads:/app/uploads
+    command: >
+      sh -c "
+        echo 'Waiting for Redis...' &&
+        while ! nc -z redis 6379; do sleep 1; done &&
+        echo 'Redis is ready!' &&
+        celery -A app.core.celery_app.celery_app worker --loglevel=info
+      "
+
+  celery_beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: easyrent_celery_beat_prod
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    environment:
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL:-redis://redis:6379/1}
+      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND:-redis://redis:6379/1}
+      - NOTIFICATION_QUEUE_DRAIN_INTERVAL_SECONDS=${NOTIFICATION_QUEUE_DRAIN_INTERVAL_SECONDS:-30}
+    depends_on:
+      - redis
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - easyrent_network
+    volumes:
+      - ./logs:/app/logs
+      - ./uploads:/app/uploads
+    command: >
+      sh -c "
+        echo 'Waiting for Redis...' &&
+        while ! nc -z redis 6379; do sleep 1; done &&
+        echo 'Redis is ready!' &&
+        celery -A app.core.celery_app.celery_app beat --loglevel=info
       "
 
   redis:

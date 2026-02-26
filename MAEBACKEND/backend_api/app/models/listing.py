@@ -108,7 +108,7 @@ class Listing(Base):
     airbnb_score = Column(Integer, nullable=True)  # Score 0-100 de elegibilidad Airbnb
     airbnb_eligible = Column(Boolean, nullable=True)  # Si es elegible para Airbnb
     airbnb_opted_out = Column(Boolean, nullable=False, default=False)  # Si usuario optó por NO Airbnb
-    rental_model = Column(Text, nullable=True, default='traditional')  # traditional or airbnb
+    rental_model = Column(Text, nullable=True, default='traditional')  # traditional or typeairbnb
     
     # Airbnb-specific fields (from script 18)
     smoking_allowed = Column(Boolean, nullable=True)

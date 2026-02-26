@@ -91,6 +91,11 @@ class NotificationService:
         
         logger.info(f"💾 Haciendo commit...")
         self.db.commit()
+        try:
+            from app.tasks.notification_tasks import process_notification_queue_task
+            process_notification_queue_task.delay()
+        except Exception as queue_trigger_error:
+            logger.warning(f"⚠️ No se pudo disparar el worker async de notificaciones: {queue_trigger_error}")
         logger.info(f"✅✅✅ Notificación creada exitosamente - ID: {notification.id}, User: {user_id}")
         return notification
     

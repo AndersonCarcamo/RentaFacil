@@ -4,11 +4,13 @@ Endpoints para gestión de planes de suscripción
 """
 
 from fastapi import APIRouter, Depends, status
+from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 from typing import List
 from uuid import UUID
 
 from app.api.deps import get_db
+from app.services.api_cache_service import api_cache_service
 # from app.api.deps import get_current_admin  # TODO: Implementar get_current_admin
 from app.schemas.subscription_plans import (
     PlanCreate,
@@ -42,17 +44,24 @@ def get_all_plans(
     Returns:
         Lista de planes
     """
+    cache_suffix = f"list:{include_inactive}:{skip}:{limit}"
+    cached_response = api_cache_service.get_static_data("subscription-plans-catalog", cache_suffix)
+    if cached_response is not None:
+        return cached_response
+
     plans = SubscriptionPlanService.get_all_plans(
         db=db,
         include_inactive=include_inactive,
         skip=skip,
         limit=limit
     )
-    
-    return {
+
+    response = {
         "plans": plans,
         "total": len(plans)
     }
+    api_cache_service.set_static_data("subscription-plans-catalog", cache_suffix, jsonable_encoder(response))
+    return response
 
 
 @router.get("/{plan_id}", response_model=PlanResponse)
@@ -72,7 +81,14 @@ def get_plan(
     Raises:
         NotFoundException: Si el plan no existe
     """
-    return SubscriptionPlanService.get_plan_by_id(db, plan_id)
+    cache_suffix = f"id:{plan_id}"
+    cached_response = api_cache_service.get_static_data("subscription-plans-catalog", cache_suffix)
+    if cached_response is not None:
+        return cached_response
+
+    plan = SubscriptionPlanService.get_plan_by_id(db, plan_id)
+    api_cache_service.set_static_data("subscription-plans-catalog", cache_suffix, jsonable_encoder(plan))
+    return plan
 
 
 @router.get("/code/{plan_code}", response_model=PlanResponse)
@@ -92,11 +108,17 @@ def get_plan_by_code(
     Raises:
         NotFoundException: Si el plan no existe
     """
+    cache_suffix = f"code:{plan_code}"
+    cached_response = api_cache_service.get_static_data("subscription-plans-catalog", cache_suffix)
+    if cached_response is not None:
+        return cached_response
+
     plan = SubscriptionPlanService.get_plan_by_code(db, plan_code)
     
     if not plan:
         raise NotFoundException(f"Plan con código '{plan_code}' no encontrado")
     
+    api_cache_service.set_static_data("subscription-plans-catalog", cache_suffix, jsonable_encoder(plan))
     return plan
 
 

@@ -229,6 +229,7 @@ class AdminService:
     ) -> Tuple[List[User], int]:
         """Obtener usuarios para administración"""
         query = self.db.query(User)
+        search_text = None
         
         # Aplicar filtros
         if filters:
@@ -240,14 +241,11 @@ class AdminService:
                 pass
             
             if filters.search:
-                search_term = f"%{filters.search}%"
-                query = query.filter(
-                    or_(
-                        User.full_name.ilike(search_term),
-                        User.email.ilike(search_term),
-                        User.phone_number.ilike(search_term)
-                    )
-                )
+                search_text = filters.search.strip()
+                if search_text:
+                    query = query.filter(
+                        text("search_doc @@ plainto_tsquery('simple', :search_text)")
+                    ).params(search_text=search_text)
             
             if filters.created_from:
                 query = query.filter(User.created_at >= filters.created_from)
@@ -259,7 +257,15 @@ class AdminService:
         total = query.count()
         
         # Obtener usuarios paginados
-        users = query.order_by(desc(User.created_at)).offset(skip).limit(limit).all()
+        if search_text:
+            users = query.order_by(
+                desc(
+                    text("ts_rank(search_doc, plainto_tsquery('simple', :search_text))")
+                ),
+                desc(User.created_at)
+            ).params(search_text=search_text).offset(skip).limit(limit).all()
+        else:
+            users = query.order_by(desc(User.created_at)).offset(skip).limit(limit).all()
         
         return users, total
     

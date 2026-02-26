@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  json-exporter:
+    image: quay.io/prometheuscommunity/json-exporter:latest
+    container_name: easyrent_json_exporter
+    restart: unless-stopped
+    command:
+      - '--config.file=/config/config.yml'
+    volumes:
+      - ./json-exporter/config.yml:/config/config.yml:ro
+    ports:
+      - '7979:7979'
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: easyrent_prometheus
+    restart: unless-stopped
+    depends_on:
+      - json-exporter
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-lifecycle'
+      - '--web.enable-remote-write-receiver'
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - '9091:9090'
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: easyrent_grafana
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - '3001:3000'

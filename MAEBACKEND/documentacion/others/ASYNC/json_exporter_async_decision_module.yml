@@ -1,0 +1,27 @@
+# json-exporter module mapping for /v1/system/metrics
+# docker image: quay.io/prometheuscommunity/json-exporter
+
+modules:
+  easyrent_system_metrics:
+    metrics:
+      - name: easyrent_uptime_seconds
+        path: '{.metrics.easyrent_uptime_seconds}'
+        type: gauge
+      - name: easyrent_memory_used_mb
+        path: '{.metrics.easyrent_memory_used_mb}'
+        type: gauge
+      - name: easyrent_memory_percentage
+        path: '{.metrics.easyrent_memory_percentage}'
+        type: gauge
+      - name: easyrent_cpu_usage_percentage
+        path: '{.metrics.easyrent_cpu_usage_percentage}'
+        type: gauge
+      - name: easyrent_requests_total
+        path: '{.metrics.easyrent_requests_total}'
+        type: counter
+      - name: easyrent_health_status
+        path: '{.metrics.easyrent_health_status}'
+        type: gauge
+      - name: easyrent_database_response_time_ms
+        path: '{.metrics.easyrent_database_response_time_ms}'
+        type: gauge

@@ -32,7 +32,7 @@ class CreateListingRequest(BaseModel):
     furnished: Optional[bool] = Field(None, description="Whether the property is furnished")
     rental_mode: Optional[str] = Field(None, description="Rental mode: full_property, private_room, shared_room")
     rental_term: Optional[str] = Field(None, description="Rental term: daily, weekly, monthly, yearly")
-    rental_model: Optional[str] = Field('traditional', description="Rental model: traditional or airbnb")
+    rental_model: Optional[str] = Field('traditional', description="Rental model: traditional or typeairbnb")
     airbnb_score: Optional[int] = Field(None, ge=0, le=100, description="Airbnb eligibility score (0-100)")
     airbnb_eligible: Optional[bool] = Field(None, description="Whether the property is eligible for Airbnb")
     airbnb_opted_out: Optional[bool] = Field(False, description="Whether the owner opted out of Airbnb functionality")

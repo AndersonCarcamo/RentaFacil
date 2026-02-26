@@ -7,6 +7,7 @@ from app.schemas.search import (
     SearchFilters, SearchResults, SearchSuggestionsResponse, SavedSearchRequest, 
     UpdateSavedSearchRequest, SavedSearchResponse, AvailableFiltersResponse
 )
+from app.services.api_cache_service import api_cache_service
 from app.services.search_service import SearchService
 from typing import List, Optional
 
@@ -44,7 +45,7 @@ async def search_listings(
     pet_friendly: Optional[bool] = Query(None, description="Solo propiedades que aceptan mascotas (true) o no (false)"),
     furnished: Optional[bool] = Query(None, description="Solo propiedades amuebladas (true) o no amuebladas (false)"),
     rental_mode: Optional[str] = Query(None, description="Modalidad de alquiler (full_property, private_room, shared_room)"),
-    rental_model: Optional[str] = Query(None, description="Modelo de renta (traditional, airbnb)"),
+    rental_model: Optional[str] = Query(None, description="Modelo de renta (traditional, typeairbnb)"),
     airbnb_eligible: Optional[bool] = Query(None, description="Solo propiedades elegibles para Airbnb"),
     min_airbnb_score: Optional[int] = Query(None, ge=0, le=100, description="Score mínimo de elegibilidad Airbnb"),
     amenities: Optional[List[str]] = Query(None, description="Nombres de amenidades (ej: piscina, gimnasio)"),
@@ -128,8 +129,18 @@ async def get_available_filters(
     - Amenidades disponibles
     """
     try:
+        location_key = (location or "all").strip().lower()
+        cached_filters = api_cache_service.get_static_data("search-filters", location_key)
+        if cached_filters is not None:
+            return cached_filters
+
         service = SearchService(db)
         filters = service.get_available_filters(location)
+        api_cache_service.set_static_data(
+            "search-filters",
+            location_key,
+            filters.model_dump(mode="json"),
+        )
         return filters
     except Exception as e:
         raise HTTPException(
@@ -245,8 +256,14 @@ async def get_amenities(db: Session = Depends(get_db)):
     """Obtener la lista de todas las amenidades disponibles"""
     from app.models.search import Amenity
     try:
+        cached_amenities = api_cache_service.get_static_data("amenities-catalog")
+        if cached_amenities is not None:
+            return cached_amenities
+
         amenities = db.query(Amenity).order_by(Amenity.name).all()
-        return [{"id": a.id, "name": a.name, "icon": a.icon} for a in amenities]
+        response = [{"id": a.id, "name": a.name, "icon": a.icon} for a in amenities]
+        api_cache_service.set_static_data("amenities-catalog", "default", response)
+        return response
     except Exception as e:
         raise HTTPException(
             status_code=500,

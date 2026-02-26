@@ -28,11 +28,14 @@ from ...schemas.bookings import (
     DateAvailability,
     HostBookingsResponse
 )
-from ...services.email_service import EmailService
 from ...services.message_service import MessageService
 from ...services.notification_service import NotificationService
-from ...models.notification import NotificationType, NotificationPriority
+from ...models.notification import NotificationType, NotificationPriority, DeliveryMethod
 from ...schemas.notifications import NotificationCreate
+from ...tasks.email_tasks import (
+    send_booking_request_email_task,
+    send_payment_request_email_task,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -300,7 +303,7 @@ async def create_booking(
             raise HTTPException(status_code=404, detail="Propiedad no encontrada")
         
         # 3. Verificar que el listing es tipo Airbnb
-        if listing.rental_model != 'airbnb':
+        if listing.rental_model != 'typeairbnb':
             raise HTTPException(
                 status_code=400,
                 detail="Esta propiedad no está disponible para reservas tipo Airbnb"
@@ -411,7 +414,8 @@ async def create_booking(
                         "guest_name": guest_name,
                         "check_in": check_in_formatted,
                         "check_out": check_out_formatted
-                    }
+                    },
+                    delivery_methods=[DeliveryMethod.IN_APP.value, DeliveryMethod.PUSH.value]
                 )
                 
                 notification_service.create_notification(notification_data)
@@ -425,8 +429,6 @@ async def create_booking(
             owner = db.query(User).filter(User.id == listing.owner_user_id).first()
             
             if owner and owner.email:
-                email_service = EmailService()
-                
                 # Formatear fechas para el email
                 check_in_formatted = booking.check_in_date.strftime("%d/%m/%Y")
                 check_out_formatted = booking.check_out_date.strftime("%d/%m/%Y")
@@ -437,17 +439,19 @@ async def create_booking(
                 # Obtener nombre del propietario
                 owner_name = f"{owner.first_name or ''} {owner.last_name or ''}".strip() or "Propietario"
                 
-                email_service.send_booking_request_notification(
-                    owner_email=owner.email,
-                    owner_name=owner_name,
-                    guest_name=guest_name,
-                    property_title=listing.title,
-                    check_in=check_in_formatted,
-                    check_out=check_out_formatted,
-                    guests=booking.number_of_guests,
-                    total_price=float(booking.total_price),
-                    booking_id=str(booking.id),
-                    message=booking.guest_message
+                send_booking_request_email_task.delay(
+                    {
+                        "owner_email": owner.email,
+                        "owner_name": owner_name,
+                        "guest_name": guest_name,
+                        "property_title": listing.title,
+                        "check_in": check_in_formatted,
+                        "check_out": check_out_formatted,
+                        "guests": booking.number_of_guests,
+                        "total_price": float(booking.total_price),
+                        "booking_id": str(booking.id),
+                        "message": booking.guest_message,
+                    }
                 )
                 
                 logger.info(f"📧 Email enviado al propietario {owner.email} para reserva {booking.id}")
@@ -737,8 +741,6 @@ async def confirm_booking(
                 payment_deadline_str = payment_deadline.strftime("%d/%m/%Y %H:%M")
                 
                 # Enviar email al huésped
-                email_service = EmailService()
-                
                 guest_name = f"{guest.first_name or ''} {guest.last_name or ''}".strip() or "Huésped"
                 owner_name = f"{current_user.first_name or ''} {current_user.last_name or ''}".strip() or "Anfitrión"
                 
@@ -748,27 +750,25 @@ async def confirm_booking(
                 logger.info(f"📧 Monto de reserva: S/ {reservation_amount:.2f}")
                 logger.info(f"📧 Fecha límite: {payment_deadline_str}")
                 
-                email_sent = email_service.send_payment_request_email(
-                    guest_email=guest.email,
-                    guest_name=guest_name,
-                    property_title=listing.title,
-                    check_in=booking.check_in_date.strftime("%d/%m/%Y"),
-                    check_out=booking.check_out_date.strftime("%d/%m/%Y"),
-                    nights=booking.nights,
-                    guests=booking.number_of_guests,
-                    total_price=float(booking.total_price),
-                    reservation_amount=reservation_amount,
-                    booking_id=str(booking.id),
-                    payment_deadline=payment_deadline_str,
-                    owner_name=owner_name
+                send_payment_request_email_task.delay(
+                    {
+                        "guest_email": guest.email,
+                        "guest_name": guest_name,
+                        "property_title": listing.title,
+                        "check_in": booking.check_in_date.strftime("%d/%m/%Y"),
+                        "check_out": booking.check_out_date.strftime("%d/%m/%Y"),
+                        "nights": booking.nights,
+                        "guests": booking.number_of_guests,
+                        "total_price": float(booking.total_price),
+                        "reservation_amount": reservation_amount,
+                        "booking_id": str(booking.id),
+                        "payment_deadline": payment_deadline_str,
+                        "owner_name": owner_name,
+                    }
                 )
-                
-                if email_sent:
-                    logger.info(f"✅ Email de solicitud de pago enviado exitosamente a {guest.email}")
-                    email_status = "enviado exitosamente"
-                else:
-                    logger.warning(f"⚠️ No se pudo enviar email a {guest.email}")
-                    email_status = "falló al enviar"
+
+                logger.info(f"✅ Email de solicitud de pago encolado exitosamente para {guest.email}")
+                email_status = "encolado exitosamente"
                     
             except Exception as e:
                 logger.error(f"❌ Error al enviar email de confirmación: {e}")
@@ -829,6 +829,7 @@ async def confirm_booking(
                         "payment_deadline": payment_deadline_str,
                         "reservation_amount": reservation_amount
                     },
+                    delivery_methods=[DeliveryMethod.IN_APP.value, DeliveryMethod.PUSH.value],
                     expires_at=payment_deadline
                 )
                 
@@ -929,7 +930,8 @@ async def reject_booking(
                         "booking_id": str(booking.id),
                         "listing_title": listing.title,
                         "rejection_reason": reason
-                    }
+                    },
+                    delivery_methods=[DeliveryMethod.IN_APP.value, DeliveryMethod.PUSH.value]
                 )
                 
                 notification_service.create_notification(notification_data)

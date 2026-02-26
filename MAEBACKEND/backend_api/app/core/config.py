@@ -8,6 +8,15 @@ class Settings(BaseSettings):
     # Database
     database_url: str = "postgresql://postgres:password@localhost:5432/easy_rent"
     database_url_test: str = "postgresql://postgres:password@localhost:5432/easy_rent_test"
+    db_pool_profile: Optional[str] = None
+    db_pool_size: Optional[int] = None
+    db_max_overflow: Optional[int] = None
+    db_pool_timeout: Optional[int] = None
+    db_pool_recycle: Optional[int] = None
+    db_pool_pre_ping: Optional[bool] = None
+    db_pool_per_worker: int = 8
+    db_postgres_connection_budget: int = 120
+    db_reserved_connections: int = 20
     
     # JWT
     secret_key: str = "dev-secret-key-change-in-production"
@@ -51,6 +60,23 @@ class Settings(BaseSettings):
     
     # Rate Limiting
     rate_limit_per_minute: int = 60
+
+    # Redis / Cache
+    redis_url: str = "redis://localhost:6379/1"
+    redis_host: str = "localhost"
+    redis_port: int = 6379
+    redis_db: int = 1
+    redis_password: Optional[str] = None
+    search_cache_ttl_seconds: int = 120
+    search_cache_version_key: str = "search:version"
+    search_cache_prewarm_enabled: bool = True
+    listing_detail_cache_ttl_seconds: int = 300
+    static_cache_ttl_seconds: int = 1800
+
+    # Celery
+    celery_broker_url: Optional[str] = None
+    celery_result_backend: Optional[str] = None
+    notification_queue_drain_interval_seconds: int = 30
     
     # File Upload
     max_file_size: int = 10485760  # 10MB

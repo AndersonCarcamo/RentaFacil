@@ -2,6 +2,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, text
 from app.models.listing import Listing
 from app.schemas.listings import CreateListingRequest, UpdateListingRequest
+from app.services.api_cache_service import api_cache_service
+from app.services.search_cache_service import search_cache_service
 from app.utils.slug_generator import generate_listing_slug, ensure_unique_slug
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
@@ -91,6 +93,16 @@ def generate_meta_tags(listing: Listing) -> tuple[str, str]:
 
 
 class ListingService:
+    SEARCH_RELEVANT_UPDATE_FIELDS = {
+        "title", "description", "operation", "property_type", "advertiser_type",
+        "price", "currency", "bedrooms", "bathrooms", "parking_spots",
+        "area_built", "area_total", "rental_term", "age_years", "has_media",
+        "pet_friendly", "furnished", "rental_mode", "rental_model",
+        "airbnb_eligible", "airbnb_score", "airbnb_opted_out", "status",
+        "published_at", "published_until", "department", "province", "district",
+        "address", "latitude", "longitude", "verification_status"
+    }
+
     def __init__(self, db: Session):
         self.db = db
 
@@ -195,6 +207,9 @@ class ListingService:
         # Auto-validate Airbnb eligibility for rent/temp_rent operations
         if data.operation in ['rent', 'temp_rent']:
             self._validate_airbnb_eligibility(listing)
+
+        if listing.status == 'published':
+            search_cache_service.invalidate_on_listing_change("create_listing")
             
         return listing
 
@@ -202,9 +217,13 @@ class ListingService:
         listing = self.get_listing(listing_id)
         if not listing:
             return None
+
+        previous_slug = listing.slug
+        updated_payload = data.dict(exclude_unset=True)
+        updated_fields = set(updated_payload.keys())
         
         # Actualizar campos
-        for field, value in data.dict(exclude_unset=True).items():
+        for field, value in updated_payload.items():
             setattr(listing, field, value)
         
         # Regenerar slug si cambió el título, distrito o tipo de propiedad
@@ -230,45 +249,86 @@ class ListingService:
         
         self.db.commit()
         self.db.refresh(listing)
+
+        api_cache_service.invalidate_listing_detail(
+            listing_id=str(listing.id),
+            slug=listing.slug,
+            old_slug=previous_slug,
+        )
+
+        if listing.status == 'published' and (updated_fields & self.SEARCH_RELEVANT_UPDATE_FIELDS):
+            search_cache_service.invalidate_on_listing_change("update_listing")
+
         return listing
 
     def delete_listing(self, listing_id: str) -> bool:
         listing = self.get_listing(listing_id)
         if not listing:
             return False
+
+        was_published = listing.status == 'published'
+        listing_uuid = str(listing.id)
+        listing_slug = listing.slug
         self.db.delete(listing)
         self.db.commit()
+
+        api_cache_service.invalidate_listing_detail(listing_id=listing_uuid, slug=listing_slug)
+
+        if was_published:
+            search_cache_service.invalidate_on_listing_change("delete_listing")
+
         return True
 
     def change_status(self, listing_id: str, status: str) -> Optional[Listing]:
         listing = self.get_listing(listing_id)
         if not listing:
             return None
-        
+
+        previous_status = listing.status
         listing.status = status
         self.db.commit()
         self.db.refresh(listing)
+
+        api_cache_service.invalidate_listing_detail(listing_id=str(listing.id), slug=listing.slug)
+
+        if previous_status != status and ('published' in {previous_status, status}):
+            search_cache_service.invalidate_on_listing_change("change_status")
+
         return listing
 
     def publish_listing(self, listing_id: str) -> Optional[Listing]:
         listing = self.get_listing(listing_id)
         if not listing:
             return None
-        
+
+        was_published = listing.status == 'published'
         listing.status = 'published'
         listing.published_at = datetime.now(timezone.utc)
         self.db.commit()
         self.db.refresh(listing)
+
+        api_cache_service.invalidate_listing_detail(listing_id=str(listing.id), slug=listing.slug)
+
+        if not was_published:
+            search_cache_service.invalidate_on_listing_change("publish_listing")
+
         return listing
 
     def unpublish_listing(self, listing_id: str) -> Optional[Listing]:
         listing = self.get_listing(listing_id)
         if not listing:
             return None
-        
+
+        was_published = listing.status == 'published'
         listing.status = 'archived'  # Use 'archived' instead of 'unpublished'
         self.db.commit()
         self.db.refresh(listing)
+
+        api_cache_service.invalidate_listing_detail(listing_id=str(listing.id), slug=listing.slug)
+
+        if was_published:
+            search_cache_service.invalidate_on_listing_change("unpublish_listing")
+
         return listing
 
     def get_user_listings(self, user_id: str) -> List[Listing]:
@@ -373,6 +433,11 @@ class ListingService:
                     self.db.commit()
                     
                     # Return validation details
+                    if listing.status == 'published':
+                        search_cache_service.invalidate_on_listing_change("validate_airbnb_listing")
+
+                    api_cache_service.invalidate_listing_detail(listing_id=str(listing.id), slug=listing.slug)
+
                     return {
                         "can_be_airbnb": validation.get('can_be_airbnb', False),
                         "airbnb_score": validation.get('airbnb_score', 0),
@@ -402,6 +467,11 @@ class ListingService:
             # Marcar como opted out
             listing.airbnb_opted_out = True
             self.db.commit()
+
+            if listing.status == 'published':
+                search_cache_service.invalidate_on_listing_change("opt_out_airbnb")
+
+            api_cache_service.invalidate_listing_detail(listing_id=str(listing.id), slug=listing.slug)
             
             return listing
             
@@ -435,6 +505,12 @@ class ListingService:
                 listing.airbnb_score = 0
             
             self.db.commit()
+
+            if listing.status == 'published':
+                search_cache_service.invalidate_on_listing_change("opt_in_airbnb")
+
+            api_cache_service.invalidate_listing_detail(listing_id=str(listing.id), slug=listing.slug)
+
             return listing
             
         except Exception as e:

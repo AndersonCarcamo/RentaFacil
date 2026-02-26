@@ -14,6 +14,9 @@ from app.core.exceptions import BusinessLogicError
 import uuid
 import logging
 from datetime import datetime
+import base64
+
+from app.tasks.media_tasks import process_image_upload_task
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -54,7 +57,7 @@ async def upload_images(
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user)
 ):
-    """Sube una o más imágenes para una propiedad usando LocalMediaService"""
+    """Encola una o más imágenes para procesamiento asíncrono"""
     try:
         # Verificar que el listing existe y pertenece al usuario
         listing = db.query(Listing).filter(Listing.id == listing_id).first()
@@ -65,9 +68,8 @@ async def upload_images(
         if str(listing.owner_user_id) != str(current_user.get("user_id", current_user.get("id"))):
             raise HTTPException(status_code=403, detail="Not authorized to modify this listing")
         
-        media_service = MediaService(db)
-        created_count = 0
-        errors = []
+        uploaded = []
+        failed = []
         
         for i, image_file in enumerate(images):
             try:
@@ -78,32 +80,50 @@ async def upload_images(
                 
                 # Leer datos del archivo
                 file_data = await image_file.read()
+                if not file_data:
+                    failed.append({
+                        "filename": image_file.filename,
+                        "error": "Empty file"
+                    })
+                    continue
                 
                 # Obtener descripción correspondiente
                 description = descriptions[i] if descriptions and i < len(descriptions) else None
                 
-                # Crear imagen usando el nuevo sistema LocalMediaService
-                image = media_service.create_image(
+                # Encolar procesamiento async en Celery
+                async_result = process_image_upload_task.delay(
                     listing_id=listing_id,
-                    listing_created_at=listing.created_at,
-                    file_data=file_data,
+                    listing_created_at=listing.created_at.isoformat(),
                     filename=image_file.filename,
-                    alt_text=description
+                    file_data_b64=base64.b64encode(file_data).decode("utf-8"),
+                    alt_text=description,
                 )
-                
-                created_count += 1
-                logger.info(f"Image uploaded successfully: {image.id}")
+
+                uploaded.append({
+                    "filename": image_file.filename,
+                    "task_id": async_result.id,
+                    "status": "queued"
+                })
+                logger.info(f"Image queued successfully: file={image_file.filename}, task_id={async_result.id}")
                 
             except BusinessLogicError as e:
-                errors.append(f"File {image_file.filename}: {str(e)}")
+                failed.append({
+                    "filename": image_file.filename,
+                    "error": str(e)
+                })
             except Exception as e:
-                errors.append(f"File {image_file.filename}: Unexpected error - {str(e)}")
+                failed.append({
+                    "filename": image_file.filename,
+                    "error": f"Unexpected error - {str(e)}"
+                })
                 logger.error(f"Unexpected error uploading {image_file.filename}: {e}")
         
         return BulkMediaResponse(
-            success=created_count > 0,
-            created_count=created_count,
-            errors=errors
+            message="Images queued for asynchronous processing",
+            uploaded=uploaded,
+            failed=failed,
+            total_uploaded=len(uploaded),
+            total_failed=len(failed),
         )
         
     except HTTPException:

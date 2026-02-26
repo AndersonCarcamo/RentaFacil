@@ -8,6 +8,8 @@ from app.schemas.listings import (
 from app.schemas.images import ImageResponse, ImageUpdate
 from app.schemas.videos import VideoResponse
 from app.services.listing_service import ListingService
+from app.services.api_cache_service import api_cache_service
+from app.services.search_cache_service import search_cache_service
 from app.api.deps import get_current_user
 from app.models.listing import Listing
 from app.models.media import Image, Video
@@ -185,6 +187,10 @@ async def get_all_amenities(db: Session = Depends(get_db)):
     No requiere autenticación.
     """
     try:
+        cached_amenities = api_cache_service.get_static_data("amenities-catalog")
+        if cached_amenities is not None:
+            return cached_amenities
+
         result = db.execute(text("""
             SELECT id, name, icon 
             FROM core.amenities 
@@ -196,6 +202,7 @@ async def get_all_amenities(db: Session = Depends(get_db)):
             for row in result.fetchall()
         ]
         
+        api_cache_service.set_static_data("amenities-catalog", "default", amenities)
         return amenities
         
     except Exception as e:
@@ -284,6 +291,12 @@ async def update_listing_amenities(
                 })
         
         db.commit()
+
+        api_cache_service.invalidate_listing_detail(
+            listing_id=str(listing.id),
+            slug=listing.slug,
+        )
+        search_cache_service.invalidate_on_listing_change("update_listing_amenities")
         
         return {"message": "Amenidades actualizadas correctamente"}
         
@@ -304,6 +317,10 @@ async def get_listing_by_slug(slug: str, db: Session = Depends(get_db)):
     Este endpoint es importante para SEO y compartir links.
     """
     try:
+        cached_listing = api_cache_service.get_listing_detail_by_slug(slug)
+        if cached_listing:
+            return cached_listing
+
         # Buscar listing por slug
         listing = db.query(Listing).filter(
             Listing.slug == slug,
@@ -349,6 +366,7 @@ async def get_listing_by_slug(slug: str, db: Session = Depends(get_db)):
         } for img in images]
         listing_dict['amenities'] = amenities
         
+        api_cache_service.set_listing_detail(str(listing.id), listing.slug, listing_dict)
         return listing_dict
         
     except HTTPException:
@@ -359,6 +377,10 @@ async def get_listing_by_slug(slug: str, db: Session = Depends(get_db)):
 
 @router.get("/{listing_id}", response_model=ListingResponse, summary="Obtener propiedad por ID")
 async def get_listing(listing_id: str, db: Session = Depends(get_db)):
+    cached_listing = api_cache_service.get_listing_detail_by_id(listing_id)
+    if cached_listing:
+        return cached_listing
+
     service = ListingService(db)
     listing = service.get_listing(listing_id)
     if not listing:
@@ -403,6 +425,7 @@ async def get_listing(listing_id: str, db: Session = Depends(get_db)):
     } for img in images]
     listing_dict['amenities'] = amenities
     
+    api_cache_service.set_listing_detail(str(listing.id), listing.slug, listing_dict)
     return listing_dict
 
 @router.put("/{listing_id}", response_model=ListingResponse, summary="Actualizar propiedad")
@@ -730,6 +753,12 @@ async def upload_listing_image(
         db.add(image_record)
         db.commit()
         db.refresh(image_record)
+
+        api_cache_service.invalidate_listing_detail(
+            listing_id=str(listing.id),
+            slug=listing.slug,
+        )
+        search_cache_service.invalidate_on_listing_change("upload_listing_image")
         
         logger.info(f"Imagen subida: {image_record.id} para listing {listing_id}")
         
@@ -834,6 +863,11 @@ async def update_listing_image(
         
         db.commit()
         db.refresh(image)
+
+        api_cache_service.invalidate_listing_detail(
+            listing_id=str(listing.id),
+            slug=listing.slug,
+        )
         
         logger.info(f"Imagen actualizada: {image.id}, is_main={image.is_main}")
         
@@ -891,6 +925,12 @@ async def delete_listing_image(
         
         db.delete(image)
         db.commit()
+
+        api_cache_service.invalidate_listing_detail(
+            listing_id=str(listing.id),
+            slug=listing.slug,
+        )
+        search_cache_service.invalidate_on_listing_change("delete_listing_image")
         
         return {"message": "Imagen eliminada exitosamente"}
         
@@ -987,6 +1027,12 @@ async def upload_listing_video(
         db.add(new_video)
         db.commit()
         db.refresh(new_video)
+
+        api_cache_service.invalidate_listing_detail(
+            listing_id=str(listing.id),
+            slug=listing.slug,
+        )
+        search_cache_service.invalidate_on_listing_change("upload_listing_video")
         
         logger.info(f"Video creado en BD con ID: {new_video.id}")
         
@@ -1083,6 +1129,12 @@ async def delete_listing_video(
         # Eliminar registro de BD
         db.delete(video)
         db.commit()
+
+        api_cache_service.invalidate_listing_detail(
+            listing_id=str(listing.id),
+            slug=listing.slug,
+        )
+        search_cache_service.invalidate_on_listing_change("delete_listing_video")
         
         logger.info(f"Video eliminado: {video_id}")
         return None

@@ -3,7 +3,7 @@ User management service for EasyRent API.
 """
 
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_, func
+from sqlalchemy import and_, or_, func, text, desc
 from app.models.auth import User, UserRole
 from app.schemas.users import (
     CreateUserRequest, UpdateUserRequest, UserListFilters, 
@@ -53,22 +53,28 @@ class UserService:
         if filters.role:
             query = query.filter(User.role == filters.role)
         
+        search_text = None
         if filters.search:
-            search_term = f"%{filters.search}%"
-            query = query.filter(
-                or_(
-                    User.first_name.ilike(search_term),
-                    User.last_name.ilike(search_term),
-                    User.email.ilike(search_term)
-                )
-            )
+            search_text = filters.search.strip()
+            if search_text:
+                query = query.filter(
+                    text("search_doc @@ plainto_tsquery('simple', :search_text)")
+                ).params(search_text=search_text)
 
         # Get total count
         total = query.count()
 
         # Apply pagination
         pagination = paginate_query_params(filters.page, filters.limit)
-        users = query.offset(pagination["offset"]).limit(pagination["limit"]).all()
+        if search_text:
+            users = query.order_by(
+                desc(
+                    text("ts_rank(search_doc, plainto_tsquery('simple', :search_text))")
+                ),
+                desc(User.created_at)
+            ).params(search_text=search_text).offset(pagination["offset"]).limit(pagination["limit"]).all()
+        else:
+            users = query.order_by(desc(User.created_at)).offset(pagination["offset"]).limit(pagination["limit"]).all()
 
         # Calculate pagination metadata
         pages = (total + pagination["limit"] - 1) // pagination["limit"]

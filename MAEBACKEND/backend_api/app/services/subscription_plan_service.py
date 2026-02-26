@@ -11,6 +11,7 @@ from uuid import UUID
 from app.models.subscription_plan import SubscriptionPlan
 from app.schemas.subscription_plans import PlanCreate, PlanUpdate
 from app.core.exceptions import NotFoundException, BadRequestException
+from app.services.api_cache_service import api_cache_service
 
 
 class SubscriptionPlanService:
@@ -122,6 +123,7 @@ class SubscriptionPlanService:
         db.add(plan)
         db.commit()
         db.refresh(plan)
+        api_cache_service.invalidate_static_namespace("subscription-plans-catalog")
         
         return plan
 
@@ -160,6 +162,7 @@ class SubscriptionPlanService:
         
         db.commit()
         db.refresh(plan)
+        api_cache_service.invalidate_static_namespace("subscription-plans-catalog")
         
         return plan
 
@@ -196,6 +199,7 @@ class SubscriptionPlanService:
         plan.is_active = False
         
         db.commit()
+        api_cache_service.invalidate_static_namespace("subscription-plans-catalog")
         
         return True
 
@@ -250,5 +254,6 @@ class SubscriptionPlanService:
                 plan.sort_order = order
         
         db.commit()
+        api_cache_service.invalidate_static_namespace("subscription-plans-catalog")
         
         return True

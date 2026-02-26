@@ -15,7 +15,7 @@ import subprocess
 import os
 import json
 
-from app.core.database import get_db
+from app.core.database import get_db, get_db_pool_diagnostics
 from app.core.config import settings
 from app.schemas.system import (
     ServiceHealthResponse, HealthCheckResponse, VersionResponse,
@@ -418,4 +418,12 @@ class SystemService:
             
         except Exception as e:
             logger.error(f"Failed to get database stats: {str(e)}")
+            return {"error": str(e)}
+
+    def get_database_pool_stats(self) -> Dict[str, Any]:
+        """Return runtime DB pool stats for saturation and leak checks."""
+        try:
+            return get_db_pool_diagnostics()
+        except Exception as e:
+            logger.error(f"Failed to get database pool diagnostics: {str(e)}")
             return {"error": str(e)}

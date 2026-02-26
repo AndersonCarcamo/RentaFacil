@@ -1036,7 +1036,7 @@ async def get_users_list(
     
     # Construir la query base
     base_conditions = []
-    params = {"offset": offset, "limit": limit, "now": now}
+    params = {"offset": offset, "limit": limit, "now": now, "search": None}
     
     # Filtro por rol
     if role:
@@ -1057,9 +1057,12 @@ async def get_users_list(
     
     # Filtro por búsqueda de texto
     if search:
-        search_term = f"%{search.lower()}%"
-        base_conditions.append("(LOWER(u.email) LIKE :search OR LOWER(concat_ws(first_name, last_name)) LIKE :search)")
-        params["search"] = search_term
+        search_text = search.strip()
+        if search_text:
+            base_conditions.append("""
+                u.search_doc @@ plainto_tsquery('simple', :search)
+            """)
+            params["search"] = search_text
     
     # Filtro por plan de suscripción
     plan_join = ""
@@ -1140,12 +1143,19 @@ async def get_users_list(
                 u.last_login_at,
                 u.profile_picture_url,
                 u.first_name,
-                u.last_name
+                u.last_name,
+                CASE
+                    WHEN :search IS NOT NULL AND :search <> '' THEN ts_rank(
+                        u.search_doc,
+                        plainto_tsquery('simple', :search)
+                    )
+                    ELSE 0
+                END AS relevance_rank
             FROM core.users u
             {plan_join}
             {activity_join}
             WHERE {where_clause}
-            ORDER BY u.created_at DESC
+            ORDER BY relevance_rank DESC, u.created_at DESC
             LIMIT :limit OFFSET :offset
         """),
         params
