@@ -3,6 +3,7 @@ import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { Header } from '../components/common/Header';
 import Button from '../components/ui/Button';
+import { API_BASE_URL, publicRequest } from '../lib/api/auth';
 import {
   CheckCircleIcon,
   SparklesIcon,
@@ -15,17 +16,56 @@ import {
   XMarkIcon
 } from '@heroicons/react/24/outline';
 
+type PlanFeature = { text: string; included: boolean };
+
+type UiPlan = {
+  id: string;
+  name: string;
+  price: string;
+  period: string;
+  description: string;
+  color: string;
+  highlightColor: string;
+  buttonVariant: 'primary' | 'secondary';
+  popular?: boolean;
+  features: PlanFeature[];
+  sourceTier?: string;
+  sourceCode?: string;
+  sourceTargetUserType?: string;
+  priceAmount?: number;
+};
+
+type BackendPlan = {
+  id: string;
+  code?: string;
+  name: string;
+  description?: string;
+  tier?: string;
+  period?: string;
+  target_user_type?: string;
+  price_amount?: number | string;
+  max_active_listings?: number;
+  max_images_per_listing?: number;
+  max_videos_per_listing?: number;
+  featured_listings?: boolean;
+  priority_support?: boolean;
+  analytics_access?: boolean;
+  api_access?: boolean;
+  is_default?: boolean;
+  is_active?: boolean;
+};
+
 const PlansPage: React.FC = () => {
   const router = useRouter();
   const { newUser, userType } = router.query; // Para detectar si viene del registro y el tipo de usuario
-  const [selectedPlan, setSelectedPlan] = useState<'free' | 'basic' | 'pro' | 'enterprise'>('free');
+  const [selectedPlan, setSelectedPlan] = useState<string>('free');
   
   // Determinar si es agente o propietario
   const isAgent = userType === 'AGENT';
   const isLandlord = userType === 'LANDLORD';
 
   // Planes para PROPIETARIOS
-  const landlordPlans = [
+  const landlordPlans: UiPlan[] = [
     {
       id: 'free',
       name: 'Plan FREE',
@@ -88,7 +128,7 @@ const PlansPage: React.FC = () => {
   ];
 
   // Planes para AGENTES/INMOBILIARIAS
-  const agentPlans = [
+  const agentPlans: UiPlan[] = [
     {
       id: 'free',
       name: 'Plan FREE',
@@ -136,9 +176,177 @@ const PlansPage: React.FC = () => {
     }
   ];
 
-  const plans = isAgent ? agentPlans : landlordPlans;
+  const [plans, setPlans] = useState<UiPlan[]>(isAgent ? agentPlans : landlordPlans);
 
-  const selectedPlanData = plans.find(p => p.id === selectedPlan);
+  const getPlanTheme = (plan: BackendPlan) => {
+    const tier = (plan.tier || '').toLowerCase();
+    const name = (plan.name || '').toLowerCase();
+    const code = (plan.code || '').toLowerCase();
+    const isEnterprise = tier.includes('enterprise') || name.includes('enterprise') || code.includes('enterprise') || name.includes('empresarial');
+    const isFree = (Number(plan.price_amount || 0) === 0) || name.includes('free') || code.includes('free') || name.includes('gratis');
+    const isBasic = tier.includes('basic') || name.includes('básico') || name.includes('basic') || code.includes('basic');
+
+    if (isEnterprise) {
+      return {
+        color: 'bg-gradient-to-br from-amber-50 to-yellow-50 border-amber-400',
+        highlightColor: 'text-amber-600',
+        buttonVariant: 'primary' as const,
+      };
+    }
+
+    if (isFree) {
+      return {
+        color: 'bg-gray-50 border-gray-300',
+        highlightColor: 'text-gray-900',
+        buttonVariant: 'secondary' as const,
+      };
+    }
+
+    if (isBasic) {
+      return {
+        color: 'bg-blue-50 border-blue-300',
+        highlightColor: 'text-blue-600',
+        buttonVariant: 'primary' as const,
+      };
+    }
+
+    return {
+      color: 'bg-gradient-to-br from-blue-50 to-cyan-50 border-blue-400',
+      highlightColor: 'text-blue-600',
+      buttonVariant: 'primary' as const,
+    };
+  };
+
+  const mapBackendPlanToUiPlan = (plan: BackendPlan): UiPlan => {
+    const numericPrice = Number(plan.price_amount || 0);
+    const formattedPrice = numericPrice === 0
+      ? 'S/ 0'
+      : `S/ ${numericPrice.toLocaleString('es-PE', { maximumFractionDigits: 0 })}`;
+
+    const periodLabel = plan.period === 'yearly'
+      ? '/año'
+      : plan.period === 'quarterly'
+      ? '/trimestre'
+      : plan.period === 'permanent'
+      ? ''
+      : '/mes';
+
+    const features: PlanFeature[] = [
+      {
+        text: `${plan.max_active_listings ?? 1} publicaciones activas`,
+        included: true,
+      },
+      {
+        text: `Hasta ${plan.max_images_per_listing ?? 5} fotos por propiedad`,
+        included: true,
+      },
+      {
+        text: 'Publicaciones destacadas',
+        included: Boolean(plan.featured_listings),
+      },
+      {
+        text: 'Análisis avanzado',
+        included: Boolean(plan.analytics_access),
+      },
+      {
+        text: 'Acceso a API',
+        included: Boolean(plan.api_access),
+      },
+      {
+        text: 'Soporte prioritario',
+        included: Boolean(plan.priority_support),
+      },
+      {
+        text: `${plan.max_videos_per_listing ?? 0} videos por propiedad`,
+        included: (plan.max_videos_per_listing ?? 0) > 0,
+      },
+    ];
+
+    const theme = getPlanTheme(plan);
+    const tier = (plan.tier || '').toLowerCase();
+    const code = (plan.code || '').toLowerCase();
+
+    return {
+      id: plan.code || plan.id,
+      name: plan.name,
+      price: formattedPrice,
+      period: periodLabel,
+      description: plan.description || 'Plan de suscripción de RENTA fácil',
+      color: theme.color,
+      highlightColor: theme.highlightColor,
+      buttonVariant: theme.buttonVariant,
+      popular: Boolean(plan.is_default) || tier.includes('basic') || code.includes('basic'),
+      features,
+      sourceTier: plan.tier,
+      sourceCode: plan.code,
+      sourceTargetUserType: plan.target_user_type,
+      priceAmount: numericPrice,
+    };
+  };
+
+  const isEnterprisePlan = (plan: UiPlan) => {
+    const tier = (plan.sourceTier || '').toLowerCase();
+    const code = (plan.sourceCode || '').toLowerCase();
+    const name = (plan.name || '').toLowerCase();
+    return tier.includes('enterprise') || code.includes('enterprise') || name.includes('enterprise') || name.includes('empresarial');
+  };
+
+  const isFreePlan = (plan: UiPlan) => {
+    const code = (plan.sourceCode || plan.id || '').toLowerCase();
+    const name = (plan.name || '').toLowerCase();
+    return (plan.priceAmount ?? 0) === 0 || code.includes('free') || name.includes('free') || name.includes('gratis');
+  };
+
+  useEffect(() => {
+    const loadPlansFromBackend = async () => {
+      try {
+        const targetUserType = isAgent ? 'agency' : 'individual';
+        const response = await publicRequest(
+          `${API_BASE_URL}/v1/plans?target_user_type=${targetUserType}`,
+          { method: 'GET' }
+        );
+
+        if (!response.ok) {
+          throw new Error(`Error loading plans: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const backendPlans = Array.isArray(data?.plans) ? data.plans as BackendPlan[] : [];
+
+        if (backendPlans.length === 0) {
+          setPlans(isAgent ? agentPlans : landlordPlans);
+          return;
+        }
+
+        const mappedPlans = backendPlans
+          .filter((plan) => plan.is_active !== false)
+          .map(mapBackendPlanToUiPlan);
+
+        if (mappedPlans.length > 0) {
+          setPlans(mappedPlans);
+        } else {
+          setPlans(isAgent ? agentPlans : landlordPlans);
+        }
+      } catch (error) {
+        console.error('Error loading plans from backend, using fallback plans:', error);
+        setPlans(isAgent ? agentPlans : landlordPlans);
+      }
+    };
+
+    loadPlansFromBackend();
+  }, [isAgent]);
+
+  useEffect(() => {
+    if (plans.length === 0) {
+      return;
+    }
+
+    const hasCurrentSelection = plans.some((plan) => plan.id === selectedPlan);
+    if (!hasCurrentSelection) {
+      const freePlan = plans.find(isFreePlan);
+      setSelectedPlan(freePlan?.id || plans[0].id);
+    }
+  }, [plans, selectedPlan]);
 
   const handleContinue = () => {
     if (newUser) {
@@ -219,7 +427,7 @@ const PlansPage: React.FC = () => {
                       {isAgent ? 'Tu plan actual incluye:' : 'Tu plan actual incluye:'}
                     </h3>
                     <div className="grid md:grid-cols-2 gap-3">
-                      {plans[0].features.filter(f => f.included).map((feature, idx) => (
+                      {(plans[0]?.features || []).filter(f => f.included).map((feature, idx) => (
                         <div key={idx} className="flex items-center gap-2">
                           <CheckCircleIcon className="w-5 h-5 text-green-300 flex-shrink-0" />
                           <span className="text-sm">{feature.text}</span>
@@ -295,7 +503,7 @@ const PlansPage: React.FC = () => {
               {plans.map((plan, index) => (
                 <div
                   key={plan.id}
-                  id={plan.id === 'enterprise' ? 'enterprise-plan' : undefined}
+                  id={isEnterprisePlan(plan) ? 'enterprise-plan' : undefined}
                   className={`relative rounded-2xl shadow-lg overflow-hidden transition-all hover:shadow-xl ${plan.color} border-2 ${
                     selectedPlan === plan.id ? 'ring-4 ring-blue-500 ring-opacity-50 scale-105' : ''
                   } ${isAgent && plan.id === 'enterprise' ? 'md:col-span-1' : ''}`}
@@ -337,9 +545,9 @@ const PlansPage: React.FC = () => {
                     <Button
                       onClick={() => {
                         setSelectedPlan(plan.id as any);
-                        if (plan.id === 'enterprise') {
+                        if (isEnterprisePlan(plan)) {
                           router.push('/contact?reason=enterprise');
-                        } else if (plan.id === 'free' && newUser) {
+                        } else if (isFreePlan(plan) && newUser) {
                           router.push('/dashboard');
                         } else {
                           router.push(`/checkout?plan=${plan.id}`);
@@ -348,9 +556,9 @@ const PlansPage: React.FC = () => {
                       variant={plan.buttonVariant}
                       className="w-full"
                     >
-                      {plan.id === 'free' 
+                      {isFreePlan(plan)
                         ? (newUser ? 'Ya estás en FREE' : 'Comenzar Gratis')
-                        : plan.id === 'enterprise'
+                        : isEnterprisePlan(plan)
                         ? 'Contactar Ventas'
                         : 'Seleccionar Plan'
                       }

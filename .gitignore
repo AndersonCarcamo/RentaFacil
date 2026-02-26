@@ -1,34 +1,31 @@
-.MAEFRONTED//Frontend/web/renta-facil-d04c7-firebase-adminsdk-fbsvc-45eba69a39.json
-.MAEFRONTED/\Frontend\web\renta-facil-d04c7-firebase-adminsdk-fbsvc-45eba69a39.json
-
 # Firebase Service Account Credentials - BACKEND
 MAEBACKEND/backend_api/firebase-serviceAccount.json
 MAEBACKEND/backend_api/config.env
 
+# Frontend WEB (secret files)
+MAEFRONTEND/Frontend/web/*firebase-adminsdk*.json
+
 # Android/React Native
-MAEFRONTED/Frontend/Android/node_modules/
-MAEFRONTED/Frontend/Android/.expo/
-MAEFRONTED/Frontend/Android/.expo-shared/
-MAEFRONTED/Frontend/Android/dist/
-MAEFRONTED/Frontend/Android/npm-debug.*
-MAEFRONTED/Frontend/Android/*.jks
-MAEFRONTED/Frontend/Android/*.p8
-MAEFRONTED/Frontend/Android/*.p12
-MAEFRONTED/Frontend/Android/*.key
-MAEFRONTED/Frontend/Android/*.mobileprovision
-MAEFRONTED/Frontend/Android/*.orig.*
-MAEFRONTED/Frontend/Android/web-build/
-MAEFRONTED/Frontend/Android/.env
-MAEFRONTED/Frontend/Android/.env.local
-MAEFRONTED/Frontend/Android/.env.development.local
-MAEFRONTED/Frontend/Android/.env.test.local
-MAEFRONTED/Frontend/Android/.env.production.local
+MAEFRONTEND/Frontend/Android/node_modules/
+MAEFRONTEND/Frontend/Android/.expo/
+MAEFRONTEND/Frontend/Android/.expo-shared/
+MAEFRONTEND/Frontend/Android/dist/
+MAEFRONTEND/Frontend/Android/npm-debug.*
+MAEFRONTEND/Frontend/Android/*.jks
+MAEFRONTEND/Frontend/Android/*.p8
+MAEFRONTEND/Frontend/Android/*.p12
+MAEFRONTEND/Frontend/Android/*.key
+MAEFRONTEND/Frontend/Android/*.mobileprovision
+MAEFRONTEND/Frontend/Android/*.orig.*
+MAEFRONTEND/Frontend/Android/web-build/
+MAEFRONTEND/Frontend/Android/.env
+MAEFRONTEND/Frontend/Android/.env.local
+MAEFRONTEND/Frontend/Android/.env.development.local
+MAEFRONTEND/Frontend/Android/.env.test.local
+MAEFRONTEND/Frontend/Android/.env.production.local
 
 # macOS
-MAEFRONTED/Frontend/Android/.DS_Store
+MAEFRONTEND/Frontend/Android/.DS_Store
 
 # Temporary files created by Metro
-MAEFRONTED/Frontend/Android/.metro-health-check*
-
-MAEBACKEMD/Backend/firebase-serviceAccount.json
-MAEFRONTED/Frontend/web/renta-facil-d04c7-firebase-adminsdk-fbsvc-45eba69a39.json
+MAEFRONTEND/Frontend/Android/.metro-health-check*

@@ -84,3 +84,9 @@ storybook-static/
 
 # Bundle analyzer
 .analyze/
+
+# Local HTTPS certs
+certs/
+
+# Firebase admin credentials (if copied for local tests)
+*firebase-adminsdk*.json

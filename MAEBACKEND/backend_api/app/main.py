@@ -101,7 +101,10 @@ configured_cors_origins = [
 ]
 
 if settings.environment.lower() == "production":
-    cors_origins = configured_cors_origins or configured_frontend_origins
+    cors_origins = [
+        *configured_frontend_origins,
+        *configured_cors_origins,
+    ]
 else:
     cors_origins = [
         "http://localhost:3000",  # React development
@@ -113,6 +116,7 @@ else:
         "http://localhost:19006",  # Expo development
         "http://127.0.0.1:19006",
         "http://192.168.18.51:3000",  # Frontend en red local
+        
         *configured_frontend_origins,
         *configured_cors_origins,
     ]

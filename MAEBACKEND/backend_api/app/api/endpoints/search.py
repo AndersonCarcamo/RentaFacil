@@ -13,6 +13,7 @@ from typing import List, Optional
 
 router = APIRouter()
 
+@router.get("", response_model=SearchResults, include_in_schema=False)
 @router.get("/", response_model=SearchResults, summary="Búsqueda general")
 async def search_listings(
     q: Optional[str] = Query(None, description="Texto de búsqueda"),
