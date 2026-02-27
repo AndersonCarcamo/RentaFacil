@@ -51,7 +51,8 @@ class NotificationService {
   }
 
   private getBaseUrl() {
-    return `${normalizedBaseUrl}${API_VERSION}`
+    const baseUrl = API_BASE_URL.replace(/\/+$/, '').replace(/\/v1$/, '')
+    return `${API_BASE_URL}${API_VERSION}`
   }
 
   /**
