@@ -13,10 +13,12 @@ from enum import Enum
 
 class PlanTier(str, Enum):
     """Niveles de planes"""
-    free = "free"
-    basic = "basic"
-    premium = "premium"
-    enterprise = "enterprise"
+    individual_free = "individual_free"
+    individual_basic = "individual_basic"
+    individual_premium = "individual_premium"
+    enterprise_free = "enterprise_free"
+    enterprise_basic = "enterprise_basic"
+    enterprise_premium = "enterprise_premium"
 
 
 class PlanPeriod(str, Enum):

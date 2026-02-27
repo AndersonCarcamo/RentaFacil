@@ -36,7 +36,7 @@ def get_all_plans(
     
     Query params:
     - include_inactive: Incluir planes inactivos
-    - tier: Filtrar por tier (free, basic, premium, enterprise)
+    - tier: Filtrar por tier (individual_free, individual_basic, individual_premium, enterprise_free, enterprise_basic, enterprise_premium)
     - target_user_type: Filtrar por tipo de usuario (individual, agency)
     - skip: Registros a saltar (paginación)
     - limit: Límite de registros

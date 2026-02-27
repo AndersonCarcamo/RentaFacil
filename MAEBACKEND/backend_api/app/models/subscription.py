@@ -12,6 +12,7 @@ class PlanTier(str, enum.Enum):
     individual_free = "individual_free"
     individual_basic = "individual_basic"
     individual_premium = "individual_premium"
+    enterprise_free = "enterprise_free"
     enterprise_basic = "enterprise_basic"
     enterprise_premium = "enterprise_premium"
     enterprise_unlimited = "enterprise_unlimited"

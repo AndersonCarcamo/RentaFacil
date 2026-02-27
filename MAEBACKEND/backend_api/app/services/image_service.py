@@ -42,12 +42,33 @@ class ImageService:
         
         return image
 
-    def upload_image(self, listing_id: str, file: UploadFile) -> Image:
-        """Subir una imagen física y crear el registro"""
-        # Verificar que el listing existe
+    def _require_owned_listing(self, listing_id: str, owner_user_id: uuid.UUID) -> Listing:
         listing = self.db.query(Listing).filter(Listing.id == uuid.UUID(listing_id)).first()
         if not listing:
             raise HTTPException(status_code=404, detail="Listing not found")
+
+        if listing.owner_user_id != owner_user_id:
+            raise HTTPException(status_code=403, detail="Not authorized to modify this listing")
+
+        return listing
+
+    def _require_owned_image(self, image_id: str, owner_user_id: uuid.UUID) -> Image:
+        image = self.get_image(image_id)
+        if not image:
+            raise HTTPException(status_code=404, detail="Image not found")
+
+        listing = self.db.query(Listing).filter(Listing.id == image.listing_id).first()
+        if not listing:
+            raise HTTPException(status_code=404, detail="Listing not found")
+
+        if listing.owner_user_id != owner_user_id:
+            raise HTTPException(status_code=403, detail="Not authorized to modify this image")
+
+        return image
+
+    def upload_image(self, listing_id: str, file: UploadFile, owner_user_id: uuid.UUID) -> Image:
+        """Subir una imagen física y crear el registro"""
+        listing = self._require_owned_listing(listing_id, owner_user_id)
         
         # Validar tipo de archivo
         allowed_extensions = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
@@ -100,11 +121,9 @@ class ImageService:
         """Obtener una imagen por ID"""
         return self.db.query(Image).filter(Image.id == uuid.UUID(image_id)).first()
 
-    def update_image(self, image_id: str, data: ImageUpdate) -> Optional[Image]:
+    def update_image(self, image_id: str, data: ImageUpdate, owner_user_id: uuid.UUID) -> Optional[Image]:
         """Actualizar metadatos de una imagen"""
-        image = self.get_image(image_id)
-        if not image:
-            return None
+        image = self._require_owned_image(image_id, owner_user_id)
         
         if data.display_order is not None:
             image.display_order = data.display_order
@@ -123,11 +142,9 @@ class ImageService:
         self.db.refresh(image)
         return image
 
-    def delete_image(self, image_id: str) -> bool:
+    def delete_image(self, image_id: str, owner_user_id: uuid.UUID) -> bool:
         """Eliminar una imagen"""
-        image = self.get_image(image_id)
-        if not image:
-            return False
+        image = self._require_owned_image(image_id, owner_user_id)
         
         listing_id = str(image.listing_id)
         
@@ -145,11 +162,9 @@ class ImageService:
         
         return True
 
-    def set_main_image(self, image_id: str) -> Optional[Image]:
+    def set_main_image(self, image_id: str, owner_user_id: uuid.UUID) -> Optional[Image]:
         """Marcar una imagen como principal"""
-        image = self.get_image(image_id)
-        if not image:
-            return None
+        image = self._require_owned_image(image_id, owner_user_id)
         
         # Desmarcar todas las demás
         self.db.query(Image).filter(
@@ -163,12 +178,20 @@ class ImageService:
         self.db.refresh(image)
         return image
 
-    def reorder_images(self, listing_id: str, image_ids: List[str]) -> List[Image]:
+    def reorder_images(self, listing_id: str, image_ids: List[str], owner_user_id: uuid.UUID) -> List[Image]:
         """Reordenar imágenes de un listing"""
+        self._require_owned_listing(listing_id, owner_user_id)
+
+        listing_uuid = uuid.UUID(listing_id)
         for index, image_id in enumerate(image_ids):
-            self.db.query(Image).filter(
-                Image.id == uuid.UUID(image_id)
-            ).update({"display_order": index})
+            image_uuid = uuid.UUID(image_id)
+            image = self.db.query(Image).filter(Image.id == image_uuid).first()
+            if not image:
+                raise HTTPException(status_code=404, detail=f"Image not found: {image_id}")
+            if image.listing_id != listing_uuid:
+                raise HTTPException(status_code=400, detail="All images must belong to the target listing")
+
+            self.db.query(Image).filter(Image.id == image_uuid).update({"display_order": index})
         
         self.db.commit()
         return self.get_listing_images(listing_id)

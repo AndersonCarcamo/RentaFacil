@@ -4,6 +4,7 @@ from app.schemas.auth import UserRegisterRequest
 from app.core.security import create_access_token, create_refresh_token, verify_token
 from app.core.firebase import firebase_service, verify_firebase_token
 from app.core.config import settings
+from app.core.redis_client import get_redis_client
 from app.core.constants import STATUS_MESSAGES, ERROR_MESSAGES
 from app.core.exceptions import (
     AuthenticationError, ValidationError, NotFoundError, ConflictError
@@ -12,6 +13,9 @@ from datetime import datetime, timedelta
 from typing import Optional, Dict
 import uuid
 import logging
+import hashlib
+import json
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +23,23 @@ logger = logging.getLogger(__name__)
 class AuthService:
     def __init__(self, db: Session):
         self.db = db
+
+    @staticmethod
+    def _refresh_token_hash(refresh_token: str) -> str:
+        return hashlib.sha256(refresh_token.encode("utf-8")).hexdigest()
+
+    @staticmethod
+    def _refresh_token_ttl(payload: Dict) -> int:
+        exp = payload.get("exp")
+        if exp is None:
+            return 0
+        try:
+            exp_timestamp = int(exp)
+        except (TypeError, ValueError):
+            return 0
+
+        ttl = exp_timestamp - int(time.time())
+        return max(0, ttl)
 
     def get_user_by_firebase_uid(self, firebase_uid: str) -> Optional[User]:
         """Get user by Firebase UID."""
@@ -203,28 +224,101 @@ class AuthService:
         payload = verify_token(refresh_token, "refresh")
         if not payload:
             return None
+
+        redis_client = get_redis_client()
+        if not redis_client:
+            logger.error("Redis unavailable: cannot validate refresh token session")
+            return None
+
+        token_hash = self._refresh_token_hash(refresh_token)
+        session_key = f"auth:refresh:{token_hash}"
+        session_data_raw = redis_client.get(session_key)
+        if not session_data_raw:
+            return None
+
+        try:
+            session_data = json.loads(session_data_raw)
+        except json.JSONDecodeError:
+            return None
         
         # Get user
         user_id = uuid.UUID(payload.get("sub"))
+        if str(session_data.get("user_id")) != str(user_id):
+            return None
+
         user = self.get_user_by_id(user_id)
         if not user or not user.is_active:
             return None
         
         # Create new tokens
         new_tokens = self.create_user_tokens(user)
+
+        # Rotate refresh token: revoke old and persist new
+        if not self.revoke_refresh_token(refresh_token):
+            return None
+
+        if not self.create_user_session(
+            user_id=user.id,
+            refresh_token=new_tokens["refresh_token"],
+            user_agent=session_data.get("user_agent"),
+            ip_address=session_data.get("ip_address"),
+        ):
+            return None
         
         return new_tokens
 
     def create_user_session(self, user_id: uuid.UUID, refresh_token: str, 
                            user_agent: str = None, ip_address: str = None) -> bool:
-        """Create a new user session (simplified)."""
-        # For now, just return True as we're not storing sessions in database
-        return True
+        """Persist refresh token session in Redis for revocation and rotation."""
+        payload = verify_token(refresh_token, "refresh")
+        if not payload:
+            return False
+
+        if str(payload.get("sub")) != str(user_id):
+            return False
+
+        ttl_seconds = self._refresh_token_ttl(payload)
+        if ttl_seconds <= 0:
+            return False
+
+        redis_client = get_redis_client()
+        if not redis_client:
+            logger.error("Redis unavailable: cannot persist refresh token session")
+            return False
+
+        token_hash = self._refresh_token_hash(refresh_token)
+        session_key = f"auth:refresh:{token_hash}"
+
+        session_payload = {
+            "user_id": str(user_id),
+            "user_agent": user_agent,
+            "ip_address": ip_address,
+            "created_at": datetime.utcnow().isoformat(),
+        }
+
+        try:
+            redis_client.setex(session_key, ttl_seconds, json.dumps(session_payload))
+            return True
+        except Exception as exc:
+            logger.error("Error persisting refresh token session: %s", exc)
+            return False
 
     def revoke_refresh_token(self, refresh_token: str) -> bool:
-        """Revoke a refresh token (simplified)."""
-        # For now, just return True as we're not storing sessions in database
-        return True
+        """Revoke a refresh token by deleting its session key from Redis."""
+        redis_client = get_redis_client()
+        if not redis_client:
+            logger.error("Redis unavailable: cannot revoke refresh token")
+            return False
+
+        token_hash = self._refresh_token_hash(refresh_token)
+        session_key = f"auth:refresh:{token_hash}"
+
+        try:
+            redis_client.delete(session_key)
+            return True
+        except Exception as exc:
+            logger.error("Error revoking refresh token: %s", exc)
+            return False
 
     def update_last_login(self, user: User):
         """Update user's last login timestamp."""

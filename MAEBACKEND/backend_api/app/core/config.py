@@ -4,10 +4,13 @@ from typing import Optional
 import os
 
 
+DEFAULT_ENV_FILE = os.getenv("SETTINGS_ENV_FILE", ".env.production")
+
+
 class Settings(BaseSettings):
     # Database
-    database_url: str = "postgresql://postgres:password@localhost:5432/easy_rent"
-    database_url_test: str = "postgresql://postgres:password@localhost:5432/easy_rent_test"
+    database_url: str
+    database_url_test: Optional[str] = None
     db_pool_profile: Optional[str] = None
     db_pool_size: Optional[int] = None
     db_max_overflow: Optional[int] = None
@@ -19,7 +22,7 @@ class Settings(BaseSettings):
     db_reserved_connections: int = 20
     
     # JWT
-    secret_key: str = "dev-secret-key-change-in-production"
+    secret_key: str
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 7
@@ -32,11 +35,12 @@ class Settings(BaseSettings):
     # Application
     app_name: str = "EasyRent API"
     app_version: str = "1.0.0"
-    debug: bool = True
-    environment: str = "development"
+    debug: bool = False
+    api_docs_enabled: bool = False
+    environment: str = "production"
     allowed_hosts: str = "localhost,127.0.0.1"
     cors_allowed_origins: Optional[str] = None
-    enforce_https_redirect: bool = False
+    enforce_https_redirect: bool = True
     
     # Email
     email_enabled: bool = True
@@ -46,7 +50,7 @@ class Settings(BaseSettings):
     smtp_port: int = 587
     smtp_username: Optional[str] = None
     smtp_password: Optional[str] = None
-    smtp_from_email: str = "noreply@easyrent.com"  # Campo agregado
+    smtp_from_email: str = "noreply@easyrent.com"
     email_from: str = "noreply@easyrent.pe"
     email_from_name: str = "EasyRent"
     
@@ -100,14 +104,14 @@ class Settings(BaseSettings):
     max_video_size: int = 104857600  # 100MB
     
     # Culqi Payment Gateway
-    culqi_public_key: str = "pk_test_SsNSbc4aceAySSp3"
-    culqi_secret_key: str = "sk_test_yrsjDrloVOls3E62"
+    culqi_public_key: Optional[str] = None
+    culqi_secret_key: Optional[str] = None
     culqi_api_url: str = "https://api.culqi.com/v2"
     culqi_rsa_id: Optional[str] = None  # RSA ID from CulqiPanel -> Desarrollo -> RSA Keys
     culqi_rsa_public_key: Optional[str] = None  # RSA Public Key for payload encryption
     
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=DEFAULT_ENV_FILE,
         case_sensitive=False,
         extra="ignore",
     )

@@ -51,10 +51,10 @@ async def lifespan(app: FastAPI):
         _ = firebase_service
         print("✅ Firebase Authentication initialized successfully")
     except Exception as e:
-        print(f"⚠️  Warning: Firebase initialization failed: {e}")
-        print("   Continuing with mock Firebase mode...")
+        print(f"❌ Firebase initialization failed: {e}")
+        raise
     
-    if settings.debug:
+    if settings.api_docs_enabled:
         print(f"📚 API Documentation: http://localhost:8000/docs")
         print(f"🔍 Alternative docs: http://localhost:8000/redoc")
     
@@ -82,12 +82,12 @@ app = FastAPI(
     
     ## Tecnologías
     - **Framework**: FastAPI + Python 3.13+
-    - **Base de datos**: PostgreSQL 17
+    - **Base de datos**: PostgreSQL 18
     - **Autenticación**: JWT (Bearer Token)
     """,
-    docs_url="/docs" if settings.debug else None,
-    redoc_url="/redoc" if settings.debug else None,
-    openapi_url="/openapi.json" if settings.debug else None,
+    docs_url="/docs" if settings.api_docs_enabled else None,
+    redoc_url="/redoc" if settings.api_docs_enabled else None,
+    openapi_url="/openapi.json" if settings.api_docs_enabled else None,
     lifespan=lifespan
 )
 
@@ -175,7 +175,7 @@ async def root():
     return {
         "message": "Welcome to EasyRent API",
         "version": settings.app_version,
-        "docs": "/docs" if settings.debug else "Documentation not available in production",
+        "docs": "/docs" if settings.api_docs_enabled else "Documentation disabled",
         "health": "/health"
     }
 

@@ -131,7 +131,7 @@ async def register(
 
     try:
         logger.info(f"Starting registration for email: {request.email}")
-        logger.info(f"Request data: {request.dict()}")
+        logger.info("Registration payload received")
         
         auth_service = AuthService(db)
         
@@ -191,10 +191,10 @@ async def register(
                 logger.error(
                     f"Compensation failed: could not delete Firebase user {firebase_uid_to_cleanup}"
                 )
-        logger.error(f"Unexpected error during user registration: {e}")
-        logger.error(f"Exception type: {type(e).__name__}")
-        import traceback
-        logger.error(f"Full traceback: {traceback.format_exc()}")
+        logger.error(
+            "Unexpected error during user registration (type=%s)",
+            type(e).__name__,
+        )
         raise http_500_internal_error("Registration failed")
 
 

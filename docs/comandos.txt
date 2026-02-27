@@ -69,6 +69,10 @@ docker compose --env-file MAEBACKEND/backend_api/.env.production -f MAEBACKEND/b
 
 cd /home/rentafacil/proyectos/RentaFacil/MAEBACKEND/backend_api
 
+# Archivos de referencia de entorno:
+# - Desarrollo: usar .env.development.example como plantilla
+# - Producción: usar .env.production.example como plantilla
+
 
 ### DEV - levantar todo
 

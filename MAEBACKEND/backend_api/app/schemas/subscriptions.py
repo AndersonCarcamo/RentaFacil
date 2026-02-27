@@ -9,10 +9,13 @@ from enum import Enum
 # Enums
 class PlanTier(str, Enum):
     """Niveles de plan"""
-    FREE = "free"
-    BASIC = "basic"
-    PREMIUM = "premium"
-    ENTERPRISE = "enterprise"
+    INDIVIDUAL_FREE = "individual_free"
+    INDIVIDUAL_BASIC = "individual_basic"
+    INDIVIDUAL_PREMIUM = "individual_premium"
+    ENTERPRISE_FREE = "enterprise_free"
+    ENTERPRISE_BASIC = "enterprise_basic"
+    ENTERPRISE_PREMIUM = "enterprise_premium"
+    ENTERPRISE_UNLIMITED = "enterprise_unlimited"
 
 
 class PlanPeriod(str, Enum):

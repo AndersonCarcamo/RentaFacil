@@ -4,6 +4,7 @@ from app.core.database import get_db
 from app.schemas.images import ImageResponse, ImageUpdate, ImageUploadResponse
 from app.services.image_service import ImageService
 from app.api.deps import get_current_user
+from app.models.auth import User
 from typing import List
 
 router = APIRouter()
@@ -13,7 +14,7 @@ async def upload_image(
     listing_id: str,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """
     Subir una imagen para un listing.
@@ -21,7 +22,7 @@ async def upload_image(
     """
     try:
         service = ImageService(db)
-        image = service.upload_image(listing_id, file)
+        image = service.upload_image(listing_id, file, current_user.id)
         
         return ImageUploadResponse(
             id=str(image.id),
@@ -49,11 +50,11 @@ async def update_image(
     image_id: str,
     data: ImageUpdate,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Actualizar metadatos de una imagen (orden, alt_text, is_main)"""
     service = ImageService(db)
-    image = service.update_image(image_id, data)
+    image = service.update_image(image_id, data, current_user.id)
     if not image:
         raise HTTPException(status_code=404, detail="Image not found")
     return ImageResponse.from_orm(image)
@@ -62,11 +63,11 @@ async def update_image(
 async def delete_image(
     image_id: str,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Eliminar una imagen"""
     service = ImageService(db)
-    success = service.delete_image(image_id)
+    success = service.delete_image(image_id, current_user.id)
     if not success:
         raise HTTPException(status_code=404, detail="Image not found")
     return {"message": "Image deleted successfully"}
@@ -75,11 +76,11 @@ async def delete_image(
 async def set_main_image(
     image_id: str,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Marcar una imagen como principal"""
     service = ImageService(db)
-    image = service.set_main_image(image_id)
+    image = service.set_main_image(image_id, current_user.id)
     if not image:
         raise HTTPException(status_code=404, detail="Image not found")
     return ImageResponse.from_orm(image)
@@ -89,9 +90,9 @@ async def reorder_images(
     listing_id: str,
     image_ids: List[str],
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Reordenar imágenes de un listing"""
     service = ImageService(db)
-    images = service.reorder_images(listing_id, image_ids)
+    images = service.reorder_images(listing_id, image_ids, current_user.id)
     return [ImageResponse.from_orm(img) for img in images]

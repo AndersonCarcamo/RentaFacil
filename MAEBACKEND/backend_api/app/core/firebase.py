@@ -53,18 +53,16 @@ class FirebaseService:
                 firebase_admin.initialize_app(cred)
                 logger.info("Firebase initialized with service account JSON")
             else:
-                # Development: Use default credentials or mock
-                logger.warning("No Firebase credentials found. Using development mode.")
-                # For development, we'll mock Firebase functionality
-                self._mock_mode = True
-                return
-            
-            self._mock_mode = False
+                raise RuntimeError(
+                    "Firebase credentials not found. Configure FIREBASE_SERVICE_ACCOUNT_PATH "
+                    "or FIREBASE_SERVICE_ACCOUNT_JSON."
+                )
+
             logger.info("Firebase Authentication service initialized successfully")
             
         except Exception as e:
             logger.error(f"Failed to initialize Firebase: {e}")
-            self._mock_mode = True
+            raise
 
     def _resolve_service_account_path(self) -> Optional[str]:
         """Resolve Firebase service account path from config/env/default project location."""
@@ -90,9 +88,6 @@ class FirebaseService:
         Returns:
             Dict with user claims if valid, None if invalid
         """
-        if self._mock_mode:
-            return self._mock_verify_token(token)
-        
         try:
             logger.info(f"Verifying Firebase token (length: {len(token)})")
             logger.info(f"Token prefix: {token[:30]}...")
@@ -132,9 +127,6 @@ class FirebaseService:
         Returns:
             Dict with user information if found, None if not found
         """
-        if self._mock_mode:
-            return self._mock_get_user_by_uid(uid)
-        
         try:
             user_record = auth.get_user(uid)
             return {
@@ -165,9 +157,6 @@ class FirebaseService:
         Returns:
             Dict with user information if found, None if not found
         """
-        if self._mock_mode:
-            return self._mock_get_user_by_email(email)
-        
         try:
             user_record = auth.get_user_by_email(email)
             return {
@@ -199,9 +188,6 @@ class FirebaseService:
         Returns:
             Custom token string if successful, None if failed
         """
-        if self._mock_mode:
-            return self._mock_create_custom_token(uid, additional_claims)
-        
         try:
             custom_token = auth.create_custom_token(uid, additional_claims)
             return custom_token.decode('utf-8')
@@ -219,10 +205,6 @@ class FirebaseService:
         Returns:
             True if deleted (or not found), False if failed
         """
-        if self._mock_mode:
-            logger.info(f"[MOCK MODE] Would delete Firebase user: {uid}")
-            return True
-
         try:
             auth.delete_user(uid)
             logger.info(f"Firebase user deleted successfully: {uid}")
@@ -233,44 +215,6 @@ class FirebaseService:
         except Exception as e:
             logger.error(f"Error deleting Firebase user {uid}: {type(e).__name__} - {str(e)}")
             return False
-    
-    # Mock methods for development
-    def _mock_verify_token(self, token: str) -> Optional[Dict[str, Any]]:
-        """Mock Firebase token verification for development."""
-        if token.startswith("mock_token_"):
-            uid = token.replace("mock_token_", "")
-            return {
-                'uid': uid,
-                'email': f"{uid}@mock.com",
-                'email_verified': True,
-                'name': f"Mock User {uid}",
-                'picture': None,
-                'phone_number': None
-            }
-        return None
-    
-    def _mock_get_user_by_uid(self, uid: str) -> Optional[Dict[str, Any]]:
-        """Mock Firebase user lookup for development."""
-        return {
-            'uid': uid,
-            'email': f"{uid}@mock.com",
-            'email_verified': True,
-            'display_name': f"Mock User {uid}",
-            'photo_url': None,
-            'phone_number': None,
-            'disabled': False,
-            'creation_timestamp': 1640995200000,  # Mock timestamp
-            'last_sign_in_timestamp': 1640995200000
-        }
-    
-    def _mock_get_user_by_email(self, email: str) -> Optional[Dict[str, Any]]:
-        """Mock Firebase user lookup by email for development."""
-        # In mock mode, assume email doesn't exist to allow testing
-        return None
-    
-    def _mock_create_custom_token(self, uid: str, additional_claims: Optional[Dict] = None) -> str:
-        """Mock custom token creation for development."""
-        return f"mock_custom_token_{uid}"
 
 
 # Singleton instance
