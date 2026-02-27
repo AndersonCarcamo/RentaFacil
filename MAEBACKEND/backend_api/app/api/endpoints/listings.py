@@ -687,6 +687,7 @@ async def upload_listing_image(
     file: UploadFile = File(..., description="Archivo de imagen"),
     alt_text: Optional[str] = Form(None, description="Texto alternativo"),
     is_main: bool = Form(False, description="¿Es la imagen principal?"),
+    display_order: Optional[int] = Form(None, description="Orden de visualización"),
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user)
 ):
@@ -761,7 +762,7 @@ async def upload_listing_image(
             filename=unique_filename,
             original_url=image_url,
             alt_text=alt_text,
-            display_order=existing_count,
+            display_order=display_order if display_order is not None else existing_count,
             is_main=is_main or existing_count == 0,  # Primera imagen es main por defecto
             file_size=len(file_data),
             width=width,

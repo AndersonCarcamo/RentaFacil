@@ -2729,7 +2729,7 @@ const CreateListingPage: React.FC = () => {
                     setFormData(prev => ({ ...prev, images }));
                   }}
                   maxImages={20}
-                  apiBaseUrl={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/v1`}
+                  apiBaseUrl={`${process.env.NEXT_PUBLIC_API_URL}/v1`}
                   deferUpload={true}
                 />
               </div>

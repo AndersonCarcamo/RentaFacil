@@ -224,16 +224,21 @@ class ListingService:
 
         previous_slug = listing.slug
         updated_payload = data.dict(exclude_unset=True)
+        amenities_payload = updated_payload.pop("amenities", None)
         updated_fields = set(updated_payload.keys())
+
+        previous_title = listing.title
+        previous_district = listing.district
+        previous_property_type = listing.property_type
         
         # Actualizar campos
         for field, value in updated_payload.items():
             setattr(listing, field, value)
         
         # Regenerar slug si cambió el título, distrito o tipo de propiedad
-        title_changed = hasattr(data, 'title') and data.title and data.title != listing.title
-        district_changed = hasattr(data, 'district') and data.district and data.district != listing.district
-        type_changed = hasattr(data, 'property_type') and data.property_type and data.property_type != listing.property_type
+        title_changed = "title" in updated_fields and listing.title != previous_title
+        district_changed = "district" in updated_fields and listing.district != previous_district
+        type_changed = "property_type" in updated_fields and listing.property_type != previous_property_type
         
         if title_changed or district_changed or type_changed:
             base_slug = generate_listing_slug(
@@ -246,12 +251,47 @@ class ListingService:
             listing.slug = unique_slug
         
         # Regenerar meta tags si cambió información relevante
-        if title_changed or district_changed or type_changed or hasattr(data, 'price') or hasattr(data, 'bedrooms') or hasattr(data, 'bathrooms'):
+        if title_changed or district_changed or type_changed or ({"price", "bedrooms", "bathrooms"} & updated_fields):
             meta_title, meta_description = generate_meta_tags(listing)
             listing.meta_title = meta_title
             listing.meta_description = meta_description
-        
+
+        if amenities_payload is not None:
+            target_amenity_ids = {int(amenity_id) for amenity_id in amenities_payload}
+
+            existing_rows = self.db.execute(text("""
+                SELECT amenity_id
+                FROM core.listing_amenities
+                WHERE listing_id = :listing_id
+            """), {"listing_id": listing.id}).fetchall()
+            current_amenity_ids = {int(row[0]) for row in existing_rows}
+
+            amenity_ids_to_delete = current_amenity_ids - target_amenity_ids
+            amenity_ids_to_insert = target_amenity_ids - current_amenity_ids
+
+            for amenity_id in amenity_ids_to_delete:
+                self.db.execute(text("""
+                    DELETE FROM core.listing_amenities
+                    WHERE listing_id = :listing_id AND amenity_id = :amenity_id
+                """), {
+                    "listing_id": listing.id,
+                    "amenity_id": amenity_id,
+                })
+
+            for amenity_id in amenity_ids_to_insert:
+                self.db.execute(text("""
+                    INSERT INTO core.listing_amenities
+                    (listing_id, listing_created_at, amenity_id)
+                    VALUES (:listing_id, :created_at, :amenity_id)
+                    ON CONFLICT DO NOTHING
+                """), {
+                    "listing_id": listing.id,
+                    "created_at": listing.created_at,
+                    "amenity_id": amenity_id,
+                })
+
         self.db.commit()
+
         self.db.refresh(listing)
 
         api_cache_service.invalidate_listing_detail(
@@ -260,7 +300,7 @@ class ListingService:
             old_slug=previous_slug,
         )
 
-        if listing.status == 'published' and (updated_fields & self.SEARCH_RELEVANT_UPDATE_FIELDS):
+        if listing.status == 'published' and ((updated_fields & self.SEARCH_RELEVANT_UPDATE_FIELDS) or amenities_payload is not None):
             search_cache_service.invalidate_on_listing_change("update_listing")
 
         return listing

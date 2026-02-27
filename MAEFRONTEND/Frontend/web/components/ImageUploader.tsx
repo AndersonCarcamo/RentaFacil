@@ -31,7 +31,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
   initialImages = [],
   onImagesChange,
   maxImages = 20,
-  apiBaseUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/v1`,
+  apiBaseUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/v1`,
   deferUpload = false,
 }) => {
   const [images, setImages] = useState<ImageFile[]>([]);
@@ -85,8 +85,11 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
         };
 
         // Agregar a la lista con estado de carga
-        const updatedImages = [...images, tempImage];
-        setImages(updatedImages);
+        setImages(prev => {
+          const updated = [...prev, tempImage];
+          setTimeout(() => onImagesChange?.(updated), 0);
+          return updated;
+        });
 
         // Si tenemos listingId, subir al backend
         if (listingId && !deferUpload) {
@@ -145,15 +148,17 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
           }
         } else {
           // Sin listingId, solo mantener preview local
-          setImages(prev =>
-            prev.map(img =>
+          setImages(prev => {
+            const updated = prev.map(img =>
               img.preview === preview ? { ...img, isUploading: false } : img
-            )
-          );
+            );
+            setTimeout(() => onImagesChange?.(updated), 0);
+            return updated;
+          });
         }
       }
     },
-    [images, maxImages, listingId, apiBaseUrl, mediaBaseUrl]
+    [images, maxImages, listingId, apiBaseUrl, mediaBaseUrl, onImagesChange]
   );
 
   const handleDrop = useCallback(
