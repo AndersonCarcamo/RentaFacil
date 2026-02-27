@@ -36,6 +36,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
   const [dragOver, setDragOver] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
+  const mediaBaseUrl = apiBaseUrl.replace(/\/v1\/?$/, '');
 
   // Cargar imágenes iniciales solo una vez
   useEffect(() => {
@@ -45,7 +46,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
         url: img.url,
         preview: img.url.startsWith('http') 
           ? img.url 
-          : `${apiBaseUrl}${img.url}`,
+          : `${mediaBaseUrl}${img.url}`,
         isMain: img.is_main,
         display_order: img.display_order,
       }));
@@ -121,7 +122,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
                       url: uploadedImage.url,
                       preview: uploadedImage.url.startsWith('http')
                         ? uploadedImage.url
-                        : `${apiBaseUrl}${uploadedImage.url}`,
+                        : `${mediaBaseUrl}${uploadedImage.url}`,
                       isMain: uploadedImage.is_main,
                       display_order: uploadedImage.display_order,
                       isUploading: false,
@@ -150,7 +151,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
         }
       }
     },
-    [images, maxImages, listingId, apiBaseUrl]
+    [images, maxImages, listingId, apiBaseUrl, mediaBaseUrl]
   );
 
   const handleDrop = useCallback(
