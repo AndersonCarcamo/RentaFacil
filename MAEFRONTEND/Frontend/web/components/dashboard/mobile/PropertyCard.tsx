@@ -16,6 +16,16 @@ interface PropertyCardProps {
   onMoreActions: (property: Listing) => void;
 }
 
+const resolveMediaUrl = (url?: string) => {
+  if (!url) return '';
+  if (/^https?:\/\//i.test(url)) return url;
+
+  const baseUrl = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '');
+  if (!baseUrl) return url;
+
+  return `${baseUrl}${url.startsWith('/') ? url : `/${url}`}`;
+};
+
 export const PropertyCard: React.FC<PropertyCardProps> = ({
   property,
   onToggleStatus,
@@ -68,7 +78,7 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
       <div className="relative h-40 bg-gray-200">
         {mainImage ? (
           <img
-            src={`http://localhost:8000${mainImage}`}
+            src={resolveMediaUrl(mainImage)}
             alt={property.title}
             className="w-full h-full object-cover"
             onError={(e) => {

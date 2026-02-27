@@ -53,6 +53,16 @@ interface FilterState {
   sortOrder: 'asc' | 'desc';
 }
 
+const resolveMediaUrl = (url?: string) => {
+  if (!url) return '';
+  if (/^https?:\/\//i.test(url)) return url;
+
+  const baseUrl = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '');
+  if (!baseUrl) return url;
+
+  return `${baseUrl}${url.startsWith('/') ? url : `/${url}`}`;
+};
+
 const DashboardPage: React.FC = () => {
   const router = useRouter();
   const auth = useAuth();
@@ -468,10 +478,10 @@ const DashboardPage: React.FC = () => {
               <div className="relative h-64 bg-gradient-to-br from-gray-300 to-gray-400 group">
                 {previewProperty.images && previewProperty.images.length > 0 ? (
                   <img
-                    src={`http://localhost:8000${
-                      previewProperty.images.find(img => img.is_main)?.url || 
+                    src={resolveMediaUrl(
+                      previewProperty.images.find(img => img.is_main)?.url ||
                       previewProperty.images[0]?.url
-                    }`}
+                    )}
                     alt={previewProperty.title}
                     className="w-full h-full object-cover"
                   />
@@ -1423,10 +1433,10 @@ const DashboardPage: React.FC = () => {
                             <div className="flex-shrink-0 h-12 w-12">
                               {property.images && property.images.length > 0 ? (
                                 <img
-                                  src={`http://localhost:8000${
-                                    property.images.find(img => img.is_main)?.url || 
+                                  src={resolveMediaUrl(
+                                    property.images.find(img => img.is_main)?.url ||
                                     property.images[0]?.url
-                                  }`}
+                                  )}
                                   alt={property.title}
                                   className="h-12 w-12 rounded-lg object-cover"
                                   onError={(e) => {

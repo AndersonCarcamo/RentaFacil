@@ -25,6 +25,16 @@ interface PropertyTableProps {
   onCreateNew: () => void;
 }
 
+const resolveMediaUrl = (url?: string) => {
+  if (!url) return '';
+  if (/^https?:\/\//i.test(url)) return url;
+
+  const baseUrl = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '');
+  if (!baseUrl) return url;
+
+  return `${baseUrl}${url.startsWith('/') ? url : `/${url}`}`;
+};
+
 export const PropertyTable: React.FC<PropertyTableProps> = ({
   properties,
   filteredProperties,
@@ -154,10 +164,10 @@ export const PropertyTable: React.FC<PropertyTableProps> = ({
                       <div className="flex-shrink-0 h-12 w-12">
                         {property.images && property.images.length > 0 ? (
                           <img
-                            src={`http://localhost:8000${
-                              property.images.find(img => img.is_main)?.url || 
+                            src={resolveMediaUrl(
+                              property.images.find(img => img.is_main)?.url ||
                               property.images[0]?.url
-                            }`}
+                            )}
                             alt={property.title}
                             className="h-12 w-12 rounded-lg object-cover"
                             onError={(e) => {
