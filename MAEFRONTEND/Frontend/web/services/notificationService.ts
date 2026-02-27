@@ -35,12 +35,23 @@ export interface NotificationListResponse {
 }
 
 class NotificationService {
-  private getAuthHeaders() {
+  private getAuthHeaders(includeJsonContentType = false) {
     const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
-    return {
-      'Authorization': token ? `Bearer ${token}` : '',
-      'Content-Type': 'application/json'
+    const headers: Record<string, string> = {}
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
     }
+
+    if (includeJsonContentType) {
+      headers['Content-Type'] = 'application/json'
+    }
+
+    return headers
+  }
+
+  private getBaseUrl() {
+    return `${normalizedBaseUrl}${API_VERSION}`
   }
 
   /**
@@ -77,7 +88,7 @@ class NotificationService {
       queryParams.set('size', params.size.toString())
     }
 
-    const url = `${API_BASE_URL}${API_VERSION}/notifications?${queryParams}`;
+    const url = `${this.getBaseUrl()}/notifications/?${queryParams}`;
     const headers = this.getAuthHeaders();
     
     console.log('[NotificationService] Fetching from URL:', url);
@@ -103,7 +114,7 @@ class NotificationService {
    */
   async getUnreadCount(): Promise<number> {
     const response = await fetch(
-      `${API_BASE_URL}${API_VERSION}/notifications/unread-count`,
+      `${this.getBaseUrl()}/notifications/unread-count`,
       { headers: this.getAuthHeaders() }
     )
 
@@ -120,7 +131,7 @@ class NotificationService {
    */
   async markAsRead(notificationId: string): Promise<void> {
     const response = await fetch(
-      `${API_BASE_URL}${API_VERSION}/notifications/${notificationId}/read`,
+      `${this.getBaseUrl()}/notifications/${notificationId}/read`,
       {
         method: 'PATCH',
         headers: this.getAuthHeaders()
@@ -137,10 +148,10 @@ class NotificationService {
    */
   async markAllAsRead(): Promise<{ count: number }> {
     const response = await fetch(
-      `${API_BASE_URL}${API_VERSION}/notifications/mark-read`,
+      `${this.getBaseUrl()}/notifications/mark-read`,
       {
         method: 'PATCH',
-        headers: this.getAuthHeaders(),
+        headers: this.getAuthHeaders(true),
         body: JSON.stringify({ all: true })
       }
     )
@@ -157,7 +168,7 @@ class NotificationService {
    */
   async deleteNotification(notificationId: string): Promise<void> {
     const response = await fetch(
-      `${API_BASE_URL}${API_VERSION}/notifications/${notificationId}`,
+      `${this.getBaseUrl()}/notifications/${notificationId}`,
       {
         method: 'DELETE',
         headers: this.getAuthHeaders()

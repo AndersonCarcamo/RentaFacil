@@ -26,7 +26,7 @@ services:
         while ! nc -z redis 6379; do sleep 1; done &&
         echo 'Redis is ready!' &&
         alembic upgrade head &&
-        uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers $${WEB_CONCURRENCY:-6} --proxy-headers
+        uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers $${WEB_CONCURRENCY:-6} --proxy-headers --forwarded-allow-ips="$${FORWARDED_ALLOW_IPS:-127.0.0.1}"
       "
 
   celery_worker:
