@@ -16,7 +16,7 @@ from app.models.media import Image, Video
 from app.models.auth import User
 from app.core.exceptions import http_400_bad_request, http_403_forbidden, http_404_not_found, http_500_internal_error
 from typing import List, Optional, Dict, Any
-from uuid import UUID
+from uuid import UUID, uuid4
 from pathlib import Path
 from PIL import Image as PILImage
 from datetime import datetime, timezone
@@ -724,12 +724,12 @@ async def upload_listing_image(
         listing_images_dir = MEDIA_DIR / "listings" / str(listing_uuid) / "images"
         listing_images_dir.mkdir(parents=True, exist_ok=True)
         
-        # Contar imágenes existentes
+        # Contar imágenes existentes (solo para orden de visualización)
         existing_count = db.query(Image).filter(Image.listing_id == listing_uuid).count()
-        
-        # Generar nombre único
-        file_ext = os.path.splitext(file.filename)[1] or '.jpg'
-        unique_filename = f"image_{existing_count + 1}{file_ext}"
+
+        # Generar nombre único para evitar colisiones y problemas de cache
+        file_ext = (os.path.splitext(file.filename)[1] or '.jpg').lower()
+        unique_filename = f"image_{uuid4().hex}{file_ext}"
         file_path = listing_images_dir / unique_filename
         
         # Extraer dimensiones

@@ -540,11 +540,79 @@ const CreateListingPage: React.FC = () => {
 
       // Crear o actualizar listing según el modo
       let listingId = editingListingId;
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const token = localStorage.getItem('access_token');
+
+      const syncListingImages = async (targetListingId: string) => {
+        if (!token) return;
+
+        const existingResponse = await fetch(`${apiBaseUrl}/v1/listings/${targetListingId}/images`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json',
+          },
+        });
+
+        const existingImages = existingResponse.ok ? await existingResponse.json() : [];
+        const keptIds = new Set(
+          formData.images
+            .filter((img) => img.id && !img.file)
+            .map((img) => img.id as string)
+        );
+
+        for (const existing of existingImages) {
+          if (existing?.id && !keptIds.has(existing.id)) {
+            await fetch(`${apiBaseUrl}/v1/listings/${targetListingId}/images/${existing.id}`, {
+              method: 'DELETE',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+              },
+            });
+          }
+        }
+
+        for (let i = 0; i < formData.images.length; i++) {
+          const image = formData.images[i];
+          if (!image.file) continue;
+
+          const imageFormData = new FormData();
+          imageFormData.append('file', image.file);
+          imageFormData.append('is_main', String(image.isMain || i === 0));
+          imageFormData.append('display_order', String(i));
+
+          const uploadResponse = await fetch(`${apiBaseUrl}/v1/listings/${targetListingId}/images`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+            body: imageFormData,
+          });
+
+          if (!uploadResponse.ok) {
+            const error = await uploadResponse.json().catch(() => ({}));
+            console.error('Error uploading image:', error);
+          }
+        }
+
+        const desiredMainImage = formData.images.find((img) => img.isMain);
+        if (desiredMainImage?.id && !desiredMainImage.file) {
+          await fetch(`${apiBaseUrl}/v1/listings/${targetListingId}/images/${desiredMainImage.id}`, {
+            method: 'PATCH',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ is_main: true }),
+          });
+        }
+      };
       
       if (isEditMode && editingListingId) {
         await updateListing(editingListingId, listingData);
         // Actualizar amenidades
         await updateListingAmenities(editingListingId, formData.selectedAmenities);
+        // Sincronizar imágenes (borradas + nuevas + principal)
+        await syncListingImages(editingListingId);
       } else {
         const createdListing = await createListing(listingData);
         listingId = createdListing.id;
@@ -557,7 +625,7 @@ const CreateListingPage: React.FC = () => {
             console.error('Error updating amenities, deleting listing:', amenitiesError);
             // Si falla la actualización de amenidades, eliminar el listing creado
             try {
-              await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/listings/${listingId}`, {
+              await fetch(`${apiBaseUrl}/v1/listings/${listingId}`, {
                 method: 'DELETE',
                 headers: {
                   'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
@@ -587,7 +655,7 @@ const CreateListingPage: React.FC = () => {
                 imageFormData.append('display_order', String(i));
 
                 const response = await fetch(
-                  `${process.env.NEXT_PUBLIC_API_URL}/v1/listings/${listingId}/images`,
+                  `${apiBaseUrl}/v1/listings/${listingId}/images`,
                   {
                     method: 'POST',
                     headers: {
@@ -2662,6 +2730,7 @@ const CreateListingPage: React.FC = () => {
                   }}
                   maxImages={20}
                   apiBaseUrl={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/v1`}
+                  deferUpload={true}
                 />
               </div>
 

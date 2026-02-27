@@ -102,6 +102,7 @@ configured_cors_origins = [
 
 if settings.environment.lower() == "production":
     cors_origins = [
+        "http://192.168.18.51:3000",  # Frontend en red local (producción LAN)
         *configured_frontend_origins,
         *configured_cors_origins,
     ]
@@ -134,6 +135,7 @@ if settings.enforce_https_redirect:
 app.add_middleware(
     CORSMiddleware,
     allow_origins=list(dict.fromkeys(cors_origins)),
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+)(:\d+)?$",
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],

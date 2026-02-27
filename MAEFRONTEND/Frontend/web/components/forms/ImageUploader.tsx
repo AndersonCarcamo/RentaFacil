@@ -23,6 +23,7 @@ interface ImageUploaderProps {
   onImagesChange?: (images: ImageFile[]) => void;
   maxImages?: number;
   apiBaseUrl?: string;
+  deferUpload?: boolean;
 }
 
 const ImageUploader: React.FC<ImageUploaderProps> = ({
@@ -31,6 +32,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
   onImagesChange,
   maxImages = 20,
   apiBaseUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/v1`,
+  deferUpload = false,
 }) => {
   const [images, setImages] = useState<ImageFile[]>([]);
   const [dragOver, setDragOver] = useState(false);
@@ -87,7 +89,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
         setImages(updatedImages);
 
         // Si tenemos listingId, subir al backend
-        if (listingId) {
+        if (listingId && !deferUpload) {
           try {
             const formData = new FormData();
             formData.append('file', file);
@@ -168,7 +170,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
     setUploadError(null);
 
     // Si la imagen tiene ID (está en el servidor), eliminarla del backend
-    if (imageToRemove.id && listingId) {
+    if (imageToRemove.id && listingId && !deferUpload) {
       try {
         const token = localStorage.getItem('access_token');
         const response = await fetch(
@@ -202,7 +204,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
       updatedImages[0].isMain = true;
       
       // Actualizar en el backend si es necesario
-      if (updatedImages[0].id && listingId) {
+      if (updatedImages[0].id && listingId && !deferUpload) {
         await handleSetMain(0, updatedImages);
         return; // handleSetMain ya actualiza el estado
       }
@@ -219,7 +221,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
     setUploadError(null);
 
     // Si la imagen tiene ID (está en el servidor), actualizar en el backend
-    if (imageToSetMain.id && listingId) {
+    if (imageToSetMain.id && listingId && !deferUpload) {
       try {
         const token = localStorage.getItem('access_token');
         const response = await fetch(
