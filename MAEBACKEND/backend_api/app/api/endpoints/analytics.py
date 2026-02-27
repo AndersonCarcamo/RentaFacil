@@ -361,7 +361,7 @@ async def track_view(
         event_data = {
             'user_id': getattr(current_user, 'id', None) if current_user else None,
             'session_id': session_id,
-            'event_type': 'view',
+            'event_type': 'listing_view',
             'listing_id': listing_uuid,
             'properties_json': properties_json,
             'ip_address': ip_address,
@@ -384,7 +384,11 @@ async def track_view(
     
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        # Tracking no debe romper la UX de detalle de propiedad
+        return {
+            "message": "View tracking skipped",
+            "error": str(e)
+        }
 
 
 @router.post("/analytics/track/contact", status_code=status.HTTP_201_CREATED)

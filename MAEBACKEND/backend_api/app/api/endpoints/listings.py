@@ -35,6 +35,20 @@ ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/avi', 'video/quicktime', 'video/webm'
 
 router = APIRouter()
 
+
+def _image_file_exists(image_url: Optional[str]) -> bool:
+    if not image_url:
+        return False
+
+    normalized = image_url.split("?", 1)[0].lstrip("/")
+    if normalized.startswith("resize/"):
+        normalized = normalized[len("resize/"):]
+    if normalized.startswith("media/"):
+        normalized = normalized[len("media/"):]
+
+    file_path = MEDIA_DIR / normalized
+    return file_path.exists()
+
 @router.get("/", response_model=List[ListingResponse], summary="Listar propiedades")
 async def list_listings(
     operation_type: Optional[str] = None,
@@ -82,6 +96,8 @@ async def list_listings(
             
             # Agrupar imágenes por listing_id
             for img in all_images:
+                if not _image_file_exists(img.original_url):
+                    continue
                 if img.listing_id not in images_by_listing:
                     images_by_listing[img.listing_id] = []
                 images_by_listing[img.listing_id].append({
@@ -144,6 +160,8 @@ async def list_my_listings(db: Session = Depends(get_db), current_user=Depends(g
             
             # Agrupar imágenes por listing_id
             for img in all_images:
+                if not _image_file_exists(img.original_url):
+                    continue
                 if img.listing_id not in images_by_listing:
                     images_by_listing[img.listing_id] = []
                 images_by_listing[img.listing_id].append({
@@ -363,7 +381,7 @@ async def get_listing_by_slug(slug: str, db: Session = Depends(get_db)):
             "width": img.width,
             "height": img.height,
             "file_size": img.file_size
-        } for img in images]
+        } for img in images if _image_file_exists(img.original_url)]
         listing_dict['amenities'] = amenities
         
         api_cache_service.set_listing_detail(str(listing.id), listing.slug, listing_dict)
@@ -422,7 +440,7 @@ async def get_listing(listing_id: str, db: Session = Depends(get_db)):
         "width": img.width,
         "height": img.height,
         "file_size": img.file_size
-    } for img in images]
+    } for img in images if _image_file_exists(img.original_url)]
     listing_dict['amenities'] = amenities
     
     api_cache_service.set_listing_detail(str(listing.id), listing.slug, listing_dict)
@@ -789,8 +807,8 @@ async def get_listing_images(
         images = db.query(Image).filter(
             Image.listing_id == listing_uuid
         ).order_by(Image.display_order, Image.created_at).all()
-        
-        return images
+
+        return [img for img in images if _image_file_exists(img.original_url)]
         
     except Exception as e:
         logger.error(f"Error obteniendo imágenes: {e}")

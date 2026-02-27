@@ -317,6 +317,10 @@ MEDIA_DIR.mkdir(exist_ok=True)  # Ensure media directory exists
 
 app.mount("/media", StaticFiles(directory=str(MEDIA_DIR)), name="media")
 
+# Compatibilidad con Nginx/image loaders que solicitan archivos en /resize/media/*
+# (sirve los mismos archivos físicos que /media/*)
+app.mount("/resize/media", StaticFiles(directory=str(MEDIA_DIR)), name="resize_media")
+
 # Mount uploads directory for listing images
 UPLOADS_DIR = Path(__file__).parent.parent / "uploads"
 UPLOADS_DIR.mkdir(exist_ok=True)

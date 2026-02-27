@@ -204,8 +204,12 @@ class ListingService:
         self.db.commit()
         self.db.refresh(listing)
         
-        # Auto-validate Airbnb eligibility for rent/temp_rent operations
-        if data.operation in ['rent', 'temp_rent']:
+        # Auto-validate Airbnb eligibility only for Airbnb-style rentals
+        should_validate_airbnb = (
+            data.operation in ['rent', 'temp_rent'] and
+            (data.rental_model in ['airbnb', 'typeairbnb'])
+        )
+        if should_validate_airbnb:
             self._validate_airbnb_eligibility(listing)
 
         if listing.status == 'published':
@@ -386,8 +390,8 @@ class ListingService:
     def _validate_airbnb_eligibility(self, listing: Listing) -> None:
         """Validate Airbnb eligibility using the PostgreSQL function"""
         try:
-            # Call the PostgreSQL function
-            query = text("SELECT core.validate_airbnb_listing(:listing_id)")
+            # Call the PostgreSQL function (explicit UUID cast avoids unknown-type resolution issues)
+            query = text("SELECT core.validate_airbnb_listing(CAST(:listing_id AS UUID))")
             result = self.db.execute(query, {"listing_id": str(listing.id)}).fetchone()
             
             if result and result[0]:
@@ -407,10 +411,15 @@ class ListingService:
         except Exception as e:
             # Log error but don't fail the listing creation
             print(f"Error validating Airbnb eligibility: {str(e)}")
-            # Set default values
-            listing.airbnb_score = 0
-            listing.airbnb_eligible = False
-            self.db.commit()
+            # IMPORTANT: reset aborted transaction before any further SQL
+            self.db.rollback()
+            # Set safe defaults in a clean transaction
+            try:
+                listing.airbnb_score = 0
+                listing.airbnb_eligible = False
+                self.db.commit()
+            except Exception:
+                self.db.rollback()
 
     def validate_airbnb_listing(self, listing_id: str) -> Optional[Dict[str, Any]]:
         """Manually validate Airbnb eligibility for an existing listing"""
@@ -419,8 +428,8 @@ class ListingService:
             return None
             
         try:
-            # Call the PostgreSQL function
-            query = text("SELECT core.validate_airbnb_listing(:listing_id)")
+            # Call the PostgreSQL function (explicit UUID cast avoids unknown-type resolution issues)
+            query = text("SELECT core.validate_airbnb_listing(CAST(:listing_id AS UUID))")
             result = self.db.execute(query, {"listing_id": listing_id}).fetchone()
             
             if result and result[0]:
@@ -452,6 +461,7 @@ class ListingService:
                     return {"error": json_result.get('error', 'Validation failed')}
         except Exception as e:
             print(f"Error validating Airbnb eligibility: {str(e)}")
+            self.db.rollback()
             return None
 
     def opt_out_airbnb(self, listing_id: str) -> Optional['Listing']:

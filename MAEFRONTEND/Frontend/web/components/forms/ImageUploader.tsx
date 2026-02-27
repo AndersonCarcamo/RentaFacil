@@ -30,7 +30,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
   initialImages = [],
   onImagesChange,
   maxImages = 20,
-  apiBaseUrl = 'http://localhost:8000/v1',
+  apiBaseUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/v1`,
 }) => {
   const [images, setImages] = useState<ImageFile[]>([]);
   const [dragOver, setDragOver] = useState(false);
@@ -45,7 +45,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
         url: img.url,
         preview: img.url.startsWith('http') 
           ? img.url 
-          : `http://localhost:8000${img.url}`,  // Usar URL base sin /v1
+          : `${apiBaseUrl}${img.url}`,
         isMain: img.is_main,
         display_order: img.display_order,
       }));
@@ -121,7 +121,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
                       url: uploadedImage.url,
                       preview: uploadedImage.url.startsWith('http')
                         ? uploadedImage.url
-                        : `http://localhost:8000${uploadedImage.url}`,  // Usar URL base sin /v1
+                        : `${apiBaseUrl}${uploadedImage.url}`,
                       isMain: uploadedImage.is_main,
                       display_order: uploadedImage.display_order,
                       isUploading: false,

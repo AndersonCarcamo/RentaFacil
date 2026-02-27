@@ -152,7 +152,7 @@ interface FormData {
   selectedAmenities: number[];
   
   // Imágenes
-  images: Array<{ file?: File; url: string; preview: string; isMain: boolean }>;
+  images: Array<{ id?: string; file?: File; url: string; preview: string; isMain: boolean }>;
   
   // Información de contacto
   contact_name: string;
@@ -338,6 +338,7 @@ const CreateListingPage: React.FC = () => {
             available_from: listing.available_from || '',
             selectedAmenities: listing.amenities?.map(a => a.id) || [],
             images: listing.images?.map(img => ({
+              id: img.id,
               url: img.url,
               preview: img.url,
               isMain: img.is_main || false,
@@ -2651,7 +2652,7 @@ const CreateListingPage: React.FC = () => {
                 <ImageUploader
                   listingId={editingListingId || undefined}
                   initialImages={formData.images?.map((img, index) => ({
-                    id: img.url, // Usar URL como ID temporal si no existe
+                    id: img.id || img.url,
                     url: img.url,
                     is_main: img.isMain || false,
                     display_order: index,
@@ -2660,7 +2661,7 @@ const CreateListingPage: React.FC = () => {
                     setFormData(prev => ({ ...prev, images }));
                   }}
                   maxImages={20}
-                  apiBaseUrl="http://localhost:8000/v1"
+                  apiBaseUrl={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/v1`}
                 />
               </div>
 
